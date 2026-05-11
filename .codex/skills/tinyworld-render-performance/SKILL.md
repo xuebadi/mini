@@ -12,8 +12,8 @@ Current renderer contract:
 - Single full-screen post pass only: scene render target, then shader to screen.
 - No EffectComposer dependency or bundler.
 - Cap DPR; do not return to uncapped `devicePixelRatio`.
-- Main WebGL context uses `antialias: false`; the post shader handles mild smoothing.
-- Use `WebGLMultisampleRenderTarget` when WebGL2 is available to avoid jagged post-processed edges.
+- Main WebGL context uses `antialias: true` for the post-disabled (default) path.
+- Post-enabled path uses `WebGLMultisampleRenderTarget` with `samples = min(8, maxSamples)` on WebGL2 plus a luminance-gated FXAA-style 5-tap inside the post fragment shader. The FXAA tap only kicks in on edges (`edge = clamp((lmax - lmin) * 3.0, 0, 1)`) so flat tile interiors stay sharp.
 
 GPU caches (introduced for low-end GPU + visible-distance scaling):
 
@@ -28,6 +28,16 @@ GPU caches (introduced for low-end GPU + visible-distance scaling):
 - Ghost opacity 100% means the ghost-strength control itself is maxed, not that the visible-size boundary expands. Outside the visible-size square must still be visibly weaker than the fully rendered center.
 - Post-processing-only controls are shader uniforms: brightness, saturation, contrast, vignette, and warmth.
 - Shadow maps should stay modest unless a visual defect proves otherwise.
+- The sun is the only shadow caster. Its angle is fixed in world space
+  (`SUN_OFFSET = (7, 12, 5)`) but its position and `sun.target` follow
+  the camera `target` via `updateSunFollow()` (called from
+  `updateCamera()`). The shadow frustum is `±SHADOW_HALF (20)` in light
+  space so shadows stay correct wherever the user pans — never anchor
+  the sun at the world origin again.
+- Lighting stack: `AmbientLight` (flat fill so shadowed sides never go
+  black) + `HemisphereLight` (warm sky/ground gradient) + the
+  directional sun. All three are scaled by the lighting slider in
+  `applyLightingSettings()`.
 - Ghost boards should not cast shadows, and usually should not receive shadows either.
 - Smoke particles must be capped and must not cast/receive shadows.
 
