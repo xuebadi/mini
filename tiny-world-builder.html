@@ -2661,28 +2661,32 @@
     objectOpacity: 'tinyworld:render:objectOpacity',
     version: 'tinyworld:render:version',
   };
-  const RENDER_SETTINGS_VERSION = '12';
+  const RENDER_SETTINGS_VERSION = '13';
   const RENDER_DEFAULTS = {
-    // Defaults tuned for smoothness on mid-tier laptops.  Each of these
-    // is still user-editable via Settings → Screen — only the starting
-    // values shifted.  Bumped via RENDER_SETTINGS_VERSION so existing
-    // installs pick the new baseline up.
-    post: '0',          // post-processing off (off-budget on weak GPUs)
-    resolution: '0.85', // ~15% fewer fill pixels at default DPR
+    // Defaults tuned to keep image quality crisp while still trimming
+    // a few cheap things off the per-frame budget.
+    //   - resolution kept at 1 (dropping it to 0.85 made silhouettes
+    //     pixelated under DPR>1 — the visible "smoothing fails" issue).
+    //   - shadow kept at 'balanced' (PCF filtering 1024 map).  'low'
+    //     swaps in BasicShadowMap with no filtering → jagged dropouts.
+    //   - visibleDistance trimmed to 2, clouds + cloudShadow trimmed
+    //     because those are pure CPU/GPU saves with no aesthetic cost.
+    post: '0',
+    resolution: '1',
     saturation: '1',
     contrast: '1',
     brightness: '1',
     gamma: '1',
     vignette: '0.04',
     warmth: '0',
-    shadow: 'low',      // small shadow map — single biggest GPU saver
+    shadow: 'balanced',
     lighting: '1.34',
-    visibleDistance: '2', // 5x5 ghost-board ring instead of 7x7
+    visibleDistance: '2',
     visibleSize: '8',
-    clouds: '0.4',      // fewer cloud puffs animated each frame
+    clouds: '0.4',
     cloudSpeed: '0.35',
     cloudHeight: '6',
-    cloudShadow: '0',   // cloud shadows off by default (cheap to re-enable)
+    cloudShadow: '0',
     smoothing: '0.7',
     tiltBlur: '3.5',
     tiltFocus: '18',
@@ -3135,15 +3139,18 @@
   // be called before the lighting block has run — sees a falsy value
   // for `typeof` and skips the call safely.
   var updateSunFollow = function () {
-    // Rotate the sun offset by the current camera azimuth so the sun's
-    // angle relative to the VIEWER stays constant. Pan + orbit both move
-    // shadows live: panning shifts where shadows fall, orbiting rotates
-    // them around each object.
-    const ca = Math.cos(azimuth);
-    const sa = Math.sin(azimuth);
-    const ox = SUN_OFFSET.x * ca - SUN_OFFSET.z * sa;
-    const oz = SUN_OFFSET.x * sa + SUN_OFFSET.z * ca;
-    sun.position.set(target.x + ox, target.y + SUN_OFFSET.y, target.z + oz);
+    // Fixed sun direction in WORLD space — shadows cast from the same
+    // angle regardless of how the camera is orbited or panned.  The sun
+    // position translates with the target only so the shadow camera's
+    // frustum (SHADOW_HALF wide) always covers what the user is looking
+    // at; without that follow, panning past the home grid drops shadows
+    // for everything outside the original frustum — that's the
+    // "shadows don't appear all the time" report.
+    sun.position.set(
+      target.x + SUN_OFFSET.x,
+      target.y + SUN_OFFSET.y,
+      target.z + SUN_OFFSET.z,
+    );
     sun.target.position.set(target.x, target.y, target.z);
     sun.target.updateMatrixWorld();
     sun.shadow.camera.updateProjectionMatrix();
@@ -12072,6 +12079,75 @@
   const STORAGE_VERSION = 4;
   let saveTimer = null;
   let suppressSave = false;
+
+  // One-shot migration — strips terrainFloors > 1 from any cell whose
+  // kind requires flat ground (everything except rock). Touches the live
+  // autosave and every named slot in tinyworld:worlds.v1.  Gated on a
+  // single flag so we never run it twice.  Idempotent if you do.
+  (function migrateStiltedHouses() {
+    const FLAG = 'tinyworld:migration:stilts.v1';
+    try {
+      if (localStorage.getItem(FLAG) === '1') return;
+    } catch (_) { return; }
+    const FLAT_REQUIRED = new Set([
+      'house','fence','bridge','tree','tuft','flower','bush','cow','sheep',
+      'crop','corn','wheat','pumpkin','carrot','sunflower',
+    ]);
+    function fixCells(cells) {
+      if (!Array.isArray(cells)) return 0;
+      let touched = 0;
+      for (let i = 0; i < cells.length; i++) {
+        const c = cells[i];
+        if (Array.isArray(c)) {
+          // tuple form: [x,z,terrain,kind,floors,buildingType,terrainFloors,fenceSide]
+          const kind = c[3], terrain = c[2];
+          const tf = c[6];
+          if (tf && tf > 1 && ((kind && FLAT_REQUIRED.has(kind)) || terrain === 'path' || terrain === 'dirt')) {
+            c[6] = 1; touched++;
+          }
+        } else if (c && typeof c === 'object') {
+          const kind = c.kind;
+          const terrain = c.terrain;
+          if (c.terrainFloors && c.terrainFloors > 1 &&
+              ((kind && FLAT_REQUIRED.has(kind)) || terrain === 'path' || terrain === 'dirt')) {
+            c.terrainFloors = 1; touched++;
+          }
+        }
+      }
+      return touched;
+    }
+    function fixStateBlob(raw) {
+      if (!raw) return null;
+      try {
+        const data = JSON.parse(raw);
+        const t = fixCells(data && data.cells);
+        return t > 0 ? JSON.stringify(data) : null;
+      } catch (_) { return null; }
+    }
+    let total = 0;
+    try {
+      const live = localStorage.getItem('tinyworld:v1');
+      const fixed = fixStateBlob(live);
+      if (fixed) { localStorage.setItem('tinyworld:v1', fixed); total += 1; }
+    } catch (_) {}
+    try {
+      const raw = localStorage.getItem('tinyworld:worlds.v1');
+      if (raw) {
+        const list = JSON.parse(raw);
+        if (Array.isArray(list)) {
+          let any = false;
+          for (const slot of list) {
+            if (!slot || !slot.state) continue;
+            const t = fixCells(slot.state.cells);
+            if (t > 0) any = true;
+          }
+          if (any) { localStorage.setItem('tinyworld:worlds.v1', JSON.stringify(list)); total += 1; }
+        }
+      }
+    } catch (_) {}
+    try { localStorage.setItem(FLAG, '1'); } catch (_) {}
+    if (total > 0) console.info('[stilts-migration] flattened houses-on-stilts in saved state');
+  })();
 
   function saveState() {
     if (typeof window.__requestMinimapRepaint === 'function') window.__requestMinimapRepaint();
