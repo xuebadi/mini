@@ -5015,6 +5015,8 @@
   const DEFAULT_AZIMUTH = Math.PI * 0.32;
   const DEFAULT_POLAR = Math.PI * 0.30;
   const DEFAULT_TARGET = new THREE.Vector3(0.35, 0, 0.15);
+  const MIN_VIEW_SIZE = 1.55;
+  const MAX_VIEW_SIZE_BASE = 64;
   let viewSize = DEFAULT_VIEW_SIZE;
   let cameraMode = DEFAULT_CAMERA_MODE; // 'ortho' | 'perspective'
 
@@ -5033,6 +5035,14 @@
   const target = DEFAULT_TARGET.clone();
   const panRight = new THREE.Vector3();
   const panForward = new THREE.Vector3();
+
+  function maxViewSize() {
+    return Math.max(MAX_VIEW_SIZE_BASE, DEFAULT_VIEW_SIZE * (GRID / HOME_GRID_DEFAULT) * 1.35);
+  }
+
+  function clampViewSize(value) {
+    return Math.max(MIN_VIEW_SIZE, Math.min(maxViewSize(), value));
+  }
 
   function updateCamera() {
     const r = cameraMode === 'ortho' ? 14 : viewSize * 4.2;
@@ -5597,7 +5607,6 @@
           c.receiveShadow = c.material !== M.wallCream;
         }
         c.frustumCulled = true;
-        configureShadowSide(c.material);
       }
     });
     return obj;
@@ -5612,21 +5621,6 @@
       }
     });
     return obj;
-  }
-
-  function configureShadowSide(material) {
-    const mats = Array.isArray(material) ? material : [material];
-    mats.forEach(mat => {
-      if (!mat || !mat.isMaterial) return;
-      // Three's default shadow pass may render the opposite side for FrontSide
-      // materials. That is good for closed meshes, but our roofs, trim, fences,
-      // and voxel details often use thin one-sided geometry, so the opposite
-      // side can disappear from the shadow map and create light leaks.
-      if (mat.side === THREE.FrontSide && mat.shadowSide !== THREE.FrontSide) {
-        mat.shadowSide = THREE.FrontSide;
-        mat.needsUpdate = true;
-      }
-    });
   }
 
   function cellRand(x, z, salt) {
@@ -15587,7 +15581,7 @@
       const mid = { x: (pts[0].x + pts[1].x) / 2, y: (pts[0].y + pts[1].y) / 2 };
       if (pinchPrevDist > 0 && dist > 0) {
         const ratio = pinchPrevDist / dist;
-        viewSize = Math.max(4, Math.min(22, viewSize * ratio));
+        viewSize = clampViewSize(viewSize * ratio);
         onResize();
       }
       if (pinchPrevMid) {
@@ -15723,7 +15717,7 @@
     e.preventDefault();
     if (generationViewLocked) return;
     markCameraMoving();
-    viewSize = Math.max(4, Math.min(22, viewSize + e.deltaY * 0.005));
+    viewSize = clampViewSize(viewSize + e.deltaY * 0.005);
     onResize();
   }, { passive: false });
 
