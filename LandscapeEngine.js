@@ -288,10 +288,20 @@ class LandscapeEngine {
       }
 
       void main() {
+        float edgeFade = 1.0;
         // Clip bounds discard
         if (clipEnabled > 0.5) {
-          if (vWorldPos.x < clipMin.x || vWorldPos.x > clipMax.x ||
-              vWorldPos.z < clipMin.z || vWorldPos.z > clipMax.z) discard;
+          float dx1 = vWorldPos.x - clipMin.x;
+          float dx2 = clipMax.x - vWorldPos.x;
+          float dz1 = vWorldPos.z - clipMin.z;
+          float dz2 = clipMax.z - vWorldPos.z;
+          float minDist = min(min(dx1, dx2), min(dz1, dz2));
+          if (minDist < 0.0) {
+            discard;
+          } else {
+            float fadeZone = 2.5;
+            edgeFade = clamp(minDist / fadeZone, 0.0, 1.0);
+          }
         }
 
         vec3 N = normalize(vNormal);
@@ -343,7 +353,7 @@ class LandscapeEngine {
         float horizon = pow(clamp(1.0 - abs(V.y), 0.0, 1.0), hazeExponent);
         float haze = clamp(fogF * (0.86 + horizon * hazeStrength), 0.0, 1.0);
         vec3 hazeColor = mix(fogColor, skyTint, 0.38 + horizon * 0.22);
-        color = mix(color, hazeColor, haze);
+        color = mix(hazeColor, color, edgeFade);
 
         gl_FragColor = vec4(color, 1.0);
       }
@@ -370,10 +380,20 @@ class LandscapeEngine {
       varying vec3 vNormal;
 
       void main() {
+        float edgeFade = 1.0;
         // Clip bounds discard
         if (clipEnabled > 0.5) {
-          if (vWorldPos.x < clipMin.x || vWorldPos.x > clipMax.x ||
-              vWorldPos.z < clipMin.z || vWorldPos.z > clipMax.z) discard;
+          float dx1 = vWorldPos.x - clipMin.x;
+          float dx2 = clipMax.x - vWorldPos.x;
+          float dz1 = vWorldPos.z - clipMin.z;
+          float dz2 = clipMax.z - vWorldPos.z;
+          float minDist = min(min(dx1, dx2), min(dz1, dz2));
+          if (minDist < 0.0) {
+            discard;
+          } else {
+            float fadeZone = 2.5;
+            edgeFade = clamp(minDist / fadeZone, 0.0, 1.0);
+          }
         }
 
         vec3 dx = dFdx(vWorldPos);
@@ -420,7 +440,7 @@ class LandscapeEngine {
         float horizon = pow(clamp(1.0 - abs(V.y), 0.0, 1.0), hazeExponent);
         float haze = clamp(fogF * (0.96 + horizon * (hazeStrength + 0.18)), 0.0, 1.0);
         vec3 hazeColor = mix(fogColor, skyTint, 0.66 + horizon * 0.16);
-        color = mix(color, hazeColor, haze);
+        color = mix(hazeColor, color, edgeFade);
 
         gl_FragColor = vec4(color, 1.0);
       }
@@ -496,6 +516,56 @@ class LandscapeEngine {
     // realistic visible terrain path so Three.js can apply native shadow maps
     // and scene fog. Low-poly mode intentionally keeps the custom cel shader.
     this.terrainMat = new THREE.MeshLambertMaterial({ vertexColors: true, fog: true });
+    this.terrainMat.userData = {
+      clipEnabled: { value: 0.0 }
+    };
+    this.terrainMat.onBeforeCompile = (shader) => {
+      shader.uniforms.clipMin = { value: this._clipMin };
+      shader.uniforms.clipMax = { value: this._clipMax };
+      shader.uniforms.clipEnabled = this.terrainMat.userData.clipEnabled;
+      
+      shader.vertexShader = shader.vertexShader.replace(
+        '#include <common>',
+        `#include <common>
+        varying vec3 vWorldPositionCustom;`
+      );
+      shader.vertexShader = shader.vertexShader.replace(
+        '#include <worldpos_vertex>',
+        `#include <worldpos_vertex>
+        vWorldPositionCustom = (modelMatrix * vec4(transformed, 1.0)).xyz;`
+      );
+      
+      shader.fragmentShader = shader.fragmentShader.replace(
+        '#include <common>',
+        `#include <common>
+        uniform vec3 clipMin;
+        uniform vec3 clipMax;
+        uniform float clipEnabled;
+        varying vec3 vWorldPositionCustom;`
+      );
+      shader.fragmentShader = shader.fragmentShader.replace(
+        '#include <fog_fragment>',
+        `#include <fog_fragment>
+        if (clipEnabled > 0.5) {
+          float dx1 = vWorldPositionCustom.x - clipMin.x;
+          float dx2 = clipMax.x - vWorldPositionCustom.x;
+          float dz1 = vWorldPositionCustom.z - clipMin.z;
+          float dz2 = clipMax.z - vWorldPositionCustom.z;
+          float minDist = min(min(dx1, dx2), min(dz1, dz2));
+          if (minDist < 0.0) {
+            discard;
+          } else {
+            float fadeZone = 2.5;
+            float edgeFade = clamp(minDist / fadeZone, 0.0, 1.0);
+            #ifdef USE_FOG
+              gl_FragColor.rgb = mix(fogColor, gl_FragColor.rgb, edgeFade);
+            #else
+              gl_FragColor.rgb = mix(vec3(0.5, 0.5, 0.5), gl_FragColor.rgb, edgeFade);
+            #endif
+          }
+        }`
+      );
+    };
   }
 
   _mergeColored(entries) {
@@ -684,10 +754,20 @@ class LandscapeEngine {
         }
 
         void main() {
+          float edgeFade = 1.0;
           // Clip bounds discard
           if (clipEnabled > 0.5) {
-            if (vWorldPos.x < clipMin.x || vWorldPos.x > clipMax.x ||
-                vWorldPos.z < clipMin.z || vWorldPos.z > clipMax.z) discard;
+            float dx1 = vWorldPos.x - clipMin.x;
+            float dx2 = clipMax.x - vWorldPos.x;
+            float dz1 = vWorldPos.z - clipMin.z;
+            float dz2 = clipMax.z - vWorldPos.z;
+            float minDist = min(min(dx1, dx2), min(dz1, dz2));
+            if (minDist < 0.0) {
+              discard;
+            } else {
+              float fadeZone = 2.5;
+              edgeFade = clamp(minDist / fadeZone, 0.0, 1.0);
+            }
           }
 
           float rw = length(vWorldPos.xz);
@@ -719,7 +799,7 @@ class LandscapeEngine {
           float fogF = clamp((vDist - fogNear) / (fogFar - fogNear), 0.0, 1.0);
           col = mix(col, fogColor, fogF);
 
-          gl_FragColor = vec4(col, waterOpacity * rwFade);
+          gl_FragColor = vec4(col, waterOpacity * rwFade * edgeFade);
         }
       `,
       transparent: true,
@@ -1070,6 +1150,9 @@ class LandscapeEngine {
     for (const m of mats) {
       m.uniforms.clipEnabled.value = 1.0;
     }
+    if (this.terrainMat && this.terrainMat.userData && this.terrainMat.userData.clipEnabled) {
+      this.terrainMat.userData.clipEnabled.value = 1.0;
+    }
 
     // Build native clipping planes for Lambert/Phong materials (rocks, flora).
     // Four planes forming an XZ box: +X, -X, +Z, -Z.
@@ -1095,6 +1178,9 @@ class LandscapeEngine {
     const mats = [this.sandMat, this.sandMatLowPoly, this.waterMat];
     for (const m of mats) {
       m.uniforms.clipEnabled.value = 0.0;
+    }
+    if (this.terrainMat && this.terrainMat.userData && this.terrainMat.userData.clipEnabled) {
+      this.terrainMat.userData.clipEnabled.value = 0.0;
     }
     this._clipPlanes = [];
     const builtinMats = [this.rockMat, this.rockMatLowPoly, this.floraMat, this.floraMatLow, this.terrainMat];

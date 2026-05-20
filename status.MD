@@ -34,6 +34,12 @@ Improve Tiny World Builder's LandscapeEngine terrain mode so it works as a real 
   - realistic Landscape keeps the Lambert material for native shadows/fog.
 - Updated `.codex/skills/tinyworld-tile-variation/SKILL.md` with LandscapeEngine mode notes.
 - Updated `.codex/skills/tinyworld-render-performance/SKILL.md` with shadow/fog and low-poly shader preservation guidance.
+- Fixed pixel outline normal pass ghosting of clipped meshes by copying `landscapeMeshEngine._clipPlanes` to `pixelState.normalMaterial.clippingPlanes` inside `renderScene`.
+- Enabled free camera target panning when `landscapeMeshMode` is active (in `clampTargetToHomeBoard`).
+- Enabled dynamic terrain generation bounds expansion (up to 48x48) when first panning in landscape mode (in `expandVisibleSizeOnFirstMove`, `maxRenderVisibleSizeForGrid`, and `updateLandscapeClipBounds`).
+- Reset panning exploration state on new generation/loading in `applyState`.
+- Linked continuous landscape bounds directly to the user-configured "Preview distance" setting (`renderVisibleDistance`), enabling infinite expansion that matches distance visibility.
+- Implemented smooth gradient edge fading for low-poly (`sandMatLowPoly`), sand (`sandMat`), and realistic (`terrainMat` via `onBeforeCompile`) terrain styles, as well as the custom `waterMat` water material, fading color and opacity seamlessly into the background sky/fog near the clip boundaries.
 - Ran `npm test` after changes; checks passed.
 
 ## Files Changed
@@ -42,6 +48,7 @@ Improve Tiny World Builder's LandscapeEngine terrain mode so it works as a real 
 - `LandscapeEngine.js`
 - `.codex/skills/tinyworld-tile-variation/SKILL.md`
 - `.codex/skills/tinyworld-render-performance/SKILL.md`
+- `.codex/skills/tinyworld-opacity-torch/SKILL.md`
 - `status.MD`
 
 ## Validation
@@ -58,3 +65,6 @@ Improve Tiny World Builder's LandscapeEngine terrain mode so it works as a real 
 - Browser-check both Landscape render modes:
   - `Low-poly (Cel)` should look low-poly/cel again,
   - `Realistic` should receive shadows/fog.
+- Verify that setting the pixels to "Outline: Normal" displays no outline ghosts for clipped landscape tiles, rocks, or trees.
+- Verify that panning dynamically generates and paints in continuous terrain around the camera, complying exactly with the visible distance setting.
+- Verify that the boundaries of the clipped landscape map (terrain and water) show a soft gradient fade-out blending into the background sky/fog color.

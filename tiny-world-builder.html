@@ -5050,8 +5050,19 @@
     return renderBudgetForGrid(grid).maxDistance;
   }
 
+  // -------- landscape mesh mode state (declared early to avoid TDZ errors) --------
+  let landscapeMeshMode = false;
+  let landscapeMeshEngine = null;
+  let landscapeMeshGroup = null;
+  let landscapeCutCapsGroup = null;
+  let landscapeMeshBiome = 'grassland';  // 'grassland', 'desert', or 'snow'
+  let landscapeMeshStyle = 'lowpoly';    // 'realistic' or 'lowpoly'
+
   function maxRenderVisibleSizeForGrid(grid) {
     const g = coerceGridSize(grid, GRID);
+    if (landscapeMeshMode) {
+      return Math.max(48, g * 4);
+    }
     const budget = renderBudgetForGrid(g);
     return Math.max(g, Math.min(Math.round(HOME_GRID_MAX * 1.5), Math.ceil(g * budget.visibleScale)));
   }
@@ -5081,7 +5092,7 @@
     return previewSettingsForGrid(GRID, true).visibleSize;
   }
   function expandVisibleSizeOnFirstMove() {
-    if (!renderAutoExpand) return false;
+    if (!renderAutoExpand && !landscapeMeshMode) return false;
     if (hasUserPanned) return false;
     hasUserPanned = true;
     renderVisibleSize = visibleSizeForExplorer();
@@ -5429,6 +5440,11 @@
       const prevOverride = scene.overrideMaterial;
       const prevBackground = scene.background;
       const prevFog = scene.fog;
+      if (landscapeMeshEngine && landscapeMeshEngine._clipEnabled && landscapeMeshEngine._clipPlanes) {
+        pixelState.normalMaterial.clippingPlanes = landscapeMeshEngine._clipPlanes;
+      } else {
+        pixelState.normalMaterial.clippingPlanes = null;
+      }
       scene.overrideMaterial = pixelState.normalMaterial;
       scene.background = null;
       scene.fog = null;
@@ -5438,6 +5454,7 @@
       scene.overrideMaterial = prevOverride;
       scene.background = prevBackground;
       scene.fog = prevFog;
+      pixelState.normalMaterial.clippingPlanes = null;
     }
     const uniforms = pixelState.quadMaterial.uniforms;
     uniforms.tColor.value = pixelState.target.texture;
@@ -5575,7 +5592,7 @@
     applyDistanceMistSettings();
   }
   function clampTargetToHomeBoard() {
-    if (renderAutoExpand) return false;
+    if (renderAutoExpand || landscapeMeshMode) return false;
     const min = -GRID / 2 + 0.5;
     const max = GRID / 2 - 0.5;
     const beforeX = target.x;
@@ -20369,7 +20386,7 @@
     // reveals by moving the clip window, not by building ghost/base boards.
     if (landscapeMeshMode && landscapeMeshEngine) {
       landscapeMeshEngine.update(landscapeMeshFocusPos(), dt);
-      if (renderAutoExpand) updateLandscapeClipBounds();
+      if (renderAutoExpand || hasUserPanned) updateLandscapeClipBounds();
     }
     if (useWindowedHomeRendering()) {
       requestHomeRenderWindowSync();
@@ -21585,14 +21602,6 @@
   let useLandscapeEngine = false;
   let landscapeEngineInstance = null;
 
-  // -------- landscape mesh mode (flight-game continuous terrain) --------
-  let landscapeMeshMode = false;
-  let landscapeMeshEngine = null;
-  let landscapeMeshGroup = null;
-  let landscapeCutCapsGroup = null;
-  let landscapeMeshBiome = 'grassland';  // 'grassland', 'desert', or 'snow'
-  let landscapeMeshStyle = 'lowpoly';    // 'realistic' or 'lowpoly'
-
   // Scale factor: builder tiles are 1 unit apart; sampleLandscapeCell
   // maps them to engine coords via `scale = 25`, so we shrink the
   // engine's meshes by 1/25 so one engine sample-step = 1 builder unit.
@@ -21851,9 +21860,13 @@
     // by moving the LandscapeEngine clip window with the camera target while
     // the engine streams real terrain chunks underneath.
     const pad = 0.001;
-    const half = renderAutoExpand ? Math.max(GRID / 2, (renderVisibleSize || GRID) / 2) : GRID / 2;
-    const cx = renderAutoExpand ? target.x : 0;
-    const cz = renderAutoExpand ? target.z : 0;
+    const half = (renderAutoExpand || hasUserPanned) ? (GRID / 2 + renderVisibleDistance * GRID) : GRID / 2;
+    const cx = (renderAutoExpand || hasUserPanned) ? target.x : 0;
+    const cz = (renderAutoExpand || hasUserPanned) ? target.z : 0;
+    const requiredRadius = Math.ceil((half * 25) / landscapeMeshEngine.CHUNK_SIZE) + 1;
+    if (landscapeMeshEngine.RENDER_RADIUS < requiredRadius) {
+      landscapeMeshEngine.RENDER_RADIUS = requiredRadius;
+    }
     landscapeMeshEngine.setClipBounds(
       new THREE.Vector3(cx - half - pad, -1e6, cz - half - pad),
       new THREE.Vector3(cx + half + pad,  1e6, cz + half + pad)
@@ -24033,6 +24046,7 @@
       return false;
     }
     if (data.v !== 1 && data.v !== 2 && data.v !== 3 && data.v !== 4) return false;
+    hasUserPanned = false;
     if (vehicleFleet.size) clearVehicleRuntime();
 
     if (data.useLandscapeEngine) {
