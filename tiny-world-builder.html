@@ -4447,6 +4447,10 @@
               <input id="render-voxel-bevel" type="range" min="0" max="0.06" step="0.001" />
               <output id="render-voxel-bevel-value"></output>
             </div>
+            <label class="gen-check" id="render-landscape-mesh-container" style="display: none;">
+              <input type="checkbox" id="render-landscape-mesh-mode" />
+              <span>Continuous landscape mesh <em class="gen-hint">Flight game style terrain</em></span>
+            </label>
             <label class="gen-check">
               <input type="checkbox" id="render-voxel-terrain" />
               <span>Voxel terrain <em class="gen-hint">flat shaded panels and path edging</em></span>
@@ -4902,6 +4906,7 @@
     voxelGap: 'tinyworld:render:voxelGap',
     voxelBevel: 'tinyworld:render:voxelBevel',
     voxelTerrain: 'tinyworld:render:voxelTerrain',
+    landscapeMeshMode: 'tinyworld:render:landscapeMeshMode',
     terrainVoxelResolution: 'tinyworld:render:terrainVoxelResolution',
     showCrowns: 'tinyworld:render:showCrowns',
     autoExpand: 'tinyworld:render:autoExpand',
@@ -4962,6 +4967,7 @@
     voxelGap: '0',
     voxelBevel: '0.018',
     voxelTerrain: '1',
+    landscapeMeshMode: '1',
     terrainVoxelResolution: 'mixed',
     autoExpand: '0',
     pixelSize: '1',
@@ -5043,6 +5049,8 @@
     if (g >= 128) return { maxDistance: 0, ghostRadius: 0, visibleScale: 1.0, homeWindowMin: 16, homeWindowMax: 32, queueCap: 32 };
     if (g >= 96)  return { maxDistance: 0, ghostRadius: 0, visibleScale: 1.0, homeWindowMin: 16, homeWindowMax: 32, queueCap: 32 };
     if (g >= 64)  return { maxDistance: 1, ghostRadius: 1, visibleScale: 1.05, homeWindowMin: 28, homeWindowMax: 96, queueCap: 96 };
+    if (g >= 48)  return { maxDistance: 1, ghostRadius: 1, visibleScale: 1.05, homeWindowMin: 22, homeWindowMax: 36, queueCap: 128 };
+    if (g >= 32)  return { maxDistance: 1, ghostRadius: 2, visibleScale: 1.08, homeWindowMin: 18, homeWindowMax: 26, queueCap: 128 };
     return { maxDistance: g <= 12 ? 4 : 2, ghostRadius: g <= 12 ? 4 : 2, visibleScale: 1.125, homeWindowMin: g, homeWindowMax: g, queueCap: 256 };
   }
 
@@ -5051,7 +5059,9 @@
   }
 
   // -------- landscape mesh mode state (declared early to avoid TDZ errors) --------
-  let landscapeMeshMode = false;
+  let useLandscapeEngine = false;
+  let landscapeEngineInstance = null;
+  let landscapeMeshMode = localStorage.getItem(RENDER_LS.landscapeMeshMode) !== '0';
   let landscapeMeshEngine = null;
   let landscapeMeshGroup = null;
   let landscapeCutCapsGroup = null;
@@ -5417,6 +5427,40 @@
 
   function renderScene() {
     renderer.info.reset();
+    if (typeof ghostBoards !== 'undefined' && ghostBoards.size > 0 && camera) {
+      const frustum = new THREE.Frustum();
+      const projScreenMatrix = new THREE.Matrix4();
+      projScreenMatrix.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse);
+      frustum.setFromProjectionMatrix(projScreenMatrix);
+
+      const boardBox = new THREE.Box3();
+      const boardMin = new THREE.Vector3();
+      const boardMax = new THREE.Vector3();
+      const cx = boardFromTargetCoord(target.x);
+      const cz = boardFromTargetCoord(target.z);
+
+      for (const board of ghostBoards.values()) {
+        const bx = board.userData.boardX;
+        const bz = board.userData.boardZ;
+        const boardDist = Math.max(Math.abs(bx - cx), Math.abs(bz - cz));
+        
+        let visible = boardDist <= ghostPreloadRadius;
+        if (visible) {
+          const halfSize = (GRID / 2) * TILE;
+          const centerX = bx * GRID * TILE;
+          const centerZ = bz * GRID * TILE;
+          const pad = GRID * TILE * 0.5;
+          boardMin.set(centerX - halfSize - pad, -DIRT_H, centerZ - halfSize - pad);
+          boardMax.set(centerX + halfSize + pad, 25, centerZ + halfSize + pad);
+          boardBox.set(boardMin, boardMax);
+          
+          if (!frustum.intersectsBox(boardBox)) {
+            visible = false;
+          }
+        }
+        board.visible = visible;
+      }
+    }
     const xrPresenting = renderer.xr && renderer.xr.isPresenting;
     const usePixelation = renderPixelSize > 1 && !xrPresenting;
     // Shader AA smears pixelated low-res samples and reveals diagonal terrain
@@ -6204,7 +6248,8 @@
 
   // -------- tile factory --------
   function terrainRiseForLevel(level) {
-    return Math.max(0, (Math.min(MAX_FLOORS, level || 1) - 1) * 0.20);
+    const step = useLandscapeEngine ? 1.12 : 0.20;
+    return Math.max(0, (Math.min(MAX_FLOORS, level || 1) - 1) * step);
   }
 
   function terrainLevelForCell(cell) {
@@ -6527,11 +6572,16 @@
     // show their proper dirt cliffs. Convention: n = -z, s = +z, e = +x,
     // w = -x (matches getPathNeighbors / getTerrainNeighbors).
     const levelN = (neighbors && neighbors.levels) || { n: null, s: null, e: null, w: null };
-    function hideSide(lv) { return typeof lv === 'number' && lv >= level; }
-    const skipE = hideSide(levelN.e);
-    const skipW = hideSide(levelN.w);
-    const skipS = hideSide(levelN.s);
-    const skipN = hideSide(levelN.n);
+    function hideSide(lv, dir) {
+      if (typeof lv !== 'number' || lv < level) return false;
+      const neighborTerrain = terrainN[dir];
+      if (neighborTerrain !== terrain) return false;
+      return true;
+    }
+    const skipE = hideSide(levelN.e, 'e');
+    const skipW = hideSide(levelN.w, 'w');
+    const skipS = hideSide(levelN.s, 's');
+    const skipN = hideSide(levelN.n, 'n');
     const rise = terrainRiseForLevel(level);
     const topY = rise + TOP_H;
     // Weather impact decals sit above the rounded/beveled slab, not at the
@@ -6566,27 +6616,30 @@
         topBevel   = 0.04;
       }
 
-      const riserMat = terrainRiserMaterial(terrain);
-      if (renderVoxelTerrain) {
-        addVoxelTerrainRiser(g, terrain, x, z, rise, riserSize, DIRT_H + rise, {
-          e: skipE,
-          w: skipW,
-          s: skipS,
-          n: skipN,
-        });
-        const bottom = new THREE.Mesh(getOpenBoxGeometry(riserSize, 0.012, riserSize, false, true, true, true, true, true), riserMat);
-        bottom.position.y = -DIRT_H - 0.006;
-        bottom.userData.noShadow = true;
-        g.add(bottom);
-      } else {
-        const riserGeo = getOpenBoxGeometry(riserSize, DIRT_H + rise, riserSize, true, true, skipE, skipW, skipS, skipN);
-        const riser = new THREE.Mesh(riserGeo, riserMat);
-        riser.position.y = -DIRT_H + (DIRT_H + rise) * 0.5;
-        g.add(riser);
-        const bottom = new THREE.Mesh(getOpenBoxGeometry(riserSize, 0.012, riserSize, false, true, true, true, true, true), riserMat);
-        bottom.position.y = -DIRT_H - 0.006;
-        bottom.userData.noShadow = true;
-        g.add(bottom);
+      const hasVisibleRiser = !(skipE && skipW && skipS && skipN);
+      if (hasVisibleRiser) {
+        const riserMat = terrainRiserMaterial(terrain);
+        if (renderVoxelTerrain) {
+          addVoxelTerrainRiser(g, terrain, x, z, rise, riserSize, DIRT_H + rise, {
+            e: skipE,
+            w: skipW,
+            s: skipS,
+            n: skipN,
+          });
+          const bottom = new THREE.Mesh(getOpenBoxGeometry(riserSize, 0.012, riserSize, false, true, true, true, true, true), riserMat);
+          bottom.position.y = -DIRT_H - 0.006;
+          bottom.userData.noShadow = true;
+          g.add(bottom);
+        } else {
+          const riserGeo = getOpenBoxGeometry(riserSize, DIRT_H + rise, riserSize, true, true, skipE, skipW, skipS, skipN);
+          const riser = new THREE.Mesh(riserGeo, riserMat);
+          riser.position.y = -DIRT_H + (DIRT_H + rise) * 0.5;
+          g.add(riser);
+          const bottom = new THREE.Mesh(getOpenBoxGeometry(riserSize, 0.012, riserSize, false, true, true, true, true, true), riserMat);
+          bottom.position.y = -DIRT_H - 0.006;
+          bottom.userData.noShadow = true;
+          g.add(bottom);
+        }
       }
 
       let topMat = M.grass;
@@ -9912,6 +9965,33 @@
   // (fences, houses) re-render when a neighbor changes.
   const world = [];
   const cellMeshes = {}; // 'x,z' -> { tile, object }
+  const cellMeshesGrid = [];
+  function initCellMeshesGrid() {
+    cellMeshesGrid.length = 0;
+    for (let x = 0; x < GRID; x++) {
+      cellMeshesGrid[x] = new Array(GRID);
+    }
+  }
+  initCellMeshesGrid();
+  function getOrCreateCellMeshEntry(x, z) {
+    const key = x + ',' + z;
+    let entry = cellMeshes[key];
+    if (!entry) {
+      entry = cellMeshes[key] = { tile: null, object: null, extras: [], x, z };
+      if (x >= 0 && x < GRID && z >= 0 && z < GRID) {
+        cellMeshesGrid[x][z] = entry;
+      }
+    }
+    return entry;
+  }
+  function hasCellTileMesh(x, z) {
+    if (x >= 0 && x < GRID && z >= 0 && z < GRID) {
+      const entry = cellMeshesGrid[x] ? cellMeshesGrid[x][z] : undefined;
+      return !!(entry && entry.tile);
+    }
+    const entry = cellMeshes[x + ',' + z];
+    return !!(entry && entry.tile);
+  }
   const animatedCellObjects = new Set();
   const smokeHouseObjects = new Set();
   const buildingWindowObjects = new Set();
@@ -11821,6 +11901,11 @@
     if (entry.object) { worldGroup.remove(entry.object); disposeGroup(entry.object); }
     if (entry.extras) for (const m of entry.extras) { worldGroup.remove(m); disposeGroup(m); }
     delete cellMeshes[key];
+    if (entry.x !== undefined && entry.z !== undefined) {
+      if (cellMeshesGrid[entry.x]) {
+        cellMeshesGrid[entry.x][entry.z] = undefined;
+      }
+    }
   }
 
   function disposeAllCellMeshes() {
@@ -11841,7 +11926,7 @@
     return world[x][z];
   }
 
-  const HOME_RENDER_WINDOW_THRESHOLD = 64;
+  const HOME_RENDER_WINDOW_THRESHOLD = 30;
   let homeRenderBounds = null;
   let homeRenderQueue = [];
   let homeRenderQueueCursor = 0;
@@ -11989,9 +12074,9 @@
       homeRenderQueued.clear();
       for (let x = homeRenderBounds.x0; x <= homeRenderBounds.x1; x++) {
         for (let z = homeRenderBounds.z0; z <= homeRenderBounds.z1; z++) {
-          const key = x + ',' + z;
-          const entry = cellMeshes[key];
+          const entry = cellMeshesGrid[x] ? cellMeshesGrid[x][z] : undefined;
           if (entry && entry.tile) continue;
+          const key = x + ',' + z;
           homeRenderQueue.push([x, z, key]);
           homeRenderQueued.add(key);
         }
@@ -12010,8 +12095,10 @@
       if (nextBounds.x0 < oldBounds.x0) {
         for (let x = nextBounds.x0; x < oldBounds.x0; x++) {
           for (let z = nextBounds.z0; z <= nextBounds.z1; z++) {
+            const entry = cellMeshesGrid[x][z];
+            if (entry && entry.tile) continue;
             const key = x + ',' + z;
-            if ((!cellMeshes[key] || !cellMeshes[key].tile) && !homeRenderQueued.has(key)) {
+            if (!homeRenderQueued.has(key)) {
               entering.push([x, z, key]);
               homeRenderQueued.add(key);
             }
@@ -12022,8 +12109,10 @@
       if (nextBounds.x1 > oldBounds.x1) {
         for (let x = oldBounds.x1 + 1; x <= nextBounds.x1; x++) {
           for (let z = nextBounds.z0; z <= nextBounds.z1; z++) {
+            const entry = cellMeshesGrid[x][z];
+            if (entry && entry.tile) continue;
             const key = x + ',' + z;
-            if ((!cellMeshes[key] || !cellMeshes[key].tile) && !homeRenderQueued.has(key)) {
+            if (!homeRenderQueued.has(key)) {
               entering.push([x, z, key]);
               homeRenderQueued.add(key);
             }
@@ -12034,8 +12123,10 @@
       if (nextBounds.z0 < oldBounds.z0) {
         for (let z = nextBounds.z0; z < oldBounds.z0; z++) {
           for (let x = nextBounds.x0; x <= nextBounds.x1; x++) {
+            const entry = cellMeshesGrid[x][z];
+            if (entry && entry.tile) continue;
             const key = x + ',' + z;
-            if ((!cellMeshes[key] || !cellMeshes[key].tile) && !homeRenderQueued.has(key)) {
+            if (!homeRenderQueued.has(key)) {
               entering.push([x, z, key]);
               homeRenderQueued.add(key);
             }
@@ -12046,8 +12137,10 @@
       if (nextBounds.z1 > oldBounds.z1) {
         for (let z = oldBounds.z1 + 1; z <= nextBounds.z1; z++) {
           for (let x = nextBounds.x0; x <= nextBounds.x1; x++) {
+            const entry = cellMeshesGrid[x][z];
+            if (entry && entry.tile) continue;
             const key = x + ',' + z;
-            if ((!cellMeshes[key] || !cellMeshes[key].tile) && !homeRenderQueued.has(key)) {
+            if (!homeRenderQueued.has(key)) {
               entering.push([x, z, key]);
               homeRenderQueued.add(key);
             }
@@ -12157,12 +12250,20 @@
   // This keeps draw calls bounded no matter how high the preview distance is.
   // Close ghosts (when zoomed in) still use individual full-quality meshes.
   const cheapGhostTerrainBuckets = new Map(); // terrain -> { dirtMesh, topMesh, slots, keyAt, count }
+  const revealedCheapCells = new Set();
   const CHEAP_GHOST_CAPACITY = 65536; // 48×48 radius-2 preview worst case
   let cheapGhostGeomDirt = null;
   let cheapGhostGeomTop = null;
 
+  const ghostBoardKeyCache = new Map();
   function ghostBoardKey(boardX, boardZ) {
-    return boardX + ',' + boardZ;
+    const hash = (boardX << 16) | (boardZ & 0xFFFF);
+    let key = ghostBoardKeyCache.get(hash);
+    if (key === undefined) {
+      key = boardX + ',' + boardZ;
+      ghostBoardKeyCache.set(hash, key);
+    }
+    return key;
   }
 
   function makeBlankBoardWorld() {
@@ -12250,7 +12351,10 @@
       for (let x = 0; x < GRID; x++) {
         cells[x] = [];
         for (let z = 0; z < GRID; z++) {
-          cells[x][z] = sampleLandscapeCell(boardX, boardZ, x, z, landscapeEngineInstance, GRID);
+          const cell = sampleLandscapeCell(boardX, boardZ, x, z, landscapeEngineInstance, GRID);
+          cell.terrainFloors = 1;
+          cell.kind = null;
+          cells[x][z] = cell;
         }
       }
       cells.__seed = ghostHash(boardX, boardZ, 0xdec0);
@@ -12801,7 +12905,7 @@
       m.castShadow = false;
       m.receiveShadow = true;
       m.count = 0;
-      m.frustumCulled = false;
+      m.frustumCulled = true;
       m.userData = { isCheapGhostTerrain: true, terrain, keyAt: [] };
       // Ensure depthWrite so we don't get the sorting artifacts we fixed earlier.
       if (m.material) {
@@ -12850,8 +12954,8 @@
     if (b.count >= CHEAP_GHOST_CAPACITY) return;
 
     const idx = b.count;
-    const worldX = (boardX * GRID + x) * TILE;
-    const worldZ = (boardZ * GRID + z) * TILE;
+    const worldX = (boardX * GRID + x - GRID / 2 + 0.5) * TILE;
+    const worldZ = (boardZ * GRID + z - GRID / 2 + 0.5) * TILE;
 
     _writeCheapGhostTerrainInstance(b, idx, worldX, worldZ, rise);
 
@@ -12869,6 +12973,7 @@
     const b = cheapGhostTerrainBuckets.get(terrain);
     if (!b) return;
     const key = `${boardX},${boardZ}|${x},${z}`;
+    revealedCheapCells.delete(key);
     const idx = b.slots.get(key);
     if (idx === undefined) return;
 
@@ -12895,6 +13000,7 @@
   }
 
   function clearCheapGhostTerrain() {
+    revealedCheapCells.clear();
     for (const b of cheapGhostTerrainBuckets.values()) {
       b.slots.clear();
       b.keyAt.length = 0;
@@ -13048,7 +13154,7 @@
     ghostBoards.set(key, board);
   }
 
-  function rebuildGhostBoard(boardX, boardZ) {
+  function destroyGhostBoard(boardX, boardZ) {
     const key = ghostBoardKey(boardX, boardZ);
     const board = ghostBoards.get(key);
     if (board) {
@@ -13066,6 +13172,10 @@
       disposeGroup(board);
       ghostBoards.delete(key);
     }
+  }
+
+  function rebuildGhostBoard(boardX, boardZ) {
+    destroyGhostBoard(boardX, boardZ);
     buildGhostBoard(boardX, boardZ);
     updateGhostRenderBubble();
   }
@@ -13146,20 +13256,105 @@
   function updateGhostRenderBubble() {
     const cx = boardFromTargetCoord(target.x);
     const cz = boardFromTargetCoord(target.z);
+
+    if (typeof cheapGhostTerrainBuckets !== 'undefined') {
+      const radius = ghostPreloadRadius;
+      const minX = (cx - radius - 0.5) * GRID * TILE;
+      const maxX = (cx + radius + 0.5) * GRID * TILE;
+      const minZ = (cz - radius - 0.5) * GRID * TILE;
+      const maxZ = (cz + radius + 0.5) * GRID * TILE;
+      const worldBox = new THREE.Box3(
+        new THREE.Vector3(minX, -DIRT_H, minZ),
+        new THREE.Vector3(maxX, 25, maxZ)
+      );
+      const worldSphere = worldBox.getBoundingSphere(new THREE.Sphere());
+      for (const b of cheapGhostTerrainBuckets.values()) {
+        b.dirtMesh.geometry.boundingBox = worldBox;
+        b.dirtMesh.geometry.boundingSphere = worldSphere;
+        b.topMesh.geometry.boundingBox = worldBox;
+        b.topMesh.geometry.boundingSphere = worldSphere;
+      }
+    }
+
+    // Safely destroy out-of-bounds ghost boards so they don't linger in memory or cheapGhostTerrainBuckets
+    const toDestroy = [];
+    for (const board of ghostBoards.values()) {
+      const bx = board.userData.boardX;
+      const bz = board.userData.boardZ;
+      const boardDist = Math.max(Math.abs(bx - cx), Math.abs(bz - cz));
+      if (boardDist > ghostPreloadRadius) {
+        toDestroy.push([bx, bz]);
+      }
+    }
+    for (const [bx, bz] of toDestroy) {
+      destroyGhostBoard(bx, bz);
+    }
+
     let anyUnsavedVisible = false;
     for (const board of ghostBoards.values()) {
-      const boardDist = Math.max(
-        Math.abs(board.userData.boardX - cx),
-        Math.abs(board.userData.boardZ - cz)
-      );
-      board.visible = boardDist <= ghostPreloadRadius;
-      if (!board.visible) continue;
+      board.visible = true; // Any out-of-bounds boards are already destroyed
       for (const child of board.children) {
         const op = revealOpacityFor(child);
         setElementOpacity(child, op);
         if (op > 0.05) anyUnsavedVisible = true;
       }
     }
+
+    // Scale/Hide unrevealed cheap terrain instances
+    if (typeof cheapGhostTerrainBuckets !== 'undefined') {
+      for (const b of cheapGhostTerrainBuckets.values()) {
+        let changed = false;
+        for (let idx = 0; idx < b.count; idx++) {
+          const key = b.keyAt[idx];
+          if (!key) continue;
+          const parts = key.split('|');
+          const [boardX, boardZ] = parts[0].split(',').map(Number);
+          const [x, z] = parts[1].split(',').map(Number);
+          const worldX = (boardX * GRID + x - GRID / 2 + 0.5) * TILE;
+          const worldZ = (boardZ * GRID + z - GRID / 2 + 0.5) * TILE;
+
+          let revealed = revealedCheapCells.has(key);
+          if (!revealed) {
+            const op = opacityAtWorldPosition(worldX, worldZ);
+            if (op > 0) {
+              revealed = true;
+              revealedCheapCells.add(key);
+            }
+          }
+
+          const cells = makeGhostWorld(boardX, boardZ);
+          const cell = cells && cells[x] && cells[x][z];
+          const rise = cell ? terrainRiseForLevel(tileLevelForCell(cell)) : 0;
+
+          const DUMMY = new THREE.Object3D();
+          if (revealed) {
+            const dirtHeight = DIRT_H + rise;
+            const sy = dirtHeight / DIRT_H;
+            DUMMY.scale.set(1, sy, 1);
+          } else {
+            DUMMY.scale.set(0, 0, 0);
+          }
+          DUMMY.position.set(worldX, -DIRT_H, worldZ);
+          DUMMY.updateMatrix();
+          b.dirtMesh.setMatrixAt(idx, DUMMY.matrix);
+
+          if (revealed) {
+            DUMMY.scale.set(1, 1, 1);
+          } else {
+            DUMMY.scale.set(0, 0, 0);
+          }
+          DUMMY.position.set(worldX, rise, worldZ);
+          DUMMY.updateMatrix();
+          b.topMesh.setMatrixAt(idx, DUMMY.matrix);
+          changed = true;
+        }
+        if (changed) {
+          b.dirtMesh.instanceMatrix.needsUpdate = true;
+          b.topMesh.instanceMatrix.needsUpdate = true;
+        }
+      }
+    }
+
     if (!anyUnsavedVisible) {
       for (const key in cellMeshes) {
         const [kx, kz] = key.split(',').map(Number);
@@ -13247,6 +13442,7 @@
     const viewSpan = typeof renderVisibleSize === 'number' ? renderVisibleSize : GRID;
 
     if (GRID >= 96) return 'cheap';
+    if (GRID >= 20 && viewSpan > 12) return 'cheap'; // Force cheap for medium/large grids when zoomed out
     if (GRID >= 64) return 'full';
     if (viewSpan <= 12) return 'full';
 
@@ -13976,8 +14172,7 @@
     if (!shouldRenderCellMesh(x, z)) return;
     const { animate = true, delay = 0 } = opts || {};
     const key = x + ',' + z;
-    let entry = cellMeshes[key];
-    if (!entry) entry = cellMeshes[key] = { tile: null, object: null };
+    const entry = getOrCreateCellMeshEntry(x, z);
     if (entry.tile) {
       worldGroup.remove(entry.tile);
       disposeGroup(entry.tile);
@@ -14036,8 +14231,7 @@
     if (!shouldRenderCellMesh(x, z)) return;
     const { animate = false, delay = 0, impactDust = true } = opts || {};
     const key = x + ',' + z;
-    let entry = cellMeshes[key];
-    if (!entry) entry = cellMeshes[key] = { tile: null, object: null, extras: [] };
+    const entry = getOrCreateCellMeshEntry(x, z);
     if (entry.object) {
       worldGroup.remove(entry.object);
       disposeGroup(entry.object);
@@ -14211,8 +14405,7 @@
   function renderCellExtras(x, z, opts) {
     const animateFrom = (opts && typeof opts.animateFrom === 'number') ? opts.animateFrom : Infinity;
     const key = x + ',' + z;
-    let entry = cellMeshes[key];
-    if (!entry) entry = cellMeshes[key] = { tile: null, object: null, extras: [] };
+    const entry = getOrCreateCellMeshEntry(x, z);
     if (!entry.extras) entry.extras = [];
     // Dispose any previous extras.
     for (const m of entry.extras) {
@@ -14380,7 +14573,7 @@
 
     if (terrainChanged || tileHeightChanged || forceTile) {
       renderCellTile(x, z, { animate, delay: tileDelay });
-    } else if (!cellMeshes[x + ',' + z] || !cellMeshes[x + ',' + z].tile) {
+    } else if (!hasCellTileMesh(x, z)) {
       // Defensive: if for any reason this cell has no ground mesh
       // (e.g. user clicked a freshly materialised ghost cell with no
       // pre-rendered tile yet), render one before the object lands so
@@ -14528,6 +14721,7 @@
       if (e.extras) for (const m of e.extras) { worldGroup.remove(m); disposeGroup(m); }
     }
     for (const k of Object.keys(cellMeshes)) delete cellMeshes[k];
+    initCellMeshesGrid();
     homeRenderQueue = [];
     homeRenderQueueCursor = 0;
     homeRenderQueued.clear();
@@ -16863,8 +17057,7 @@
     const gz = Math.round(worldZ + GRID / 2 - 0.5);
     const cell = (world[gx] && world[gx][gz]) ? world[gx][gz] : null;
     const tf = cell ? (cell.terrainFloors || 1) : 1;
-    // Match the renderer's terrainRiseForLevel: each floor adds ~TOP_H.
-    const rise = (tf - 1) * TOP_H;
+    const rise = terrainRiseForLevel(tf);
     return rise + TOP_H + FP_EYE_H;
   }
 
@@ -17023,6 +17216,7 @@
     } catch (_) {}
 
     GRID = n;
+    initCellMeshesGrid();
     // Grid size changed — old index entries may be out of range or stale.
     // Subsequent setCell / load will repopulate via incremental updates or rebuild.
     cropPositions.clear();
@@ -17377,6 +17571,8 @@
     const objectOpacityEl = document.getElementById('render-object-opacity');
     const voxelGapEl = document.getElementById('render-voxel-gap');
     const voxelBevelEl = document.getElementById('render-voxel-bevel');
+    const landscapeMeshContainer = document.getElementById('render-landscape-mesh-container');
+    const landscapeMeshModeEl = document.getElementById('render-landscape-mesh-mode');
     const voxelTerrainEl = document.getElementById('render-voxel-terrain');
     const showCrownsEl = document.getElementById('render-show-crowns');
     const terrainVoxelResolutionEl = document.getElementById('render-terrain-voxel-resolution');
@@ -17444,6 +17640,12 @@
       objectOpacityEl.value = String(Math.round(renderObjectOpacity * 100));
       voxelGapEl.value = String(Math.round(renderVoxelGap * 100));
       voxelBevelEl.value = renderVoxelBevel.toFixed(3);
+      if (landscapeMeshContainer) {
+        landscapeMeshContainer.style.display = useLandscapeEngine ? 'flex' : 'none';
+      }
+      if (landscapeMeshModeEl) {
+        landscapeMeshModeEl.checked = !!landscapeMeshMode;
+      }
       if (voxelTerrainEl) voxelTerrainEl.checked = !!renderVoxelTerrain;
       if (showCrownsEl) showCrownsEl.checked = !!showCrowns;
       if (terrainVoxelResolutionEl) terrainVoxelResolutionEl.value = renderTerrainVoxelResolution;
@@ -17532,6 +17734,7 @@
       localStorage.setItem(RENDER_LS.voxelGap, renderVoxelGap.toFixed(2));
       localStorage.setItem(RENDER_LS.voxelBevel, renderVoxelBevel.toFixed(3));
       localStorage.setItem(RENDER_LS.voxelTerrain, renderVoxelTerrain ? '1' : '0');
+      localStorage.setItem(RENDER_LS.landscapeMeshMode, landscapeMeshMode ? '1' : '0');
       localStorage.setItem(RENDER_LS.showCrowns, showCrowns ? '1' : '0');
       localStorage.setItem(RENDER_LS.terrainVoxelResolution, renderTerrainVoxelResolution);
       localStorage.setItem(RENDER_LS.autoExpand, renderAutoExpand ? '1' : '0');
@@ -17539,6 +17742,7 @@
     }
 
     function applyFromControls() {
+      const oldLandscapeMeshMode = landscapeMeshMode;
       const oldVoxelGap = renderVoxelGap;
       const oldVoxelBevel = renderVoxelBevel;
       const oldVoxelTerrain = renderVoxelTerrain;
@@ -17577,6 +17781,18 @@
       renderObjectOpacity = parseInt(objectOpacityEl.value, 10) / 100;
       renderVoxelGap = parseInt(voxelGapEl.value, 10) / 100;
       renderVoxelBevel = Math.max(0, Math.min(0.06, parseFloat(voxelBevelEl.value) || 0));
+      if (landscapeMeshModeEl && useLandscapeEngine) {
+        const nextMode = !!landscapeMeshModeEl.checked;
+        if (nextMode !== oldLandscapeMeshMode) {
+          if (nextMode) {
+            initLandscapeMesh();
+            rebuildTerrainRender();
+            rebuildObjectsRender();
+          } else {
+            disposeLandscapeMesh({ rebuild: true });
+          }
+        }
+      }
       if (voxelTerrainEl) renderVoxelTerrain = !!voxelTerrainEl.checked;
       if (showCrownsEl) showCrowns = !!showCrownsEl.checked;
       if (terrainVoxelResolutionEl) renderTerrainVoxelResolution = terrainVoxelResolutionEl.value;
@@ -19628,7 +19844,12 @@
   function weatherSurfaceAt(x, z) {
     const gx = Math.floor(x + GRID / 2);
     const gz = Math.floor(z + GRID / 2);
-    const homeEntry = cellMeshes[gx + ',' + gz];
+    let homeEntry = null;
+    if (gx >= 0 && gx < GRID && gz >= 0 && gz < GRID) {
+      if (cellMeshesGrid[gx]) homeEntry = cellMeshesGrid[gx][gz];
+    } else {
+      homeEntry = cellMeshes[gx + ',' + gz];
+    }
     if (homeEntry && homeEntry.tile && homeEntry.tile.visible) {
       return homeEntry.tile.position.y + (homeEntry.tile.userData.weatherSurfaceY || (TOP_H + WEATHER_SURFACE_PAD));
     }
@@ -19829,24 +20050,39 @@
   const cropDusterMaterials = [];
   let cropDusterModel = null;
   let cropDusterTime = 0;
-  let cropDusterProps = [];
   const cropDustParticles = [];
   const cropDustGeo = new THREE.SphereGeometry(0.055, 6, 6);
   const cropDustMat = new THREE.MeshBasicMaterial({ color: 0xf1dda1, transparent: true, opacity: 0.42, depthWrite: false });
 
+  // Pre-created slots for planes to form formations without dynamic allocations
+  const planes = [];
+  for (let i = 0; i < 3; i++) {
+    const pGroup = new THREE.Group();
+    pGroup.visible = false;
+    cropDusterRoot.add(pGroup);
+
+    planes.push({
+      group: pGroup,
+      model: null,
+      props: [],
+      bannerMesh: null,
+      bannerWire: null,
+      bannerCanvas: null,
+      bannerTexture: null,
+      localOffset: new THREE.Vector3(),
+      variantIndex: 0
+    });
+  }
+
   // -------- crop duster route / state --------
-  // The plane has a real life: it enters from beyond the home grid, runs an
-  // optimised pass that visits every crop cell, exits the area, refuels
-  // off-screen for a few seconds, then returns. Sometimes the return run
-  // skips the dusting and trails a banner instead.
   const FLIGHT_OFFSCREEN_DIST = 26;     // how far past the world edge the plane appears from
   const FLIGHT_DUST_SPEED = 2.45;       // m/s while spraying
   const FLIGHT_CRUISE_SPEED = 4.4;      // m/s while transiting / banner pass
   const FLIGHT_DUST_ALT = 2.05;
   const FLIGHT_CRUISE_ALT = 5.6;
-  const FLIGHT_REFUEL_MIN = 6.0;
-  const FLIGHT_REFUEL_MAX = 14.0;
-  const FLIGHT_BANNER_CHANCE = 0.32;
+  const FLIGHT_REFUEL_MIN = 2.0;        // increased frequency
+  const FLIGHT_REFUEL_MAX = 5.0;         // increased frequency
+  const FLIGHT_BANNER_CHANCE = 0.55;    // increased banner chance
   const BANNER_MESSAGES = [
     'TINY WORLD',
     'HELLO!',
@@ -19856,6 +20092,16 @@
     'GO TINY',
     'YEEHAW',
     'HAPPY HARVEST',
+    'ADVERTISE HERE',
+    'SPACE AVAILABLE',
+    'WILL FLY FOR COINS',
+    'YOUR AD HERE',
+    'BUY COFFEE',
+    'DRINK WATER',
+    'TINY ADVERTISING CO.',
+    'LOOK UP!',
+    'HI MOM!',
+    'MADE WITH THREE.JS'
   ];
   let activeSeason = 'summer';
 
@@ -19866,8 +20112,8 @@
     travel: 0,
     speed: FLIGHT_CRUISE_SPEED,
     refuelTimer: 0,
-    variantIndex: 0,
     isBanner: false,
+    numActivePlanes: 1
   };
   // Scratch vectors reused per frame to avoid allocations in the hot path.
   const _flightPos = new THREE.Vector3();
@@ -19875,85 +20121,71 @@
   const _flightAhead = new THREE.Vector3();
 
   // -------- banner streamer --------
-  // Long thin streamer that attaches to the plane's tail and trails along
-  // the direction of travel, flapping like a flag in the slipstream. White
-  // background, black text. Segments along the length feed per-frame
-  // vertex-wave animation; geometry is shifted so the leading short edge
-  // sits at local x=0 and the banner extends backward to x=-LEN.
   const BANNER_LEN = 5.4;
   const BANNER_HEIGHT = 0.55;
-  let bannerMesh = null;
-  let bannerCanvas = null;
-  let bannerTexture = null;
-  let bannerWire = null;
-  function ensureBanner() {
-    if (bannerMesh) return;
-    bannerCanvas = document.createElement('canvas');
-    bannerCanvas.width = 2048;
-    bannerCanvas.height = 224;
-    bannerTexture = new THREE.CanvasTexture(bannerCanvas);
-    bannerTexture.encoding = THREE.sRGBEncoding;
-    bannerTexture.anisotropy = (renderer.capabilities.getMaxAnisotropy
+
+  function ensurePlaneBanner(p) {
+    if (p.bannerMesh) return;
+    p.bannerCanvas = document.createElement('canvas');
+    p.bannerCanvas.width = 2048;
+    p.bannerCanvas.height = 224;
+    p.bannerTexture = new THREE.CanvasTexture(p.bannerCanvas);
+    p.bannerTexture.encoding = THREE.sRGBEncoding;
+    p.bannerTexture.anisotropy = (renderer.capabilities.getMaxAnisotropy
       ? Math.min(8, renderer.capabilities.getMaxAnisotropy())
       : 1);
     const geo = new THREE.PlaneGeometry(BANNER_LEN, BANNER_HEIGHT, 36, 4);
-    // Shift so the leading edge sits at local x=0 and the banner extends
-    // along -X. Combined with rotation.y = path yaw, the banner trails
-    // straight back from the plane regardless of heading.
     geo.translate(-BANNER_LEN / 2, 0, 0);
     const mat = new THREE.MeshBasicMaterial({
-      map: bannerTexture,
+      map: p.bannerTexture,
       transparent: true,
       side: THREE.DoubleSide,
       depthWrite: false,
     });
-    bannerMesh = new THREE.Mesh(geo, mat);
-    bannerMesh.visible = false;
-    bannerMesh.castShadow = false;
-    bannerMesh.receiveShadow = false;
-    bannerMesh.renderOrder = 1;
-    bannerMesh.userData.basePositions = geo.attributes.position.array.slice();
-    xrWorldRoot.add(bannerMesh);
+    p.bannerMesh = new THREE.Mesh(geo, mat);
+    p.bannerMesh.visible = false;
+    p.bannerMesh.castShadow = false;
+    p.bannerMesh.receiveShadow = false;
+    p.bannerMesh.renderOrder = 1;
+    p.bannerMesh.userData.basePositions = geo.attributes.position.array.slice();
+    xrWorldRoot.add(p.bannerMesh);
 
-    // Tow wire: a thin line from the plane's tail to the leading edge of
-    // the banner. Two-vertex BufferGeometry, mutated in updateCropDuster.
+    // Tow wire
     const wireGeo = new THREE.BufferGeometry();
     wireGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(6), 3));
     const wireMat = new THREE.LineBasicMaterial({ color: 0x1a1a1a, transparent: false });
-    bannerWire = new THREE.Line(wireGeo, wireMat);
-    bannerWire.visible = false;
-    bannerWire.frustumCulled = false;
-    bannerWire.castShadow = false;
-    bannerWire.receiveShadow = false;
-    xrWorldRoot.add(bannerWire);
+    p.bannerWire = new THREE.Line(wireGeo, wireMat);
+    p.bannerWire.visible = false;
+    p.bannerWire.frustumCulled = false;
+    p.bannerWire.castShadow = false;
+    p.bannerWire.receiveShadow = false;
+    xrWorldRoot.add(p.bannerWire);
   }
-  function setBannerText(text) {
-    ensureBanner();
-    const ctx = bannerCanvas.getContext('2d');
-    const W = bannerCanvas.width, H = bannerCanvas.height;
+
+  function setPlaneBannerText(p, text) {
+    ensurePlaneBanner(p);
+    const ctx = p.bannerCanvas.getContext('2d');
+    const W = p.bannerCanvas.width, H = p.bannerCanvas.height;
     ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, 0, W, H);
     ctx.fillStyle = '#000000';
-    ctx.font = 'bold 150px ui-sans-serif, "Helvetica Neue", Arial, sans-serif';
+    ctx.font = 'bold 130px ui-sans-serif, "Helvetica Neue", Arial, sans-serif';
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText(text, W / 2, H / 2 + 4);
-    bannerTexture.needsUpdate = true;
+    p.bannerTexture.needsUpdate = true;
   }
-  function updateBannerFlap(time) {
-    if (!bannerMesh) return;
-    const pos = bannerMesh.geometry.attributes.position;
-    const base = bannerMesh.userData.basePositions;
+
+  function updatePlaneBannerFlap(p, time) {
+    if (!p.bannerMesh) return;
+    const pos = p.bannerMesh.geometry.attributes.position;
+    const base = p.bannerMesh.userData.basePositions;
     const arr = pos.array;
     for (let i = 0; i < pos.count; i++) {
       const j = i * 3;
       const baseX = base[j];
       const baseY = base[j + 1];
-      // Trailing factor: 0 at the leading edge (attached to plane),
-      // 1 at the free tip — that's where most of the flapping happens.
       const t = Math.min(1, Math.max(0, -baseX / BANNER_LEN));
-      // Travelling sine wave along the length, gravity-style droop, and a
-      // gentle twist so top and bottom rows lag by a different phase.
       const wave = Math.sin(baseX * 5.5 + time * 8.5) * 0.28 * t;
       const droop = -0.22 * t * t;
       const twist = baseY * 1.05 * Math.sin(time * 6.5 + baseX * 3.2) * t;
@@ -19964,13 +20196,14 @@
     pos.needsUpdate = true;
   }
 
-  function applyCropDusterMaterial(index) {
-    if (!cropDusterModel || !cropDusterMaterials.length) return;
+  function applyCropDusterMaterial(planeIdx, index) {
+    const p = planes[planeIdx];
+    if (!p.model || !cropDusterMaterials.length) return;
     const mat = cropDusterMaterials[index % cropDusterMaterials.length] || cropDusterMaterials[0];
-    cropDusterModel.traverse(o => {
+    p.model.traverse(o => {
       if (o.isMesh && !o.userData.__propDisc) o.material = mat;
     });
-    cropDusterRoot.userData.variantIndex = index % cropDusterMaterials.length;
+    p.variantIndex = index % cropDusterMaterials.length;
   }
 
   function normalizeCropDusterModel(model) {
@@ -19993,44 +20226,20 @@
     });
   }
 
-  function setupCropDusterPropeller() {
-    cropDusterProps = [];
-    if (!cropDusterModel) return;
-    const propNames = /prop(eller)?|blade|spinner|rotor|fan/i;
-    cropDusterModel.traverse(o => {
-      if (!o.isMesh || !propNames.test(o.name || '')) return;
-      if (o.material && typeof o.material.clone === 'function') o.material = o.material.clone();
-      o.userData.__propAxis = 'z';
-      cropDusterProps.push(o);
-
-      const box = new THREE.Box3().setFromObject(o);
-      const size = box.getSize(new THREE.Vector3());
-      const sweepR = Math.max(size.x, size.y) * 0.52;
-      if (sweepR > 0.08 && !o.userData.__disc) {
-        const disc = new THREE.Mesh(
-          new THREE.CircleGeometry(sweepR, 32),
-          new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.28, side: THREE.DoubleSide, depthWrite: false })
-        );
-        disc.name = 'crop_duster_prop_blur_disc';
-        disc.userData.__propDisc = true;
-        disc.renderOrder = 2;
-        o.add(disc);
-        o.userData.__disc = disc;
-      }
-    });
-  }
-
-  function spinCropDusterPropeller(dt) {
-    if (!cropDusterProps.length) return;
-    const omega = 220; // rad/s — fast enough to read as a crop-duster prop.
+  function spinAllPropellers(dt) {
+    const omega = 220;
     const dRot = omega * dt;
     const flicker = 0.20 + Math.max(0, Math.sin(performance.now() * 0.06)) * 0.16;
-    for (const p of cropDusterProps) {
-      const axis = p.userData.__propAxis || 'z';
-      if (axis === 'x') p.rotation.x += dRot;
-      else if (axis === 'y') p.rotation.y += dRot;
-      else p.rotation.z += dRot;
-      if (p.userData.__disc) p.userData.__disc.material.opacity = flicker;
+    for (let i = 0; i < planes.length; i++) {
+      const p = planes[i];
+      if (!p.group.visible) continue;
+      for (const prop of p.props) {
+        const axis = prop.userData.__propAxis || 'z';
+        if (axis === 'x') prop.rotation.x += dRot;
+        else if (axis === 'y') prop.rotation.y += dRot;
+        else prop.rotation.z += dRot;
+        if (prop.userData.__disc) prop.userData.__disc.material.opacity = flicker;
+      }
     }
   }
 
@@ -20047,10 +20256,41 @@
     const loader = new THREE.GLTFLoader();
     loader.load(CROP_DUSTER_ASSET, gltf => {
       cropDusterModel = gltf.scene;
-      normalizeCropDusterModel(cropDusterModel);
-      cropDusterRoot.add(cropDusterModel);
-      applyCropDusterMaterial(0);
-      setupCropDusterPropeller();
+      
+      for (let i = 0; i < planes.length; i++) {
+        const p = planes[i];
+        p.model = gltf.scene.clone();
+        normalizeCropDusterModel(p.model);
+        p.group.add(p.model);
+        
+        // Setup propeller for this cloned model
+        p.props = [];
+        const propNames = /prop(eller)?|blade|spinner|rotor|fan/i;
+        p.model.traverse(o => {
+          if (!o.isMesh || !propNames.test(o.name || '')) return;
+          if (o.material && typeof o.material.clone === 'function') o.material = o.material.clone();
+          o.userData.__propAxis = 'z';
+          p.props.push(o);
+
+          const box = new THREE.Box3().setFromObject(o);
+          const size = box.getSize(new THREE.Vector3());
+          const sweepR = Math.max(size.x, size.y) * 0.52;
+          if (sweepR > 0.08 && !o.userData.__disc) {
+            const disc = new THREE.Mesh(
+              new THREE.CircleGeometry(sweepR, 32),
+              new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.28, side: THREE.DoubleSide, depthWrite: false })
+            );
+            disc.name = 'crop_duster_prop_blur_disc';
+            disc.userData.__propDisc = true;
+            disc.renderOrder = 2;
+            o.add(disc);
+            o.userData.__disc = disc;
+          }
+        });
+        
+        applyCropDusterMaterial(i, i);
+      }
+      
       cropDusterRoot.visible = true;
     }, undefined, err => {
       console.warn('[crop-duster] failed to load model', err);
@@ -20058,9 +20298,6 @@
   }
 
   function cropCellsForDusting() {
-    // Use the live cropPositions Set (maintained in setCell) instead of
-    // rescanning the entire GRID every time the duster plans a new run.
-    // This keeps planning O(crops) even on 128×128+ home boards.
     const cells = [];
     for (const key of cropPositions) {
       const [x, z] = key.split(',').map(Number);
@@ -20071,13 +20308,7 @@
     return cells;
   }
 
-  // A real crop-duster doesn't zig-zag between individual cells — it lines
-  // up on the field, descends, and makes a single straight pass that dumps
-  // on every crop in the band. Returns a Catmull-Rom curve that starts well
-  // off-grid at cruise altitude, descends gently into the row, runs flat
-  // and low across the entire crop extent, then climbs back to cruise and
-  // exits off-grid on the other side. No 90° turns.
-  let cropDusterPassAxis = 'x'; // remembered for the dust-spawn loop
+  let cropDusterPassAxis = 'x';
   function planDustingCurve() {
     const crops = cropCellsForDusting();
     if (!crops.length) return null;
@@ -20094,11 +20325,8 @@
     }
     const extentX = maxX - minX;
     const extentZ = maxZ - minZ;
-    // Run along the longer axis so a single pass crosses the most rows.
     const axis = extentX >= extentZ ? 'x' : 'z';
     cropDusterPassAxis = axis;
-    // Flip the approach direction occasionally so the plane doesn't always
-    // arrive from the same corner.
     const flip = Math.random() < 0.5 ? -1 : 1;
 
     const lead = FLIGHT_OFFSCREEN_DIST;
@@ -20137,8 +20365,6 @@
     return new THREE.CatmullRomCurve3(pts, false, 'catmullrom', 0.35);
   }
 
-  // High flyover used for banner runs (and as a fallback when there are no
-  // crops to dust). Always crosses the world centred on the camera.
   function planFlyoverCurve(altBoost) {
     const dir = Math.random() < 0.5 ? -1 : 1;
     const baseAlt = Math.max(renderCloudHeight + 0.5, FLIGHT_CRUISE_ALT) + (altBoost || 0);
@@ -20157,27 +20383,83 @@
     cropDusterState.speed = FLIGHT_DUST_SPEED;
     cropDusterState.phase = 'flying';
     cropDusterState.isBanner = false;
-    if (bannerMesh) bannerMesh.visible = false;
-    if (bannerWire) bannerWire.visible = false;
+    cropDusterState.numActivePlanes = 1;
+
+    planes[0].group.visible = true;
+    planes[0].localOffset.set(0, 0, 0);
+    planes[0].group.position.copy(planes[0].localOffset);
+
+    planes[1].group.visible = false;
+    planes[2].group.visible = false;
+
+    for (const p of planes) {
+      if (p.bannerMesh) p.bannerMesh.visible = false;
+      if (p.bannerWire) p.bannerWire.visible = false;
+    }
+
     cropDusterRoot.visible = true;
   }
 
-  function startBannerRun(text) {
+  function startBannerRun() {
     cropDusterState.curve = planFlyoverCurve(0.6);
     cropDusterState.curveLen = cropDusterState.curve.getLength();
     cropDusterState.travel = 0;
     cropDusterState.speed = FLIGHT_CRUISE_SPEED * 0.85;
     cropDusterState.phase = 'banner';
     cropDusterState.isBanner = true;
-    setBannerText(text);
-    bannerMesh.visible = true;
+
+    // 50% chance of V formation (3 planes) towing banners
+    const isFormation = Math.random() < 0.5;
+    cropDusterState.numActivePlanes = isFormation ? 3 : 1;
+
+    // Setup lead plane
+    planes[0].group.visible = true;
+    planes[0].localOffset.set(0, 0, 0);
+    planes[0].group.position.copy(planes[0].localOffset);
+
+    const msgs = BANNER_MESSAGES.slice();
+    const pickMsg = () => {
+      const idx = Math.floor(Math.random() * msgs.length);
+      const m = msgs[idx];
+      msgs.splice(idx, 1);
+      return m;
+    };
+
+    setPlaneBannerText(planes[0], pickMsg());
+    if (planes[0].bannerMesh) planes[0].bannerMesh.visible = true;
+
+    if (isFormation) {
+      // Left wingman: offset left, slightly higher, and behind
+      planes[1].group.visible = true;
+      planes[1].localOffset.set(-2.2, 0.4, -2.2);
+      planes[1].group.position.copy(planes[1].localOffset);
+      setPlaneBannerText(planes[1], pickMsg());
+      if (planes[1].bannerMesh) planes[1].bannerMesh.visible = true;
+
+      // Right wingman: offset right, slightly lower, and behind
+      planes[2].group.visible = true;
+      planes[2].localOffset.set(2.2, -0.4, -2.2);
+      planes[2].group.position.copy(planes[2].localOffset);
+      setPlaneBannerText(planes[2], pickMsg());
+      if (planes[2].bannerMesh) planes[2].bannerMesh.visible = true;
+    } else {
+      planes[1].group.visible = false;
+      planes[2].group.visible = false;
+      if (planes[1].bannerMesh) planes[1].bannerMesh.visible = false;
+      if (planes[1].bannerWire) planes[1].bannerWire.visible = false;
+      if (planes[2].bannerMesh) planes[2].bannerMesh.visible = false;
+      if (planes[2].bannerWire) planes[2].bannerWire.visible = false;
+    }
+
     cropDusterRoot.visible = true;
   }
 
   function startRefuel() {
     cropDusterRoot.visible = false;
-    if (bannerMesh) bannerMesh.visible = false;
-    if (bannerWire) bannerWire.visible = false;
+    for (const p of planes) {
+      if (p.bannerMesh) p.bannerMesh.visible = false;
+      if (p.bannerWire) p.bannerWire.visible = false;
+    }
     cropDusterState.phase = 'refuel-wait';
     cropDusterState.refuelTimer = FLIGHT_REFUEL_MIN
       + Math.random() * (FLIGHT_REFUEL_MAX - FLIGHT_REFUEL_MIN);
@@ -20185,14 +20467,12 @@
 
   function startNextRun() {
     const haveCrops = cropCellsForDusting().length > 0;
-    // Crop dusting is a summer/farm-season behaviour, but the plane itself
-    // should still exist year-round as an ambient banner flyover.
     if (activeSeason !== 'summer' || !haveCrops || Math.random() < FLIGHT_BANNER_CHANCE) {
-      startBannerRun(BANNER_MESSAGES[Math.floor(Math.random() * BANNER_MESSAGES.length)]);
+      startBannerRun();
     } else {
-      cropDusterState.variantIndex = (cropDusterState.variantIndex + 1)
-        % Math.max(1, cropDusterMaterials.length);
-      applyCropDusterMaterial(cropDusterState.variantIndex);
+      // Randomize materials for the lead plane
+      const variantIdx = Math.floor(Math.random() * cropDusterMaterials.length);
+      applyCropDusterMaterial(0, variantIdx);
       startDustingRun();
     }
   }
@@ -20240,8 +20520,7 @@
 
   function updateCropDuster(dt) {
     updateCropDustParticles(dt);
-    if (!cropDusterModel) return;
-    spinCropDusterPropeller(dt);
+    spinAllPropellers(dt);
     cropDusterTime += dt;
 
     if (cropDusterState.phase === 'idle') {
@@ -20270,7 +20549,6 @@
     const horiz = Math.hypot(_flightTan.x, _flightTan.z);
     const pitch = Math.max(-0.22, Math.min(0.22, Math.atan2(_flightTan.y, Math.max(0.001, horiz))));
 
-    // Bank into upcoming turns by sampling the tangent slightly ahead.
     const uAhead = Math.min(1, u + 0.005);
     curve.getTangentAt(uAhead, _flightAhead);
     let dYaw = Math.atan2(_flightAhead.x, _flightAhead.z) - yaw;
@@ -20283,52 +20561,48 @@
     cropDusterRoot.position.set(_flightPos.x, _flightPos.y + bob, _flightPos.z);
     cropDusterRoot.rotation.set(pitch, yaw, bank);
 
-    // Banner attached to the plane tail by a thin wire; the banner itself
-    // hangs back a wire-length, flapping in the slipstream. Leading edge
-    // sits at the wire tip so the banner trails lengthways along the path.
-    if (cropDusterState.isBanner && bannerMesh && bannerMesh.visible) {
+    if (cropDusterState.isBanner) {
       const tanX = _flightTan.x, tanZ = _flightTan.z;
-      const tailOffset = 0.55;
-      const tailX = cropDusterRoot.position.x - tanX * tailOffset;
-      const tailY = cropDusterRoot.position.y - 0.05;
-      const tailZ = cropDusterRoot.position.z - tanZ * tailOffset;
-      const wireLen = 1.25;
-      const leadX = tailX - tanX * wireLen;
-      const leadY = tailY - 0.35;
-      const leadZ = tailZ - tanZ * wireLen;
-      // The geometry's long axis is local +X. The plane's forward is local
-      // +Z (yaw = atan2(tan.x, tan.z)). Subtract 90° so local -X (trailing
-      // tip) lies along world -tangent — i.e., directly behind the plane.
-      bannerMesh.position.set(leadX, leadY, leadZ);
-      bannerMesh.rotation.set(0, yaw - Math.PI / 2, 0);
-      updateBannerFlap(cropDusterTime);
-      if (bannerWire) {
-        bannerWire.visible = true;
-        const wp = bannerWire.geometry.attributes.position;
-        const arr = wp.array;
-        arr[0] = tailX; arr[1] = tailY; arr[2] = tailZ;
-        arr[3] = leadX; arr[4] = leadY; arr[5] = leadZ;
-        wp.needsUpdate = true;
+      for (let i = 0; i < cropDusterState.numActivePlanes; i++) {
+        const p = planes[i];
+        if (!p.group.visible || !p.bannerMesh) continue;
+        
+        const worldPos = new THREE.Vector3();
+        p.group.getWorldPosition(worldPos);
+
+        const tailOffset = 0.55;
+        const tailX = worldPos.x - tanX * tailOffset;
+        const tailY = worldPos.y - 0.05;
+        const tailZ = worldPos.z - tanZ * tailOffset;
+        const wireLen = 1.25;
+        const leadX = tailX - tanX * wireLen;
+        const leadY = tailY - 0.35;
+        const leadZ = tailZ - tanZ * wireLen;
+
+        p.bannerMesh.position.set(leadX, leadY, leadZ);
+        p.bannerMesh.rotation.set(0, yaw - Math.PI / 2, 0);
+        updatePlaneBannerFlap(p, cropDusterTime);
+
+        if (p.bannerWire) {
+          p.bannerWire.visible = true;
+          const wp = p.bannerWire.geometry.attributes.position;
+          const arr = wp.array;
+          arr[0] = tailX; arr[1] = tailY; arr[2] = tailZ;
+          arr[3] = leadX; arr[4] = leadY; arr[5] = leadZ;
+          wp.needsUpdate = true;
+        }
       }
-    } else if (bannerWire && bannerWire.visible) {
-      bannerWire.visible = false;
     }
 
-    // Dust spray: during the dusting pass, spawn dust at every home-grid
-    // crop cell whose along-track coordinate is currently under the plane.
-    // Walking by cells (not just by the plane's exact xz) means a single
-    // straight pass blankets every crop in the band, regardless of how
-    // wide the field is on the perpendicular axis.
     if (!cropDusterState.isBanner && _flightPos.y < FLIGHT_DUST_ALT + 0.55) {
       const planeX = cropDusterRoot.position.x;
       const planeZ = cropDusterRoot.position.z;
       const window = 0.6;
       for (const key of cropPositions) {
         const [x, z] = key.split(',').map(Number);
-        // Only home-grid crops are tracked; ghost boards are never dusted.
         if (x < 0 || x >= GRID || z < 0 || z >= GRID) continue;
         const c = getWorldCell(x, z);
-        if (!CROP_KINDS.has(c.kind)) continue; // defensive
+        if (!CROP_KINDS.has(c.kind)) continue;
         const p = tilePos(x, z);
         const along = cropDusterPassAxis === 'x' ? p.x - planeX : p.z - planeZ;
         if (Math.abs(along) > window) continue;
@@ -21599,8 +21873,6 @@
   window.__generateProceduralWorld = generateProceduralWorld;
 
   // -------- LandscapeEngine integration --------
-  let useLandscapeEngine = false;
-  let landscapeEngineInstance = null;
 
   // Scale factor: builder tiles are 1 unit apart; sampleLandscapeCell
   // maps them to engine coords via `scale = 25`, so we shrink the
@@ -22011,9 +22283,8 @@
       }
     }
 
-    // Ensure kinds that aren't rocks sit on flat ground (tf = 1)
+    // In Landscape worlds, items sit on the terraced canyon hills, not flat ground
     let effectiveTf = tf;
-    if (kind && kind !== 'rock') effectiveTf = 1;
 
     return {
       x, z,
@@ -22703,7 +22974,8 @@
       const elevation = { ...elevState };
       const procedural = !!(proceduralEl && proceduralEl.checked);
       const landscapeStyle = landscapeStyleEl && landscapeStyleEl.value;
-      const useLandscape = landscapeStyle === 'landscape';
+      const useLandscapeEl = document.getElementById('gen-use-landscape');
+      const useLandscape = (landscapeStyle === 'landscape') || (useLandscapeEl && useLandscapeEl.checked);
       const disableAutofill = !!(disableAutofillEl && disableAutofillEl.checked);
       try { localStorage.setItem(GEN_LS.gridSize, String(gridSize)); } catch (_) {}
 
@@ -22712,19 +22984,24 @@
         const style = landscapeStyleEl.value;
         if (style === 'landscape') {
           renderVoxelTerrain = false;
+          landscapeMeshMode = true;
           // Store biome/render choices for initLandscapeMesh
           landscapeMeshBiome = (biomeDdEl && biomeDdEl.value) || 'grassland';
           landscapeMeshStyle = (renderDdEl && renderDdEl.value) || 'lowpoly';
           // landscapeMeshMode is activated after applyState creates the engine instance
         } else if (style === 'lowpoly') {
           disposeLandscapeMesh({ rebuild: true });
-          useLandscapeEngine = false;
-          landscapeEngineInstance = null;
+          if (!useLandscape) {
+            useLandscapeEngine = false;
+            landscapeEngineInstance = null;
+          }
           renderVoxelTerrain = false;
         } else {
           disposeLandscapeMesh({ rebuild: true });
-          useLandscapeEngine = false;
-          landscapeEngineInstance = null;
+          if (!useLandscape) {
+            useLandscapeEngine = false;
+            landscapeEngineInstance = null;
+          }
           renderVoxelTerrain = true;
           renderTerrainVoxelResolution = style.split('-')[1];
         }
@@ -24106,12 +24383,12 @@
       if (normalizedKind === 'house' && (terrain === 'water' || terrain === 'path' || terrain === 'lava')) {
         terrain = 'grass';
       }
-      if (normalizedKind && FLAT_REQUIRED.has(normalizedKind) && normalizedTerrainFloors > 1) {
+      if (!useLandscapeEngine && normalizedKind && FLAT_REQUIRED.has(normalizedKind) && normalizedTerrainFloors > 1) {
         normalizedTerrainFloors = 1;
       }
       // Paths and farmland (dirt under crops) are also intrinsically flat.
       const flatTerrain = (terrain === 'path' || terrain === 'dirt');
-      if (flatTerrain && normalizedTerrainFloors > 1) {
+      if (!useLandscapeEngine && flatTerrain && normalizedTerrainFloors > 1) {
         normalizedTerrainFloors = 1;
       }
       const normalizedExtras = Array.isArray(extras)
@@ -24354,6 +24631,7 @@
         rebuildTerrainRender();
       }
       saveState();
+      if (typeof syncControls === 'function') syncControls();
       if (typeof opts.onDone === 'function') {
         try { opts.onDone(); } catch (_) {}
       }
@@ -25367,7 +25645,7 @@
   function minimapThemeCss(css) {
     return minimapHexToCss(minimapThemeHex(minimapCssToHex(css, 0x9ec74b)));
   }
-  let minimapRepaintQueued = false;
+  var minimapRepaintQueued = false;
   let minimapState = null;
   function requestMinimapRepaint() {
     if (minimapRepaintQueued) return;

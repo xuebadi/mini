@@ -509,6 +509,16 @@ class LandscapeEngine {
     this.shrubGeo = this._buildShrubGeo();
     this.boulderGeo = this._buildBoulderGeo();
 
+    const localBox = new THREE.Box3(
+      new THREE.Vector3(-this.CHUNK_SIZE / 2 - 10, -100, -this.CHUNK_SIZE / 2 - 10),
+      new THREE.Vector3(this.CHUNK_SIZE / 2 + 10, 500, this.CHUNK_SIZE / 2 + 10)
+    );
+    const localSphere = localBox.getBoundingSphere(new THREE.Sphere());
+    for (const geo of [this.rockGeo, this.pineGeo, this.cactusGeo, this.shrubGeo, this.boulderGeo]) {
+      geo.boundingBox = localBox.clone();
+      geo.boundingSphere = localSphere.clone();
+    }
+
     this.floraMat = new THREE.MeshLambertMaterial({ vertexColors: true });
     this.floraMatLow = new THREE.MeshPhongMaterial({ vertexColors: true, flatShading: true, shininess: 0 });
 
@@ -817,16 +827,18 @@ class LandscapeEngine {
 
   // --- Terrain Chunk Builder ---
   _makeChunk(cx, cz) {
+    const cxW = (cx + 0.5) * this.CHUNK_SIZE;
+    const czW = (cz + 0.5) * this.CHUNK_SIZE;
+
     const group = new THREE.Group();
+    group.position.set(cxW, 0, czW);
+
     const lowPoly = this.styleMode === 'lowpoly';
     const sandM = lowPoly ? this.sandMatLowPoly : this.terrainMat;
     const rockM = lowPoly ? this.rockMatLowPoly : this.rockMat;
 
     const geo = new THREE.PlaneGeometry(this.CHUNK_SIZE, this.CHUNK_SIZE, this.CHUNK_RES, this.CHUNK_RES);
     geo.rotateX(-Math.PI / 2);
-
-    const cxW = (cx + 0.5) * this.CHUNK_SIZE;
-    const czW = (cz + 0.5) * this.CHUNK_SIZE;
 
     const pos = geo.attributes.position;
     const colors = new Float32Array(pos.count * 3);
@@ -864,7 +876,7 @@ class LandscapeEngine {
     geo.computeVertexNormals();
 
     const mesh = new THREE.Mesh(geo, sandM);
-    mesh.position.set(cxW, 0, czW);
+    mesh.position.set(0, 0, 0);
     mesh.castShadow = false;
     mesh.receiveShadow = true;
     group.add(mesh);
@@ -887,7 +899,7 @@ class LandscapeEngine {
       const h = this.getHeight(wx, wz);
       if (h < 4) continue;
       const scl = 0.6 + this._srand(cx, cz, i + 100) * 3.2;
-      dummy.position.set(wx, h - scl * 0.3, wz);
+      dummy.position.set(lxr, h - scl * 0.3, lzr);
       dummy.rotation.set(
         this._srand(cx, cz, i + 200) * Math.PI,
         this._srand(cx, cz, i + 300) * Math.PI * 2,
@@ -937,7 +949,7 @@ class LandscapeEngine {
       const slope = (Math.abs(hN - h) + Math.abs(hE - h)) * 0.05;
       if (slope > 0.44) continue; 
 
-      d.position.set(wx, h, wz);
+      d.position.set(lx, h, lz);
       d.rotation.set(0, this._srand(cx, cz, i + 800) * Math.PI * 2, 0);
 
       if (this.currentBiome.hasCactus && pick < 0.35 && nCactus < CAP_CACTUS) {
@@ -997,15 +1009,17 @@ class LandscapeEngine {
 
   // --- Far LOD Chunks ---
   _makeFarChunk(cx, cz) {
+    const cxW = (cx + 0.5) * this.FAR_CHUNK_SIZE;
+    const czW = (cz + 0.5) * this.FAR_CHUNK_SIZE;
+
     const group = new THREE.Group();
+    group.position.set(cxW, 0, czW);
+
     const lowPoly = this.styleMode === 'lowpoly';
     const sandM = lowPoly ? this.sandMatLowPoly : this.terrainMat;
 
     const geo = new THREE.PlaneGeometry(this.FAR_CHUNK_SIZE, this.FAR_CHUNK_SIZE, this.FAR_CHUNK_RES, this.FAR_CHUNK_RES);
     geo.rotateX(-Math.PI / 2);
-
-    const cxW = (cx + 0.5) * this.FAR_CHUNK_SIZE;
-    const czW = (cz + 0.5) * this.FAR_CHUNK_SIZE;
 
     const pos = geo.attributes.position;
     const colors = new Float32Array(pos.count * 3);
@@ -1037,7 +1051,7 @@ class LandscapeEngine {
     geo.computeVertexNormals();
 
     const mesh = new THREE.Mesh(geo, sandM);
-    mesh.position.set(cxW, 0, czW);
+    mesh.position.set(0, 0, 0);
     mesh.castShadow = false;
     mesh.receiveShadow = false;
     group.add(mesh);

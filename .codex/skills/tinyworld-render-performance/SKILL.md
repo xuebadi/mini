@@ -80,6 +80,9 @@ GPU caches (introduced for low-end GPU + visible-distance scaling):
 - Voxel cloud visual opacity is independent from Cloud shadow. Do not drive visible cloud materials with `alphaTest`; cloud shadow breakup belongs on each puff's `customDepthMaterial` so lowering the shadow slider never hides the clouds themselves.
 - Smoke particles must be capped and must not cast/receive shadows.
 - Crop duster planes should remain ambient year-round. Only crop-dusting passes are summer/crop-gated; non-summer or no-crop states should fall back to banner flyovers rather than hiding the plane system.
+- Ghost board frustum culling: In `renderScene()`, active ghost boards must be dynamically frustum-culled using the camera view frustum. Apply a safety padding (e.g., `GRID * TILE * 0.5`) to the bounding boxes to prevent mountain shadow pop-out.
+- Cheap ghost terrain bounds culling: Set `frustumCulled = true` on the instanced meshes of cheap ghost terrain. Update their geometry bounding boxes and spheres in `updateGhostRenderBubble()` to match the active preload area so they are culled as a single unit when the camera is panned away.
+- Landscape chunk frustum culling: Position chunk groups at their world coordinates and place their child terrain mesh and instanced rocks/flora at local coordinates relative to the chunk center. Shared geometries (`rockGeo`, `pineGeo`, etc.) must have pre-calculated local bounding boxes spanning the chunk size so Three.js can correctly transform their bounds and frustum-cull instanced meshes.
 
 Validation:
 

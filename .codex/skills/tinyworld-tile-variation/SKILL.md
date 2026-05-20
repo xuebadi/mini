@@ -55,7 +55,10 @@ The board can render terrain in two main visual styling modes:
 
 The Generate Modal includes a "Terrain style" selector that maps these options to global rendering variables and persists them before generating the world, allowing the user to easily switch and view the generated world in their preferred style.
 
-## LandscapeEngine Mesh Mode
+## LandscapeEngine Mesh Mode & Chunky Toggle
 
-When the LandscapeEngine terrain style is active, the normal tile grid remains the logical/editing reference but is hidden visually. Objects, hover indicators, ghost previews, selection marquees, and crowd sprites must use `landscapeHeightAtCell(globalX, globalZ)` instead of `TOP_H + terrainRiseAt(...)` so they sit on the generated mesh. Ray picking should first allow normal object/tile hits, then project LandscapeEngine mesh hits back into virtual board cells by x/z. Do not render discrete tile bases, preview/ghost boards, out-of-home override meshes, or synthetic cut-cap/fog helper geometry in this mode: pixel edge/depth effects will reveal them and they waste GPU. Keep the logical base as hidden grass/reference data only. Auto-expand should move the LandscapeEngine clip window with the camera target and stream real terrain chunks; it must not revive legacy ghost/base boards.
+When `useLandscapeEngine` is true (the world data is generated from or compatible with the LandscapeEngine seed), the engine can render in two visual modes, toggleable via the "Continuous landscape mesh" setting:
+1. **Continuous Mesh (`landscapeMeshMode = true`)**: The normal tile grid is hidden, and the high-fidelity continuous terrain mesh is rendered. Ray picking, objects, vehicles, and crowd sprites sit on the mesh using `landscapeHeightAtCell(globalX, globalZ)`.
+2. **Chunky/Voxel Tiles (`landscapeMeshMode = false`)**: The terrain is rendered as standard discrete tiles (low-poly panels or voxel columns). To match the continuous mesh, vertical heights are scaled up: `terrainRiseForLevel(level)` returns `(level - 1) * 1.12` units per floor (matching the mesa levels of the LandscapeEngine) instead of the standard `0.20`. Object placement is not flattened (flattening guards are skipped when `useLandscapeEngine` is true), allowing all trees, houses, fences, and roads to render at their correct three-dimensional canyon elevations.
+
 
