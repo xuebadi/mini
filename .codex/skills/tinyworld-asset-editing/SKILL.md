@@ -47,7 +47,9 @@ Selection properties:
 - Selection properties must remain available when AI interfaces are disabled (`?ai=0` / `html.ai-disabled`); hide prompt/chat controls, not the selected-object properties surface, and open selected objects directly to Properties so the property rows are visible.
 - Split dense edit actions into scannable rows when needed, but keep routing through durable row keys such as `selectionAction` so behavior remains centralized.
 - Section changes should be presentation-only unless the edit contract changes; preserve existing row keys and route behavior through `applySelectionProperty()`.
+- Property group tabs are presentation state only (`tinyworld:selection-props-active-tab.v1`); keep the durable row keys/actions intact underneath tabbed Edit/Transform/Appearance/Ground views.
 - Collapsible property sections should persist in `tinyworld:selection-props-collapsed.v1`; toggling sections must not remove or rename underlying row keys/actions.
+- Icon/round-button treatments for rotate, nudge, scale, and history controls should preserve full labels through `aria-label`/`title`; the glyph is visual shorthand, not the action contract.
 - Use `currentValue` plus `aria-pressed`/`.active` on property chips when a selected value is uniform, and leave mixed selections unpressed.
 - Colour rows and preview quick chips should route through `bodyColor`/`topColor` for any supported built-in kind, not just buildings. Expand `applyAppearanceToObject()` material buckets when exposing new colour rows so the world render and selection preview actually change.
 - Colour rows should include a `Default` option that clears only the matching `bodyColor`/`topColor` override while preserving materials, style, transform, and the other colour row.
@@ -55,6 +57,7 @@ Selection properties:
 - Selected-object scale rows should also provide per-scale reset controls that clear only `objectScale`, `scaleX`, `scaleY`, or `scaleZ`, preserving materials, colours, model IDs, and style.
 - Selected-object nudge controls should include a recenter path that clears only `offsetX/Y/Z`, preserving rotation, scale, materials, colours, model IDs, and style.
 - Selected-object material scale controls should offer a reset path that clears only the matching texture-scale key and keeps the chosen texture/material, colours, model IDs, and style intact.
+- The in-scene transform gizmo is constrained to selected object transforms: within-tile X/Z offset, lift, Y rotation, and object scale. It should update the same cell fields as the Properties panel and stay undoable as a single drag batch.
 - Model stamps should expose All material / All mat scale controls, but Body/Top material controls should be limited to selected asset kinds with known Tiny World material buckets; mixed selections must not write part-material fields onto model stamps.
 
 Stamps panel:

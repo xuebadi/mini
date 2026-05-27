@@ -1946,10 +1946,43 @@
     padding-top: 4px;
   }
   .agent-selection-properties[hidden] { display: none; }
+  .selection-prop-category-tabs {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 4px;
+    padding: 3px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.42);
+    border: 1px solid rgba(255, 255, 255, 0.48);
+  }
+  .selection-prop-category-tab {
+    min-width: 0;
+    border: 0;
+    border-radius: 999px;
+    background: transparent;
+    color: var(--muted);
+    font: inherit;
+    font-size: 10.5px;
+    font-weight: 800;
+    letter-spacing: 0;
+    line-height: 1.2;
+    padding: 6px 7px;
+    cursor: pointer;
+  }
+  .selection-prop-category-tab:hover {
+    color: var(--ink);
+    background: rgba(255, 255, 255, 0.46);
+  }
+  .selection-prop-category-tab.active,
+  .selection-prop-category-tab[aria-selected="true"] {
+    color: #214f8e;
+    background: rgba(255, 255, 255, 0.92);
+    box-shadow: 0 1px 2px rgba(20, 30, 50, 0.10);
+  }
   .selection-prop-section {
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 8px;
   }
   .selection-prop-section + .selection-prop-section {
     border-top: 1px solid rgba(120, 130, 150, 0.16);
@@ -2011,6 +2044,7 @@
     grid-template-columns: minmax(62px, 74px) 1fr;
     align-items: start;
     gap: 8px;
+    min-height: 34px;
   }
   .selection-prop-label {
     font-size: 11px;
@@ -2025,7 +2059,31 @@
     display: flex;
     flex-wrap: wrap;
     gap: 5px;
+    align-items: center;
   }
+  .selection-prop-options.control-stepper,
+  .selection-prop-options.control-axis {
+    flex-wrap: nowrap;
+  }
+  .selection-prop-options.control-axis {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    max-width: 172px;
+  }
+  .selection-prop-options.control-move {
+    display: grid;
+    grid-template-columns: repeat(3, 28px);
+    grid-template-rows: repeat(3, 28px);
+    gap: 4px;
+    width: max-content;
+  }
+  .selection-prop-options.control-move .selection-prop-chip[data-action="x-"] { grid-column: 1; grid-row: 2; }
+  .selection-prop-options.control-move .selection-prop-chip[data-action="x+"] { grid-column: 3; grid-row: 2; }
+  .selection-prop-options.control-move .selection-prop-chip[data-action="z-"] { grid-column: 2; grid-row: 1; }
+  .selection-prop-options.control-move .selection-prop-chip[data-action="z+"] { grid-column: 2; grid-row: 3; }
+  .selection-prop-options.control-move .selection-prop-chip[data-action="center"] { grid-column: 2; grid-row: 2; }
+  .selection-prop-options.control-move .selection-prop-chip[data-action="y-"] { grid-column: 1; grid-row: 3; }
+  .selection-prop-options.control-move .selection-prop-chip[data-action="y+"] { grid-column: 3; grid-row: 1; }
   .selection-prop-chip {
     min-height: 24px;
     border: 1px solid rgba(255, 255, 255, 0.55);
@@ -2054,6 +2112,38 @@
       0 0 0 1px rgba(60, 130, 247, 0.08);
   }
   .selection-prop-chip:active { transform: translateY(1px); }
+  .selection-prop-chip.icon-chip {
+    width: 28px;
+    height: 28px;
+    min-height: 28px;
+    padding: 0;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 15px;
+    font-weight: 900;
+    line-height: 1;
+  }
+  .selection-prop-chip.round-chip {
+    border-radius: 50%;
+  }
+  .selection-prop-chip.reset-chip {
+    min-width: 32px;
+    padding-inline: 8px;
+  }
+  .selection-prop-chip.danger-chip {
+    color: #8a2f2f;
+    border-color: rgba(180, 70, 70, 0.26);
+  }
+  .selection-prop-chip[disabled] {
+    cursor: default;
+    opacity: 0.45;
+    transform: none;
+  }
+  .selection-prop-chip[disabled]:hover {
+    background: rgba(255, 255, 255, 0.48);
+    border-color: rgba(255, 255, 255, 0.55);
+  }
   .selection-prop-chip.color-chip {
     display: inline-flex;
     align-items: center;
@@ -9796,6 +9886,136 @@
     return null;
   }
 
+  // -------- undo / redo history --------
+  const WORLD_HISTORY_LIMIT = 60;
+  const WORLD_HISTORY_BATCH_MS = 450;
+  const worldUndoStack = [];
+  const worldRedoStack = [];
+  let worldHistoryReady = false;
+  let worldHistoryApplying = false;
+  let worldHistoryMuted = false;
+  let worldHistoryBatchTimer = 0;
+  let worldHistoryBatchOpen = false;
+
+  function snapshotWorldStateForHistory() {
+    const cells = [];
+    for (const xKey of Object.keys(world)) {
+      const x = parseInt(xKey, 10);
+      if (!Number.isFinite(x)) continue;
+      const row = world[xKey];
+      if (!row) continue;
+      const insideHomeX = x >= 0 && x < GRID;
+      for (const zKey of Object.keys(row)) {
+        const z = parseInt(zKey, 10);
+        if (!Number.isFinite(z)) continue;
+        const c = row[zKey];
+        if (!c) continue;
+        const insideHome = insideHomeX && z >= 0 && z < GRID;
+        if (!insideHome && !c.userEdited) continue;
+        const entry = serializeCell(x, z, c);
+        if (entry) cells.push(entry);
+      }
+    }
+    return {
+      v: STORAGE_VERSION,
+      gridSize: GRID,
+      cells,
+      cameraMode,
+      toolId: selectedTool && selectedTool.id,
+      useLandscapeEngine,
+      landscapeMeshMode,
+      landscapeMeshBiome,
+      landscapeMeshStyle,
+      landscapeEngineSeed: landscapeEngineInstance ? landscapeEngineInstance.seed : null,
+      landscapeEngineBiome: landscapeEngineInstance ? landscapeEngineInstance.currentBiomeName : null,
+      planetLandscape: serializePlanetLandscapeState(),
+    };
+  }
+
+  function worldHistorySignature(snapshot) {
+    try { return JSON.stringify(snapshot && snapshot.cells ? snapshot.cells : []); }
+    catch (_) { return ''; }
+  }
+
+  function refreshWorldHistoryUI() {
+    window.dispatchEvent(new CustomEvent('tinyworld:history-changed', {
+      detail: { canUndo: worldUndoStack.length > 0, canRedo: worldRedoStack.length > 0 },
+    }));
+  }
+
+  function closeWorldHistoryBatchSoon() {
+    if (worldHistoryBatchTimer) clearTimeout(worldHistoryBatchTimer);
+    worldHistoryBatchTimer = setTimeout(() => {
+      worldHistoryBatchOpen = false;
+      worldHistoryBatchTimer = 0;
+    }, WORLD_HISTORY_BATCH_MS);
+  }
+
+  function pushWorldHistorySnapshot() {
+    if (!worldHistoryReady || worldHistoryApplying || worldHistoryMuted || suppressSave) return false;
+    if (worldHistoryBatchOpen) {
+      closeWorldHistoryBatchSoon();
+      return false;
+    }
+    const snapshot = snapshotWorldStateForHistory();
+    const sig = worldHistorySignature(snapshot);
+    const last = worldUndoStack[worldUndoStack.length - 1];
+    if (last && last.sig === sig) {
+      worldHistoryBatchOpen = true;
+      closeWorldHistoryBatchSoon();
+      return false;
+    }
+    worldUndoStack.push({ snapshot, sig });
+    if (worldUndoStack.length > WORLD_HISTORY_LIMIT) worldUndoStack.shift();
+    worldRedoStack.length = 0;
+    worldHistoryBatchOpen = true;
+    closeWorldHistoryBatchSoon();
+    refreshWorldHistoryUI();
+    return true;
+  }
+
+  function withWorldHistoryMuted(fn) {
+    worldHistoryMuted = true;
+    try { return fn(); }
+    finally { worldHistoryMuted = false; }
+  }
+
+  function restoreWorldHistorySnapshot(entry) {
+    if (!entry || !entry.snapshot) return false;
+    worldHistoryApplying = true;
+    if (worldHistoryBatchTimer) clearTimeout(worldHistoryBatchTimer);
+    worldHistoryBatchTimer = 0;
+    worldHistoryBatchOpen = false;
+    const finish = () => {
+      worldHistoryApplying = false;
+      if (typeof notifySelectionChanged === 'function') notifySelectionChanged();
+      refreshWorldHistoryUI();
+    };
+    const ok = applyState(entry.snapshot, { keepCamera: true, onDone: finish });
+    if (!ok) finish();
+    return ok;
+  }
+
+  function undoWorldEdit() {
+    if (!worldUndoStack.length || worldHistoryApplying) return false;
+    const current = snapshotWorldStateForHistory();
+    const currentSig = worldHistorySignature(current);
+    const previous = worldUndoStack.pop();
+    worldRedoStack.push({ snapshot: current, sig: currentSig });
+    if (worldRedoStack.length > WORLD_HISTORY_LIMIT) worldRedoStack.shift();
+    return restoreWorldHistorySnapshot(previous);
+  }
+
+  function redoWorldEdit() {
+    if (!worldRedoStack.length || worldHistoryApplying) return false;
+    const current = snapshotWorldStateForHistory();
+    const currentSig = worldHistorySignature(current);
+    const next = worldRedoStack.pop();
+    worldUndoStack.push({ snapshot: current, sig: currentSig });
+    if (worldUndoStack.length > WORLD_HISTORY_LIMIT) worldUndoStack.shift();
+    return restoreWorldHistorySnapshot(next);
+  }
+
   function makeTile(terrain, neighbors, x = 0, z = 0, level = 1, opts = {}) {
     const g = new THREE.Group();
     g.userData = { kind: 'tile', terrain };
@@ -16108,6 +16328,122 @@
     depthTest: true,
   });
   const OUTLINE_SCALE = 1.08;
+  const transformGizmoGroup = new THREE.Group();
+  transformGizmoGroup.name = 'selection-transform-gizmo';
+  transformGizmoGroup.visible = false;
+  xrWorldRoot.add(transformGizmoGroup);
+  const transformGizmoMats = {
+    x: new THREE.MeshBasicMaterial({ color: 0xe15a50, depthTest: false, transparent: true, opacity: 0.92 }),
+    y: new THREE.MeshBasicMaterial({ color: 0x4fb06d, depthTest: false, transparent: true, opacity: 0.92 }),
+    z: new THREE.MeshBasicMaterial({ color: 0x4c7fd9, depthTest: false, transparent: true, opacity: 0.92 }),
+    rotate: new THREE.MeshBasicMaterial({ color: 0xf0b443, depthTest: false, transparent: true, opacity: 0.86 }),
+    scale: new THREE.MeshBasicMaterial({ color: 0xffffff, depthTest: false, transparent: true, opacity: 0.92 }),
+  };
+  let selectedTransformGizmoTarget = null;
+
+  function makeTransformGizmoHandle(action, mat, parts) {
+    const g = new THREE.Group();
+    g.userData.transformGizmoAction = action;
+    parts.forEach(part => {
+      part.userData.transformGizmoAction = action;
+      part.renderOrder = 1200;
+      g.add(part);
+    });
+    transformGizmoGroup.add(g);
+    return g;
+  }
+
+  function rebuildTransformGizmoGeometry() {
+    while (transformGizmoGroup.children.length) {
+      const child = transformGizmoGroup.children.pop();
+      child.traverse(node => {
+        if (node.geometry) node.geometry.dispose();
+      });
+    }
+    const shaftGeo = new THREE.CylinderGeometry(0.025, 0.025, 0.58, 10);
+    const coneGeo = new THREE.ConeGeometry(0.075, 0.18, 14);
+    const xShaft = new THREE.Mesh(shaftGeo.clone(), transformGizmoMats.x);
+    xShaft.rotation.z = -Math.PI / 2;
+    xShaft.position.x = 0.34;
+    const xCone = new THREE.Mesh(coneGeo.clone(), transformGizmoMats.x);
+    xCone.rotation.z = -Math.PI / 2;
+    xCone.position.x = 0.72;
+    makeTransformGizmoHandle('move-x', transformGizmoMats.x, [xShaft, xCone]);
+
+    const yShaft = new THREE.Mesh(shaftGeo.clone(), transformGizmoMats.y);
+    yShaft.position.y = 0.34;
+    const yCone = new THREE.Mesh(coneGeo.clone(), transformGizmoMats.y);
+    yCone.position.y = 0.72;
+    makeTransformGizmoHandle('move-y', transformGizmoMats.y, [yShaft, yCone]);
+
+    const zShaft = new THREE.Mesh(shaftGeo.clone(), transformGizmoMats.z);
+    zShaft.rotation.x = Math.PI / 2;
+    zShaft.position.z = 0.34;
+    const zCone = new THREE.Mesh(coneGeo.clone(), transformGizmoMats.z);
+    zCone.rotation.x = Math.PI / 2;
+    zCone.position.z = 0.72;
+    makeTransformGizmoHandle('move-z', transformGizmoMats.z, [zShaft, zCone]);
+
+    const ring = new THREE.Mesh(new THREE.TorusGeometry(0.62, 0.018, 10, 56), transformGizmoMats.rotate);
+    ring.rotation.x = Math.PI / 2;
+    makeTransformGizmoHandle('rotate-y', transformGizmoMats.rotate, [ring]);
+
+    const cube = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.16, 0.16), transformGizmoMats.scale);
+    cube.position.set(0, 0.96, 0);
+    makeTransformGizmoHandle('scale', transformGizmoMats.scale, [cube]);
+  }
+  rebuildTransformGizmoGeometry();
+
+  function updateTransformGizmo(target) {
+    selectedTransformGizmoTarget = target && target.cell && target.cell.kind ? target : null;
+    if (!selectedTransformGizmoTarget) {
+      transformGizmoGroup.visible = false;
+      return;
+    }
+    const cell = selectedTransformGizmoTarget.cell;
+    const base = tilePos(selectedTransformGizmoTarget.x, selectedTransformGizmoTarget.z);
+    const y = TOP_H + terrainVisualRiseForCell(cell) + 0.62 + (cell.offsetY || 0);
+    transformGizmoGroup.position.set(
+      base.x + (cell.offsetX || 0),
+      y,
+      base.z + (cell.offsetZ || 0)
+    );
+    const s = Math.max(0.72, Math.min(1.25, viewSize / 10));
+    transformGizmoGroup.scale.setScalar(s);
+    transformGizmoGroup.visible = true;
+  }
+
+  function pickTransformGizmo(clientX, clientY) {
+    if (!transformGizmoGroup.visible || !selectedTransformGizmoTarget) return null;
+    ndc.x = (clientX / window.innerWidth) * 2 - 1;
+    ndc.y = -(clientY / window.innerHeight) * 2 + 1;
+    raycaster.setFromCamera(ndc, camera);
+    const hits = raycaster.intersectObjects(transformGizmoGroup.children, true);
+    for (const hit of hits) {
+      let n = hit.object;
+      while (n && !n.userData.transformGizmoAction) n = n.parent;
+      if (n && n.userData.transformGizmoAction) {
+        return { action: n.userData.transformGizmoAction, point: hit.point.clone() };
+      }
+    }
+    return null;
+  }
+
+  function applyTransformGizmoDrag(action, dx, dy) {
+    const unit = Math.max(0.018, viewSize * 0.0032);
+    if (action === 'move-x') moveSelectedBoardObject(dx * unit, 0, 0);
+    else if (action === 'move-y') moveSelectedBoardObject(0, -dy * unit, 0);
+    else if (action === 'move-z') moveSelectedBoardObject(0, 0, dx * unit);
+    else if (action === 'rotate-y') {
+      const delta = dx * 0.018;
+      updateSelectedBoardObjects(target => ({ rotationY: (target.cell.rotationY || 0) + delta }));
+    } else if (action === 'scale') {
+      const amount = Math.max(0.82, Math.min(1.22, 1 - dy * 0.006));
+      scaleSelectedBoardObject(amount);
+    }
+    updateTransformGizmo(selectedBoardObjectTarget());
+  }
+
   function addObjectOutline(rootObject) {
     if (!rootObject) return;
     rootObject.updateMatrixWorld(true);
@@ -19179,6 +19515,7 @@
 
   function addCellExtra(x, z, extra, opts = {}) {
     if (!world[x] || !world[x][z]) return;
+    pushWorldHistorySnapshot();
     const cell = world[x][z];
     if (!cell.extras) cell.extras = [];
     // De-dupe identical fence sides; level them up instead.
@@ -19211,6 +19548,7 @@
 
   function popCellExtra(x, z) {
     if (!world[x] || !world[x][z] || !world[x][z].extras || !world[x][z].extras.length) return false;
+    pushWorldHistorySnapshot();
     world[x][z].extras.pop();
     renderCellExtras(x, z); // no animation — surviving extras stay put
     refreshVehiclesForWorldObstacleChange(x, z);
@@ -19222,6 +19560,7 @@
 
   function setCell(x, z, opts) {
     const { terrain, terrainFloors, kind = null, floors, buildingType, fenceSide, tileDelay = 0, objectDelay = 0, animate = true, impactDust = true, forceTile = false, rotationY, offsetX, offsetY, offsetZ, appearance, waterFlow } = opts;
+    pushWorldHistorySnapshot();
     const prev = ensureWorldCell(x, z);
     const prevVehicleDrivable = isVehicleDrivableCell(prev);
     let nextTerrain = terrain || 'grass';
@@ -22096,9 +22435,10 @@
   let pointerDown = null;     // {x, y}
   let lastPointer = null;
   let didDrag = false;
-  let dragMode = null;        // 'orbit' | 'pan' | 'pinch' | 'select-area' | 'draw' | 'move-selection'
+  let dragMode = null;        // 'orbit' | 'pan' | 'pinch' | 'select-area' | 'draw' | 'move-selection' | 'transform-gizmo'
   let selectionDragAnchor = null;
   let selectionMoveDragLastCoord = null;
+  let transformGizmoDrag = null;
   const drawVisitedCells = new Set();
   const drawChangedWorldCoords = new Map();
   let drawLastWorldCoord = null;
@@ -22118,6 +22458,8 @@
     lastPointer = null;
     didDrag = false;
     dragMode = null;
+    worldHistoryMuted = false;
+    transformGizmoDrag = null;
     drawVisitedCells.clear();
     drawChangedWorldCoords.clear();
     drawLastWorldCoord = null;
@@ -22274,6 +22616,23 @@
       return;
     }
 
+    const gizmoHit = e.button === 0 && !spaceDown && !e.shiftKey && !e.metaKey && !e.ctrlKey
+      ? pickTransformGizmo(e.clientX, e.clientY)
+      : null;
+    if (gizmoHit) {
+      pushWorldHistorySnapshot();
+      worldHistoryMuted = true;
+      dragMode = 'transform-gizmo';
+      transformGizmoDrag = { action: gizmoHit.action, x: e.clientX, y: e.clientY };
+      pointerDown = { x: e.clientX, y: e.clientY };
+      lastPointer = { x: e.clientX, y: e.clientY };
+      didDrag = true;
+      hoverMesh.visible = false;
+      renderer.domElement.classList.add('dragging');
+      e.preventDefault();
+      return;
+    }
+
     const pressHit = pickTile(e.clientX, e.clientY);
     const wantsDraw = e.button === 0 && !spaceDown && !e.shiftKey && !e.metaKey && isDrawablePlacementTool(selectedTool);
     const wantsSelectionMove = e.button === 0 && !spaceDown && !e.shiftKey && !e.metaKey && selectedTool && selectedTool.select && isSelectedWorldHit(pressHit);
@@ -22335,6 +22694,20 @@
       }
       pinchPrevDist = dist;
       pinchPrevMid = mid;
+      return;
+    }
+
+    if (dragMode === 'transform-gizmo' && transformGizmoDrag) {
+      const ddx = e.clientX - transformGizmoDrag.x;
+      const ddy = e.clientY - transformGizmoDrag.y;
+      if (Math.abs(ddx) + Math.abs(ddy) > 0) {
+        applyTransformGizmoDrag(transformGizmoDrag.action, ddx, ddy);
+        transformGizmoDrag.x = e.clientX;
+        transformGizmoDrag.y = e.clientY;
+        didDrag = true;
+      }
+      lastPointer = { x: e.clientX, y: e.clientY };
+      e.preventDefault();
       return;
     }
 
@@ -22421,6 +22794,17 @@
       return;
     }
 
+    if (dragMode === 'transform-gizmo') {
+      worldHistoryMuted = false;
+      transformGizmoDrag = null;
+      pointerDown = null;
+      lastPointer = null;
+      dragMode = null;
+      notifySelectionChanged();
+      e.preventDefault();
+      return;
+    }
+
     if (pointerDown && !didDrag && currentHover && dragMode !== 'pan' && dragMode !== 'select-area' && dragMode !== 'draw') {
       // Plain click on the select tool is a no-op; the user must hold
       // shift to engage selection (shift+click for one cell, shift+drag
@@ -22477,6 +22861,8 @@
       pointerDown = null;
       lastPointer = null;
       dragMode = null;
+      worldHistoryMuted = false;
+      transformGizmoDrag = null;
       pinchPrevDist = 0;
       pinchPrevMid = null;
       selectionMoveDragLastCoord = null;
@@ -22935,6 +23321,15 @@
   window.addEventListener('keydown', e => {
     if (shortcutTargetBlocked(e.target)) return;
     const comboKey = e.key.toLowerCase();
+    if ((e.metaKey || e.ctrlKey) && !e.altKey && comboKey === 'z') {
+      const didHistory = e.shiftKey ? redoWorldEdit() : undoWorldEdit();
+      if (didHistory) e.preventDefault();
+      return;
+    }
+    if ((e.metaKey || e.ctrlKey) && !e.altKey && comboKey === 'y') {
+      if (redoWorldEdit()) e.preventDefault();
+      return;
+    }
     if ((e.metaKey || e.ctrlKey) && !e.altKey && comboKey === 'c') {
       if (copyActiveCellIntent()) e.preventDefault();
       return;
@@ -31743,6 +32138,7 @@
     const panelTitle = document.getElementById('agent-panel-title');
     const previewCanvas = document.getElementById('selection-preview-canvas');
     const SELECTION_PROP_COLLAPSED_LS = 'tinyworld:selection-props-collapsed.v1';
+    const SELECTION_PROP_ACTIVE_TAB_LS = 'tinyworld:selection-props-active-tab.v1';
 
     function loadSelectionPropCollapsedSections() {
       try {
@@ -31760,6 +32156,14 @@
     }
 
     const selectionPropCollapsedSections = loadSelectionPropCollapsedSections();
+    let selectionPropActiveTab = (() => {
+      try { return localStorage.getItem(SELECTION_PROP_ACTIVE_TAB_LS) || 'transform'; }
+      catch (_) { return 'transform'; }
+    })();
+
+    function saveSelectionPropActiveTab() {
+      try { localStorage.setItem(SELECTION_PROP_ACTIVE_TAB_LS, selectionPropActiveTab); } catch (_) {}
+    }
 
     // Preview rotator state (reused Three.js r128)
     let previewRenderer = null;
@@ -32132,6 +32536,12 @@
     }
 
     function applySelectionProperty(rowKey, value) {
+      if (rowKey === 'historyAction') {
+        if (value === 'undo') undoWorldEdit();
+        else if (value === 'redo') redoWorldEdit();
+        renderSelection();
+        return;
+      }
       if (rowKey === 'selectionAction') {
         if (value === 'copy') copyActiveCellIntent();
         else if (value === 'cut') cutActiveCellIntent();
@@ -32369,27 +32779,31 @@
         const appearance = normalizeAppearance(cell.appearance) || {};
         return normalizeMaterialTextureKey(appearance.topTexture || 'default');
       });
+      addRow('Edit', { key: 'historyAction', label: 'History', control: 'history', options: [
+        { label: 'Undo', value: 'undo', disabled: !worldUndoStack.length },
+        { label: 'Redo', value: 'redo', disabled: !worldRedoStack.length },
+      ] });
       addRows('Edit', [
-        { key: 'selectionAction', label: 'Tool', options: [
+        { key: 'selectionAction', label: 'Tool', control: 'actions', options: [
           { label: 'Apply tool', value: 'apply-tool' },
           { label: 'Delete', value: 'delete' },
         ] },
-        { key: 'selectionAction', label: 'Clipboard', options: [
+        { key: 'selectionAction', label: 'Clipboard', control: 'actions', options: [
           { label: 'Copy', value: 'copy' },
           { label: 'Cut', value: 'cut' },
           { label: 'Paste', value: 'paste' },
           { label: 'Duplicate', value: 'duplicate' },
         ] },
-        { key: 'selectionAction', label: 'Templates', options: [
+        { key: 'selectionAction', label: 'Templates', control: 'actions', options: [
           { label: 'Save template', value: 'save-template' },
           { label: 'Paste latest', value: 'paste-template' },
         ] },
       ]);
-      addRow('Transform', { key: 'rotate', label: 'Rotate', options: [
+      addRow('Transform', { key: 'rotate', label: 'Rotate', control: 'rotate', options: [
         { label: 'Left', value: 'left' },
         { label: 'Right', value: 'right' },
       ] });
-      addRow('Transform', { key: 'selectionMove', label: 'Shift', options: [
+      addRow('Transform', { key: 'selectionMove', label: 'Shift', control: 'axis', options: [
         { label: 'West', value: 'west' },
         { label: 'East', value: 'east' },
         { label: 'North', value: 'north' },
@@ -32397,27 +32811,27 @@
       ] });
       if (selectedTargets.length) {
         addRows('Transform', [
-          { key: 'objectScale', label: 'Scale', currentValue: scaleResetValue(objectCells, 'objectScale'), options: [
+          { key: 'objectScale', label: 'Scale', control: 'stepper', currentValue: scaleResetValue(objectCells, 'objectScale'), options: [
             { label: 'Down', value: 'down' },
             { label: 'Reset', value: 'reset' },
             { label: 'Up', value: 'up' },
           ] },
-          { key: 'objectScaleX', label: 'Scale X', currentValue: scaleResetValue(objectCells, 'scaleX'), options: [
+          { key: 'objectScaleX', label: 'Scale X', control: 'stepper', currentValue: scaleResetValue(objectCells, 'scaleX'), options: [
             { label: 'Down', value: 'down' },
             { label: 'Reset', value: 'reset' },
             { label: 'Up', value: 'up' },
           ] },
-          { key: 'objectScaleY', label: 'Scale Y', currentValue: scaleResetValue(objectCells, 'scaleY'), options: [
+          { key: 'objectScaleY', label: 'Scale Y', control: 'stepper', currentValue: scaleResetValue(objectCells, 'scaleY'), options: [
             { label: 'Down', value: 'down' },
             { label: 'Reset', value: 'reset' },
             { label: 'Up', value: 'up' },
           ] },
-          { key: 'objectScaleZ', label: 'Scale Z', currentValue: scaleResetValue(objectCells, 'scaleZ'), options: [
+          { key: 'objectScaleZ', label: 'Scale Z', control: 'stepper', currentValue: scaleResetValue(objectCells, 'scaleZ'), options: [
             { label: 'Down', value: 'down' },
             { label: 'Reset', value: 'reset' },
             { label: 'Up', value: 'up' },
           ] },
-          { key: 'objectMove', label: 'Nudge', options: [
+          { key: 'objectMove', label: 'Nudge', control: 'move', options: [
             { label: 'X-', value: 'x-' },
             { label: 'X+', value: 'x+' },
             { label: 'Y-', value: 'y-' },
@@ -32426,13 +32840,13 @@
             { label: 'Z+', value: 'z+' },
             { label: 'Center', value: 'center' },
           ] },
-          { key: 'objectTransformReset', label: 'Reset', options: [
+          { key: 'objectTransformReset', label: 'Reset', control: 'reset', options: [
             { label: 'Transform', value: 'transform' },
           ] },
         ]);
         const appearanceRows = [
           { key: 'objectMaterial', label: 'All material', currentValue: currentObjectMaterial, options: SELECTION_MATERIAL_OPTIONS },
-          { key: 'objectMaterialScale', label: 'All mat scale', currentValue: scaleResetValue(objectCells, 'materialTextureScale'), options: [
+          { key: 'objectMaterialScale', label: 'All mat scale', control: 'stepper', currentValue: scaleResetValue(objectCells, 'materialTextureScale'), options: [
             { label: 'Smaller', value: 'down' },
             { label: 'Larger', value: 'up' },
             { label: 'Reset', value: 'reset' },
@@ -32441,13 +32855,13 @@
         if (partMaterialCells.length) {
           appearanceRows.push(
             { key: 'bodyMaterial', label: 'Body material', currentValue: currentBodyMaterial, options: SELECTION_MATERIAL_OPTIONS },
-            { key: 'bodyMaterialScale', label: 'Body mat scale', currentValue: scaleResetValue(partMaterialCells, 'bodyTextureScale'), options: [
+            { key: 'bodyMaterialScale', label: 'Body mat scale', control: 'stepper', currentValue: scaleResetValue(partMaterialCells, 'bodyTextureScale'), options: [
               { label: 'Smaller', value: 'down' },
               { label: 'Larger', value: 'up' },
               { label: 'Reset', value: 'reset' },
             ] },
             { key: 'topMaterial', label: 'Top material', currentValue: currentTopMaterial, options: SELECTION_MATERIAL_OPTIONS },
-            { key: 'topMaterialScale', label: 'Top mat scale', currentValue: scaleResetValue(partMaterialCells, 'topTextureScale'), options: [
+            { key: 'topMaterialScale', label: 'Top mat scale', control: 'stepper', currentValue: scaleResetValue(partMaterialCells, 'topTextureScale'), options: [
               { label: 'Smaller', value: 'down' },
               { label: 'Larger', value: 'up' },
               { label: 'Reset', value: 'reset' },
@@ -32477,7 +32891,7 @@
           { label: 'Snow', value: 'snow' },
           { label: 'Lava', value: 'lava' },
         ] },
-        { key: 'terrainHeight', label: 'Ground height', options: [
+        { key: 'terrainHeight', label: 'Ground height', control: 'stepper', options: [
           { label: 'Down', value: 'down' },
           { label: 'Up', value: 'up' },
         ] },
@@ -32519,10 +32933,83 @@
         { label: 'Medium', value: 'medium' },
         { label: 'Large', value: 'large' },
       ] });
+      const availableSectionNames = sectionOrder.filter(sectionName => (rowsBySection[sectionName] || []).length);
+      if (!availableSectionNames.some(sectionName => sectionName.toLowerCase().replace(/\s+/g, '-') === selectionPropActiveTab)) {
+        selectionPropActiveTab = (availableSectionNames[0] || 'Edit').toLowerCase().replace(/\s+/g, '-');
+        saveSelectionPropActiveTab();
+      }
+      if (availableSectionNames.length > 1) {
+        const tabbar = document.createElement('div');
+        tabbar.className = 'selection-prop-category-tabs';
+        tabbar.setAttribute('role', 'tablist');
+        tabbar.setAttribute('aria-label', 'Property groups');
+        availableSectionNames.forEach(sectionName => {
+          const sectionKey = sectionName.toLowerCase().replace(/\s+/g, '-');
+          const tab = document.createElement('button');
+          tab.type = 'button';
+          tab.className = 'selection-prop-category-tab' + (sectionKey === selectionPropActiveTab ? ' active' : '');
+          tab.setAttribute('role', 'tab');
+          tab.setAttribute('aria-selected', sectionKey === selectionPropActiveTab ? 'true' : 'false');
+          tab.textContent = sectionName;
+          tab.addEventListener('click', e => {
+            e.stopPropagation();
+            selectionPropActiveTab = sectionKey;
+            saveSelectionPropActiveTab();
+            renderSelectionProperties(summary, entries);
+          });
+          tabbar.appendChild(tab);
+        });
+        previewProps.appendChild(tabbar);
+      }
+      const optionGlyph = (row, opt) => {
+        if (row.key === 'historyAction') return opt.value === 'undo' ? '↶' : '↷';
+        if (row.key === 'rotate') return opt.value === 'left' ? '↺' : '↻';
+        if (row.key === 'selectionMove') {
+          if (opt.value === 'west') return 'W';
+          if (opt.value === 'east') return 'E';
+          if (opt.value === 'north') return 'N';
+          if (opt.value === 'south') return 'S';
+        }
+        if (row.key === 'objectMove') {
+          if (opt.value === 'x-') return 'X-';
+          if (opt.value === 'x+') return 'X+';
+          if (opt.value === 'y-') return 'Y-';
+          if (opt.value === 'y+') return 'Y+';
+          if (opt.value === 'z-') return 'Z-';
+          if (opt.value === 'z+') return 'Z+';
+          if (opt.value === 'center') return '•';
+        }
+        if (row.control === 'stepper') {
+          if (opt.value === 'down') return '-';
+          if (opt.value === 'up') return '+';
+          if (opt.value === 'reset') return '0';
+        }
+        return opt.label;
+      };
+      const controlClassForRow = row => {
+        if (row.control === 'move') return 'control-move';
+        if (row.control === 'axis' || row.control === 'rotate' || row.control === 'history') return 'control-axis';
+        if (row.control === 'stepper') return 'control-stepper';
+        return '';
+      };
+      const chipClassForOption = (row, opt) => {
+        const classes = ['selection-prop-chip'];
+        if (row.color) classes.push('color-chip');
+        if (row.control === 'stepper' || row.control === 'rotate' || row.control === 'move' || row.control === 'axis' || row.control === 'history') {
+          classes.push('icon-chip');
+        }
+        if (row.control === 'stepper' || row.control === 'rotate' || row.control === 'move' || row.control === 'history') {
+          classes.push('round-chip');
+        }
+        if (opt.value === 'reset' || opt.value === 'transform') classes.push('reset-chip');
+        if (opt.value === 'delete' || opt.value === 'cut') classes.push('danger-chip');
+        return classes.join(' ');
+      };
       sectionOrder.forEach(sectionName => {
         const rows = rowsBySection[sectionName] || [];
         if (!rows.length) return;
         const sectionKey = sectionName.toLowerCase().replace(/\s+/g, '-');
+        if (availableSectionNames.length > 1 && sectionKey !== selectionPropActiveTab) return;
         const isCollapsed = selectionPropCollapsedSections.has(sectionKey);
         const sectionWrap = document.createElement('section');
         sectionWrap.className = 'selection-prop-section' + (isCollapsed ? ' is-collapsed' : '');
@@ -32559,23 +33046,30 @@
           label.textContent = row.label;
           const options = document.createElement('div');
           options.className = 'selection-prop-options';
+          const controlClass = controlClassForRow(row);
+          if (controlClass) options.classList.add(controlClass);
           row.options.forEach(opt => {
             const chip = document.createElement('button');
             chip.type = 'button';
-            chip.className = 'selection-prop-chip' + (row.color ? ' color-chip' : '');
+            chip.className = chipClassForOption(row, opt);
+            chip.dataset.action = String(opt.value);
             const hasCurrentValue = row.currentValue !== undefined && row.currentValue !== null;
             const isActive = hasCurrentValue && String(row.currentValue) === String(opt.value);
             if (hasCurrentValue) chip.setAttribute('aria-pressed', isActive ? 'true' : 'false');
             if (isActive) chip.classList.add('active');
+            if (opt.disabled) chip.disabled = true;
+            chip.setAttribute('aria-label', row.label + ': ' + opt.label);
+            chip.title = row.label + ': ' + opt.label;
             if (row.color && opt.color) {
               const swatch = document.createElement('span');
               swatch.className = 'selection-prop-swatch';
               swatch.style.background = opt.color;
               chip.appendChild(swatch);
             }
-            chip.appendChild(document.createTextNode(opt.label));
+            chip.appendChild(document.createTextNode(optionGlyph(row, opt)));
             chip.addEventListener('click', e => {
               e.stopPropagation();
+              if (opt.disabled) return;
               applySelectionProperty(row.key, opt.value);
             });
             options.appendChild(chip);
@@ -32601,6 +33095,7 @@
           previewProps.innerHTML = '';
           previewProps.hidden = true;
         }
+        updateTransformGizmo(null);
         if (panelTitle) panelTitle.textContent = 'Agent conversation';
         return;
       }
@@ -32628,11 +33123,15 @@
       renderSelectionProperties(summary, entries);
       if (document.documentElement.classList.contains('ai-disabled')) setSelectionTab('properties');
       updateSelectionPreview(selectedObject);
+      updateTransformGizmo(selectedObject);
       if (panelTitle) panelTitle.textContent = 'Selection';
       // Slide the panel in (expanded) and pin so the user can chat about it.
       setPanelCollapsed(false, { pin: true });
     }
     window.addEventListener('tinyworld:selection-changed', renderSelection);
+    window.addEventListener('tinyworld:history-changed', () => {
+      if (previewBox && !previewBox.hidden) renderSelection();
+    });
 
     // -- suggestion chips below the input --
     const SUGGESTIONS = [
@@ -34248,6 +34747,8 @@
     } else {
       twPerfMark('boot:load-state-restored');
     }
+    worldHistoryReady = true;
+    refreshWorldHistoryUI();
     twPerfMark('boot:scene-ready');
     ensureGhostBoardsAroundTarget();
     twPerfMark('boot:ghost-boards-queued');
