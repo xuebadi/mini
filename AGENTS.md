@@ -25,8 +25,10 @@ Guidance for AI coding agents working in this repo. Read this before touching
   - `.codex/skills/tinyworld-auto-batching` — Auto palette inference/cache behavior.
   - `.codex/skills/tinyworld-opacity-torch` — ghost boards, panning, opacity torch.
   - `.codex/skills/tinyworld-tile-variation` — repeat-click levels and terrain/object variation.
+  - `.codex/skills/tinyworld-asset-editing` — selection placement, freehand drawing, asset clipboard/templates, and Stamps navigation.
   - `.codex/skills/tinyworld-visual-qa` — browser checks and visual QA.
   - `.codex/skills/tinyworld-render-performance` — renderer, shadows, clouds, and GPU budget.
+  - `.codex/skills/tinyworld-settings` — Settings modal sections, controls, tabs, and accessibility.
   - `.codex/skills/tinyworld-webxr` — WebXR AR desk placement, floating boards, VR immersion, and headset input.
   - `.codex/skills/tinyworld-crowd-layer` — 2.5D people sprites placed at 3D map coordinates.
   - `.codex/skills/tinyworld-lowpoly-world-prompt` — model prompting for coherent low-poly worlds.

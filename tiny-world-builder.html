@@ -1595,6 +1595,9 @@
     flex-direction: column;
     gap: 8px;
     border-bottom: 1px solid rgba(120, 130, 150, 0.12);
+    min-height: 0;
+    overflow-y: auto;
+    overscroll-behavior: contain;
   }
   .agent-selection-preview[hidden] { display: none; }
   .agent-panel.collapsed .agent-selection-preview { display: none; }
@@ -1629,21 +1632,82 @@
   .agent-selection-properties {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 10px;
     padding-top: 4px;
   }
   .agent-selection-properties[hidden] { display: none; }
+  .selection-prop-section {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .selection-prop-section + .selection-prop-section {
+    border-top: 1px solid rgba(120, 130, 150, 0.16);
+    padding-top: 8px;
+  }
+  .selection-prop-section-title {
+    border: 0;
+    background: transparent;
+    padding: 0;
+    width: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    font-size: 10.5px;
+    font-weight: 800;
+    letter-spacing: 0;
+    line-height: 1.2;
+    text-transform: uppercase;
+    color: var(--muted);
+    cursor: pointer;
+    text-align: left;
+  }
+  .selection-prop-section-title:hover {
+    color: var(--ink);
+  }
+  .selection-prop-section-meta {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--muted);
+    font-size: 9.5px;
+    font-weight: 800;
+    white-space: nowrap;
+  }
+  .selection-prop-section-cue {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.42);
+    color: var(--muted);
+    font-size: 12px;
+    line-height: 1;
+  }
+  .selection-prop-section-cue::before {
+    content: '-';
+  }
+  .selection-prop-section.is-collapsed .selection-prop-section-cue::before {
+    content: '+';
+  }
+  .selection-prop-section.is-collapsed .selection-prop-row {
+    display: none;
+  }
   .selection-prop-row {
     display: grid;
-    grid-template-columns: 52px 1fr;
+    grid-template-columns: minmax(62px, 74px) 1fr;
     align-items: start;
     gap: 8px;
   }
   .selection-prop-label {
     font-size: 11px;
     font-weight: 750;
-    letter-spacing: 0.06em;
-    line-height: 24px;
+    letter-spacing: 0;
+    line-height: 1.2;
+    padding-top: 5px;
     text-transform: uppercase;
     color: var(--muted);
   }
@@ -1670,6 +1734,15 @@
     background: rgba(255, 255, 255, 0.75);
     border-color: rgba(60, 130, 247, 0.24);
   }
+  .selection-prop-chip.active,
+  .selection-prop-chip[aria-pressed="true"] {
+    background: rgba(60, 130, 247, 0.15);
+    border-color: rgba(60, 130, 247, 0.42);
+    color: #214f8e;
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.72) inset,
+      0 0 0 1px rgba(60, 130, 247, 0.08);
+  }
   .selection-prop-chip:active { transform: translateY(1px); }
   .selection-prop-chip.color-chip {
     display: inline-flex;
@@ -1689,7 +1762,7 @@
     font-style: italic;
   }
 
-  /* Tabbed selection: Preview / Details switch (one pane visible at a time) */
+  /* Tabbed selection: Preview / Properties switch (one pane visible at a time) */
   .selection-tabbar {
     display: inline-flex;
     background: rgba(255,255,255,0.45);
@@ -3023,6 +3096,37 @@
     gap: 14px;
     min-height: 380px;
   }
+  .settings-searchbar {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 10px;
+    align-items: center;
+    margin: 2px 0 12px;
+  }
+  .settings-search {
+    width: 100%;
+    min-height: 36px;
+    border: 1px solid rgba(255, 255, 255, 0.58);
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.62);
+    color: var(--ink);
+    font: inherit;
+    font-size: 13px;
+    padding: 8px 11px;
+    box-shadow: 0 1px 0 rgba(255, 255, 255, 0.78) inset;
+  }
+  .settings-search:focus {
+    outline: 2px solid rgba(96, 125, 179, 0.36);
+    outline-offset: 1px;
+  }
+  .settings-search-status {
+    min-width: 74px;
+    color: var(--muted);
+    font-size: 11px;
+    font-weight: 700;
+    text-align: right;
+    white-space: nowrap;
+  }
   .settings-tabs {
     display: flex;
     flex-direction: column;
@@ -3036,13 +3140,43 @@
     background: transparent;
     color: var(--muted);
     cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
     font: inherit;
     font-size: 13px;
     font-weight: 600;
     text-align: left;
     padding: 10px 11px;
   }
+  .settings-tab-copy {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    white-space: normal;
+  }
+  .settings-tab-label,
+  .settings-tab-hint {
+    overflow-wrap: anywhere;
+  }
+  .settings-tab-hint {
+    color: var(--muted);
+    font-size: 10px;
+    font-weight: 600;
+    line-height: 1.25;
+  }
+  .settings-tab.active .settings-tab-hint,
+  .settings-tab:hover .settings-tab-hint {
+    color: var(--ink);
+    opacity: 0.72;
+  }
   .settings-tab:hover { background: rgba(255, 255, 255, 0.45); color: var(--ink); }
+  .settings-tab:focus-visible {
+    outline: 2px solid rgba(96, 125, 179, 0.44);
+    outline-offset: 2px;
+  }
   .settings-tab.active {
     background: rgba(255, 255, 255, 0.78);
     border-color: rgba(255, 255, 255, 0.6);
@@ -3051,6 +3185,22 @@
       0 1px 0 rgba(255, 255, 255, 0.9) inset,
       0 1px 2px rgba(20, 30, 50, 0.06);
   }
+  .settings-tab.search-miss:not(.active) { opacity: 0.45; }
+  .settings-tab-count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    border-radius: 999px;
+    background: rgba(96, 125, 179, 0.14);
+    color: #38547a;
+    font-size: 10px;
+    font-weight: 800;
+    font-variant-numeric: tabular-nums;
+  }
+  .settings-tab-count[hidden] { display: none; }
   .settings-panels {
     min-width: 0;
   }
@@ -3266,11 +3416,64 @@
     gap: 8px;
     flex-wrap: wrap;
   }
+  .stamp-category-strip {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-height: 31px;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    padding: 0 2px 3px 0;
+    margin: -1px 0 0;
+    scrollbar-width: thin;
+  }
+  .stamp-category-btn {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    height: 28px;
+    padding: 0 9px;
+    border: 1px solid rgba(72, 52, 31, 0.12);
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.42);
+    color: #675942;
+    font-size: 10px;
+    font-weight: 900;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    cursor: pointer;
+    white-space: nowrap;
+    box-shadow: 0 1px 0 rgba(255, 255, 255, 0.62) inset;
+  }
+  .stamp-category-btn:hover {
+    background: rgba(255, 255, 255, 0.68);
+    color: var(--ink);
+  }
+  .stamp-category-btn.active {
+    border-color: rgba(153, 101, 24, 0.52);
+    background: rgba(255, 239, 191, 0.72);
+    color: var(--ink);
+  }
+  .stamp-category-count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 16px;
+    height: 16px;
+    padding: 0 4px;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.55);
+    color: #806334;
+    font-size: 9px;
+    font-variant-numeric: tabular-nums;
+  }
   .stamp-builder-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(116px, 1fr));
     gap: 10px;
-    max-height: min(392px, calc(100vh - 390px));
+    max-height: min(392px, calc(100vh - 424px));
     overflow: auto;
     padding: 2px 5px 2px 0;
     overscroll-behavior: contain;
@@ -3332,6 +3535,31 @@
     opacity: 0.58;
     cursor: not-allowed;
     filter: grayscale(0.28);
+  }
+  .stamp-card-delete {
+    position: absolute;
+    z-index: 2;
+    top: 6px;
+    right: 6px;
+    width: 24px;
+    height: 24px;
+    border: 1px solid rgba(92, 61, 31, 0.22);
+    border-radius: 50%;
+    background: rgba(255, 248, 232, 0.86);
+    color: #6f5132;
+    font-size: 17px;
+    font-weight: 900;
+    line-height: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: 0 2px 8px rgba(54, 39, 24, 0.14);
+  }
+  .stamp-card-delete:hover {
+    background: #fff3df;
+    border-color: rgba(134, 74, 30, 0.42);
+    color: #8b4f2e;
   }
   .stamp-card canvas {
     position: relative;
@@ -3416,10 +3644,15 @@
     }
     .stamp-builder-grid {
       grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
-      max-height: calc(100vh - 430px);
+      max-height: calc(100vh - 464px);
     }
     .stamp-model-range { grid-template-columns: 58px minmax(0, 1fr) 42px; }
     .settings-layout { grid-template-columns: 1fr; }
+    .settings-searchbar {
+      grid-template-columns: 1fr;
+      gap: 4px;
+    }
+    .settings-search-status { text-align: left; }
     .settings-tabs {
       flex-direction: row;
       overflow-x: auto;
@@ -3428,7 +3661,12 @@
       padding-right: 0;
       padding-bottom: 8px;
     }
-    .settings-tab { white-space: nowrap; }
+    .settings-tab {
+      flex: 0 0 auto;
+      white-space: nowrap;
+    }
+    .settings-tab-copy { white-space: nowrap; }
+    .settings-tab-hint { display: none; }
   }
   .welcome-card {
     width: min(620px, calc(100vw - 32px));
@@ -3911,6 +4149,13 @@
     .tool kbd { display: none; }
   }
   html.ai-disabled [data-ai-interface] { display: none !important; }
+  html.ai-disabled #agent-panel.has-selection {
+    display: flex !important;
+  }
+  html.ai-disabled #agent-panel.has-selection .agent-panel-clear,
+  html.ai-disabled #agent-panel.has-selection .agent-messages {
+    display: none !important;
+  }
 </style>
 <script type="text/javascript">
   // AI interfaces are a dev/flagged feature. Production hosts default to no
@@ -3949,6 +4194,18 @@
       || host === '[::1]'
       || host.endsWith('.local');
     if (!isLocal) return;
+    let enabled = false;
+    try {
+      const flag = window.__TWB_ENABLE_CLUSO__;
+      if (typeof flag === 'boolean') enabled = flag;
+      const qs = new URLSearchParams(window.location.search);
+      if (qs.get('cluso') === '1') enabled = true;
+      if (qs.get('cluso') === '0') enabled = false;
+      const stored = window.localStorage && window.localStorage.getItem('tinyworld:features:cluso');
+      if (stored === '1') enabled = true;
+      if (stored === '0') enabled = false;
+    } catch (_) {}
+    if (!enabled) return;
     window.__CLUSO_EMBEDDED_CONFIG__ = {
       defaultActive: false,
       showToolbar: true,
@@ -4658,25 +4915,29 @@
   </div>
 
   <div id="render-modal" class="modal" hidden>
-    <form class="modal-card settings-card" role="dialog" aria-modal="true" aria-labelledby="render-title" onsubmit="return false">
+    <form class="modal-card settings-card" role="dialog" aria-modal="true" aria-labelledby="render-title" aria-describedby="render-copy" onsubmit="return false">
       <div class="modal-head">
         <strong id="render-title">Settings</strong>
-        <button class="modal-close" id="render-close" title="Close">×</button>
+        <button class="modal-close" id="render-close" type="button" title="Close" aria-label="Close settings">×</button>
       </div>
-      <p class="modal-copy">Tune app defaults, rendering, world preview, materials, environment, crowd, and AI configuration.</p>
+      <p class="modal-copy" id="render-copy">Tune workspace defaults, rendering quality, world preview, materials, environment, crowd, and AI configuration.</p>
+      <div class="settings-searchbar">
+        <input class="settings-search" id="settings-search" type="search" placeholder="Search settings..." autocomplete="off" aria-label="Search settings" />
+        <span class="settings-search-status" id="settings-search-status"></span>
+      </div>
       <div class="settings-layout">
-        <nav class="settings-tabs" aria-label="Settings sections">
-          <button type="button" class="settings-tab active" data-settings-tab="app">App</button>
-          <button type="button" class="settings-tab" data-settings-tab="rendering">Rendering</button>
-          <button type="button" class="settings-tab" data-settings-tab="world">World</button>
-          <button type="button" class="settings-tab" data-settings-tab="materials">Materials</button>
-          <button type="button" class="settings-tab" data-settings-tab="environment">Environment</button>
-          <button type="button" class="settings-tab" data-settings-tab="crowd">Crowd</button>
-          <button type="button" class="settings-tab" data-settings-tab="ai" data-ai-interface>AI Config</button>
+        <nav class="settings-tabs" role="tablist" aria-label="Settings sections">
+          <button type="button" class="settings-tab active" id="settings-tab-app" role="tab" aria-selected="true" aria-controls="settings-panel-app" tabindex="0" data-settings-tab="app" data-settings-description="Board size" data-settings-keywords="app workspace defaults board grid size home">Workspace</button>
+          <button type="button" class="settings-tab" id="settings-tab-rendering" role="tab" aria-selected="false" aria-controls="settings-panel-rendering" tabindex="-1" data-settings-tab="rendering" data-settings-description="Quality and lighting" data-settings-keywords="rendering render performance fps quality resolution shadow lighting image effects pixel shader antialias blur">Rendering</button>
+          <button type="button" class="settings-tab" id="settings-tab-world" role="tab" aria-selected="false" aria-controls="settings-panel-world" tabindex="-1" data-settings-tab="world" data-settings-description="Preview and terrain" data-settings-keywords="world mechanics preview ghost terrain voxel landscape opacity distance window floors objects">World</button>
+          <button type="button" class="settings-tab" id="settings-tab-materials" role="tab" aria-selected="false" aria-controls="settings-panel-materials" tabindex="-1" data-settings-tab="materials" data-settings-description="Colors and textures" data-settings-keywords="materials material colors colours texture tint tone wear finish parts surface">Materials</button>
+          <button type="button" class="settings-tab" id="settings-tab-environment" role="tab" aria-selected="false" aria-controls="settings-panel-environment" tabindex="-1" data-settings-tab="environment" data-settings-description="Sky and atmosphere" data-settings-keywords="environment weather sky clouds atmosphere mist backdrop vignette undercloud">Environment</button>
+          <button type="button" class="settings-tab" id="settings-tab-crowd" role="tab" aria-selected="false" aria-controls="settings-panel-crowd" tabindex="-1" data-settings-tab="crowd" data-settings-description="People and motion" data-settings-keywords="crowd people mechanics movement animation zones debug paths">Crowd</button>
+          <button type="button" class="settings-tab" id="settings-tab-ai" role="tab" aria-selected="false" aria-controls="settings-panel-ai" tabindex="-1" data-settings-tab="ai" data-settings-description="Provider and model" data-settings-keywords="ai config generate auto provider model api key openai anthropic grok xai gemini" data-ai-interface>AI</button>
         </nav>
         <div class="settings-panels">
-          <section class="settings-panel active" data-settings-panel="app">
-            <div class="settings-section-title">App</div>
+          <section class="settings-panel active" id="settings-panel-app" role="tabpanel" aria-labelledby="settings-tab-app" data-settings-panel="app" data-settings-keywords="app workspace defaults board grid size home">
+            <div class="settings-section-title">Workspace</div>
             <label>Home board size
               <select id="render-home-grid">
                 <option value="8">8 × 8</option>
@@ -4689,8 +4950,8 @@
             </label>
           </section>
 
-          <section class="settings-panel" data-settings-panel="rendering">
-            <div class="settings-section-title">Rendering</div>
+          <section class="settings-panel" id="settings-panel-rendering" role="tabpanel" aria-labelledby="settings-tab-rendering" data-settings-panel="rendering" data-settings-keywords="rendering render performance fps quality resolution shadow lighting image effects pixel shader antialias blur" hidden>
+            <div class="settings-section-title">Quality</div>
             <label>Shadow quality
               <select id="render-shadow">
                 <option value="low">Low</option>
@@ -4703,6 +4964,7 @@
               <input id="render-resolution" type="range" min="25" max="150" step="5" />
               <output id="render-resolution-value"></output>
             </div>
+            <div class="settings-section-title">Lighting</div>
             <div class="range-row">
               <span>Lighting</span>
               <input id="render-lighting" type="range" min="50" max="145" step="1" />
@@ -4728,6 +4990,7 @@
               <input id="render-back-fill" type="range" min="0" max="100" step="1" />
               <output id="render-back-fill-value"></output>
             </div>
+            <div class="settings-section-title">Image effects</div>
             <div class="range-row">
               <span>Brightness</span>
               <input id="render-brightness" type="range" min="75" max="130" step="1" />
@@ -4775,8 +5038,8 @@
             </div>
           </section>
 
-          <section class="settings-panel" data-settings-panel="world">
-            <div class="settings-section-title">World & preview</div>
+          <section class="settings-panel" id="settings-panel-world" role="tabpanel" aria-labelledby="settings-tab-world" data-settings-panel="world" data-settings-keywords="world mechanics preview ghost terrain voxel landscape opacity distance window floors objects" hidden>
+            <div class="settings-section-title">Preview</div>
             <div class="range-row">
               <span>Preview distance</span>
               <input id="render-distance" type="range" min="1" max="6" step="1" />
@@ -4802,6 +5065,7 @@
               <input id="render-object-opacity" type="range" min="0" max="100" step="1" />
               <output id="render-object-opacity-value"></output>
             </div>
+            <div class="settings-section-title">Terrain style</div>
             <div class="range-row">
               <span>Voxel gap</span>
               <input id="render-voxel-gap" type="range" min="0" max="14" step="1" />
@@ -4843,7 +5107,7 @@
             </label>
           </section>
 
-          <section class="settings-panel" data-settings-panel="materials">
+          <section class="settings-panel" id="settings-panel-materials" role="tabpanel" aria-labelledby="settings-tab-materials" data-settings-panel="materials" data-settings-keywords="materials material colors colours texture tint tone wear finish parts surface" hidden>
             <div class="settings-section-title">Finish</div>
             <div class="range-row">
               <span>Wear and tear</span>
@@ -4909,7 +5173,7 @@
             </div>
           </section>
 
-          <section class="settings-panel" data-settings-panel="environment">
+          <section class="settings-panel" id="settings-panel-environment" role="tabpanel" aria-labelledby="settings-tab-environment" data-settings-panel="environment" data-settings-keywords="environment weather sky clouds atmosphere mist backdrop vignette undercloud" hidden>
             <div class="settings-section-title">Environment</div>
             <div class="range-row">
               <span>Clouds</span>
@@ -4963,7 +5227,7 @@
             </div>
           </section>
 
-          <section class="settings-panel" data-settings-panel="crowd">
+          <section class="settings-panel" id="settings-panel-crowd" role="tabpanel" aria-labelledby="settings-tab-crowd" data-settings-panel="crowd" data-settings-keywords="crowd people mechanics movement animation zones debug paths" hidden>
             <div class="settings-section-title">Crowd</div>
             <div class="range-row">
               <span>People</span>
@@ -5019,7 +5283,7 @@
             <button class="btn" id="crowd-reseed" type="button">Reseed crowd</button>
           </section>
 
-          <section class="settings-panel" data-settings-panel="ai" data-ai-interface>
+          <section class="settings-panel" id="settings-panel-ai" role="tabpanel" aria-labelledby="settings-tab-ai" data-settings-panel="ai" data-settings-keywords="ai config generate auto provider model api key openai anthropic grok xai gemini" data-ai-interface hidden>
             <div class="settings-section-title">AI configuration</div>
             <label>Provider
               <select id="gen-provider">
@@ -5094,6 +5358,7 @@
         <button class="btn" id="model-stamp-reset-default" type="button">Reset model</button>
       </div>
     </div>
+    <div class="stamp-category-strip" id="stamp-builder-categories" role="tablist" aria-label="Stamp categories"></div>
     <div class="stamp-builder-grid" id="stamp-builder-grid"></div>
     <div class="stamp-panel-foot">
       <span id="stamp-builder-status"></span>
@@ -5108,11 +5373,23 @@
       <button type="button" class="agent-panel-toggle" id="agent-panel-toggle" aria-label="Close conversation">×</button>
     </div>
     <div class="agent-selection-preview" id="agent-selection-preview" hidden>
-      <div class="selection-details-pane">
-        <div class="agent-selection-count" id="agent-selection-count">0 tiles selected</div>
-        <ul class="agent-selection-list" id="agent-selection-list"></ul>
-        <div class="agent-selection-properties" id="agent-selection-properties" hidden></div>
-        <div class="agent-selection-hint">Type above and the prompt will target this selection.</div>
+      <div class="selection-tabbar" role="tablist" aria-label="Selection view">
+        <button type="button" class="selection-tab active" data-tab="preview" role="tab" aria-selected="true">Preview</button>
+        <button type="button" class="selection-tab" data-tab="properties" role="tab" aria-selected="false">Properties</button>
+      </div>
+      <div class="selection-tab-content active" data-content="preview">
+        <div class="selection-preview-pane">
+          <canvas id="selection-preview-canvas" width="256" height="256" aria-label="Selected object preview"></canvas>
+          <div class="selection-preview-actions" id="selection-preview-actions"></div>
+        </div>
+      </div>
+      <div class="selection-tab-content" data-content="properties">
+        <div class="selection-details-pane">
+          <div class="agent-selection-count" id="agent-selection-count">0 tiles selected</div>
+          <ul class="agent-selection-list" id="agent-selection-list"></ul>
+          <div class="agent-selection-properties" id="agent-selection-properties" hidden></div>
+          <div class="agent-selection-hint">Type above and the prompt will target this selection.</div>
+        </div>
       </div>
     </div>
     <div class="agent-messages" id="agent-messages"></div>
@@ -7920,10 +8197,28 @@
   function applyAppearanceToObject(root, kind, appearance) {
     const a = normalizeAppearance(appearance);
     if (!root || !a) return root;
-    const topBase = new Set([M.roofBlue, M.manorRoof, M.towerRoof, M.castleRoof, M.skyRoof, M.leaves]);
-    const topDark = new Set([M.roofBlueD, M.manorRoofD, M.towerRoofD, M.castleRoofD, M.leavesDk]);
-    const bodyBase = new Set([M.wallCream, M.manorBrick, M.towerStone, M.castleStone, M.skyBody, M.trunk]);
-    const bodyDark = new Set([M.wallTrim, M.manorBrickD, M.towerStoneD, M.castleStoneD]);
+    const topBase = new Set([
+      M.roofBlue, M.manorRoof, M.towerRoof, M.castleRoof, M.skyRoof,
+      M.leaves, M.rockHi, M.cropLeaf, M.cornCob, M.cornLeaf, M.wheatHead,
+      M.pumpkin, M.carrotBody, M.sunflowerPetal, M_PLANT.petalRed,
+      M_PLANT.petalYellow, M_PLANT.petalPurple, M_PLANT.petalWhite,
+      M_PLANT.bushBerry, M_ANIMAL.cowSpot, M_ANIMAL.cowMuzzle,
+      M_ANIMAL.sheepFace,
+    ]);
+    const topDark = new Set([
+      M.roofBlueD, M.manorRoofD, M.towerRoofD, M.castleRoofD, M.leavesDk,
+      M.pumpkinDk, M.sunflowerCenter, M_ANIMAL.hoof,
+    ]);
+    const bodyBase = new Set([
+      M.wallCream, M.manorBrick, M.towerStone, M.castleStone, M.skyBody,
+      M.trunk, M.bridgeWood, M.fence, M.rock, M.cropStem, M.cornStalk,
+      M.wheatStalk, M.pumpkinStem, M.sunflowerStalk, M_ANIMAL.cowWhite,
+      M_ANIMAL.sheepWool,
+    ]);
+    const bodyDark = new Set([
+      M.wallTrim, M.manorBrickD, M.towerStoneD, M.castleStoneD,
+      M.bridgeWoodD, M.fenceWire, M.fenceSteel, M.rockDk,
+    ]);
     function remap(mat) {
       if (!mat) return mat;
       let next = mat;
@@ -11254,6 +11549,32 @@
       fill(out, -2, 2, 0, 0, -2, 2, C.dirt);
       return out;
     }
+    function oakGrove() {
+      const out = [];
+      fill(out, -5, 5, 0, 0, -4, 4, C.greenD);
+      const trees = [[-3, 0, -1, 5], [1, 0, 1, 6], [4, 0, -2, 4]];
+      trees.forEach(([cx, , cz, h], index) => {
+        fill(out, cx, cx, 1, h, cz, cz, C.woodD);
+        fill(out, cx - 1, cx + 1, h - 1, h + 1, cz - 1, cz + 1, index === 1 ? C.green : C.greenD);
+        fill(out, cx - 2, cx + 2, h + 1, h + 2, cz - 2, cz + 2, C.green);
+        fill(out, cx - 1, cx + 1, h + 3, h + 3, cz - 1, cz + 1, C.greenD);
+      });
+      return out;
+    }
+    function pineCluster() {
+      const out = [];
+      fill(out, -4, 4, 0, 0, -4, 4, C.dirt);
+      const trees = [[-2, -1, 7], [2, 1, 6], [0, 3, 5]];
+      trees.forEach(([cx, cz, h]) => {
+        fill(out, cx, cx, 1, h, cz, cz, C.woodD);
+        for (let y = 3; y <= h + 2; y += 2) {
+          const spread = Math.max(1, h + 3 - y);
+          fill(out, cx - spread, cx + spread, y, y, cz - spread, cz + spread, C.greenD);
+          fill(out, cx - Math.max(0, spread - 1), cx + Math.max(0, spread - 1), y + 1, y + 1, cz - Math.max(0, spread - 1), cz + Math.max(0, spread - 1), C.green);
+        }
+      });
+      return out;
+    }
     function garden() {
       const out = [];
       fill(out, -4, 4, 0, 0, -4, 4, C.greenD);
@@ -11286,14 +11607,69 @@
       }
       return out;
     }
+    function lantern() {
+      const out = [];
+      fill(out, -2, 2, 0, 0, -2, 2, C.stoneD);
+      fill(out, 0, 0, 1, 5, 0, 0, C.stone);
+      fill(out, -1, 1, 3, 3, -1, 1, C.stoneD);
+      fill(out, -1, 1, 4, 5, -1, 1, C.gold);
+      fill(out, -2, 2, 6, 6, -2, 2, C.roofEdge);
+      fill(out, -1, 1, 7, 7, -1, 1, C.roof);
+      return out;
+    }
+    function voxelFence() {
+      const out = [];
+      for (const x of [-5, -2, 1, 4]) {
+        fill(out, x, x, 0, 4, 0, 0, C.woodD);
+        out.push(vox(x, 5, 0, C.wood));
+      }
+      fill(out, -5, 5, 2, 2, 0, 0, C.wood);
+      fill(out, -5, 5, 4, 4, 0, 0, C.wood);
+      return out;
+    }
+    function cropPatch() {
+      const out = [];
+      fill(out, -5, 5, 0, 0, -4, 4, C.dirt);
+      for (const x of [-4, -2, 0, 2, 4]) {
+        fill(out, x, x, 1, 2, -3, 3, C.greenD);
+        for (const z of [-3, -1, 1, 3]) out.push(vox(x, 3, z, C.gold));
+      }
+      return out;
+    }
+    function stairs() {
+      const out = [];
+      for (let i = 0; i < 5; i++) {
+        fill(out, -3, 3, i, i, -4 + i, -4 + i, C.stone);
+        fill(out, -3, 3, 0, i, -3 + i, -3 + i, C.stoneD);
+      }
+      return out;
+    }
+    function well() {
+      const out = [];
+      fill(out, -2, 2, 0, 0, -2, 2, C.stoneD);
+      for (const x of [-2, 2]) fill(out, x, x, 1, 3, -2, 2, C.stone);
+      for (const z of [-2, 2]) fill(out, -2, 2, 1, 3, z, z, C.stone);
+      fill(out, -1, 1, 1, 1, -1, 1, C.water);
+      for (const x of [-2, 2]) fill(out, x, x, 4, 7, 0, 0, C.woodD);
+      fill(out, -3, 3, 7, 7, 0, 0, C.wood);
+      roof(out, 8, 3, 2);
+      return out;
+    }
     return [
       { id: 'pagoda-large', name: 'Voxel Pagoda', voxels: pagoda(), footprint: 2.8 },
       { id: 'temple-gate', name: 'Temple Gate', voxels: gate(), footprint: 2.4 },
       { id: 'watchtower', name: 'Watchtower', voxels: watchtower(), footprint: 1.9 },
       { id: 'machiya-house', name: 'Machiya House', voxels: machiya(), footprint: 2.0 },
       { id: 'cherry-tree-build', name: 'Cherry Build', voxels: cherry(), footprint: 1.45 },
+      { id: 'oak-grove-build', name: 'Oak Grove', voxels: oakGrove(), footprint: 2.2 },
+      { id: 'pine-cluster-build', name: 'Pine Cluster', voxels: pineCluster(), footprint: 2.1 },
       { id: 'bamboo-garden', name: 'Bamboo Garden', voxels: garden(), footprint: 1.7 },
       { id: 'rock-outcrop-build', name: 'Rock Outcrop', voxels: rockOutcrop(), footprint: 1.35 },
+      { id: 'lantern-build', name: 'Stone Lantern', voxels: lantern(), footprint: 1.0 },
+      { id: 'fence-build', name: 'Voxel Fence', voxels: voxelFence(), footprint: 1.7 },
+      { id: 'crop-patch-build', name: 'Crop Patch', voxels: cropPatch(), footprint: 1.9 },
+      { id: 'stairs-build', name: 'Stone Stairs', voxels: stairs(), footprint: 1.5 },
+      { id: 'well-build', name: 'Village Well', voxels: well(), footprint: 1.5 },
     ];
   }
 
@@ -11470,6 +11846,21 @@
     generic: [0xd4b483, 0x8fb07a, 0x5d86a6, 0xbe6a4a, 0xf0d69c, 0x3b4458],
   };
 
+  function modelStampApiEnabled() {
+    if (window.location.protocol !== 'http:' && window.location.protocol !== 'https:') return false;
+    try {
+      const flag = window.__TWB_MODEL_STAMP_API_ENABLED__;
+      if (typeof flag === 'boolean') return flag;
+      const qs = new URLSearchParams(window.location.search);
+      if (qs.get('modelApi') === '1' || qs.get('modelStampApi') === '1') return true;
+      if (qs.get('modelApi') === '0' || qs.get('modelStampApi') === '0') return false;
+      const stored = window.localStorage && window.localStorage.getItem('tinyworld:features:model-stamp-api');
+      return stored === '1';
+    } catch (_) {
+      return false;
+    }
+  }
+
   function modelStampIdSafe(id) {
     const clean = String(id || '').trim();
     return /^[a-z0-9][a-z0-9_-]{0,95}$/i.test(clean) ? clean : null;
@@ -11507,7 +11898,7 @@
   function persistModelStampDefaults() {
     const payload = { version: 1, stamps: modelStampDefaults };
     try { localStorage.setItem(MODEL_STAMP_DEFAULTS_LS, JSON.stringify(payload)); } catch (_) {}
-    if (window.location.protocol === 'http:' || window.location.protocol === 'https:') {
+    if (modelStampApiEnabled()) {
       fetch('/api/model-stamp-defaults', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -11517,7 +11908,7 @@
   }
 
   async function loadModelStampDefaultsConfig() {
-    if (window.location.protocol !== 'http:' && window.location.protocol !== 'https:') return;
+    if (!modelStampApiEnabled()) return;
     try {
       const res = await fetch('/api/model-stamp-defaults?ts=' + Date.now(), { cache: 'no-store' });
       if (!res.ok) return;
@@ -11637,7 +12028,7 @@
 
   async function refreshModelStampManifest() {
     const endpoints = [];
-    if (window.location.protocol === 'http:' || window.location.protocol === 'https:') {
+    if (modelStampApiEnabled()) {
       endpoints.push('/api/model-stamps?ts=' + Date.now());
     }
     endpoints.push(MODEL_STAMP_MANIFEST_URL + '?ts=' + Date.now());
@@ -11672,7 +12063,11 @@
     if (!summary) return;
     const modelCount = MODEL_STAMP_ASSETS.filter(a => a.supported).length;
     const voxelCount = VOXEL_BUILD_STAMPS.length;
-    summary.innerHTML = '<span><strong>' + (modelCount + voxelCount) + '</strong> stamp sources</span><span>' + modelStampScanMessage + '</span>';
+    let templateCount = 0;
+    try {
+      templateCount = loadAssetTemplates().filter(t => t && t.clipboard && normalizeClipboardCells(t.clipboard.cells).length).length;
+    } catch (_) {}
+    summary.innerHTML = '<span><strong>' + (modelCount + voxelCount + templateCount) + '</strong> stamp sources</span><span>' + modelStampScanMessage + (templateCount ? ' · ' + templateCount + ' saved template' + (templateCount === 1 ? '' : 's') : '') + '</span>';
   }
 
   function isStampBuilderPanelOpen() {
@@ -11797,7 +12192,7 @@
   }
 
   function createModelStampPaletteMaterial(asset) {
-    const mat = new THREE.MeshLambertMaterial({ color: 0xffffff, vertexColors: true, flatShading: true });
+    const mat = new THREE.MeshLambertMaterial({ color: 0xffffff, vertexColors: true });
     mat.name = 'TinyWorld palette fallback';
     mat.userData.modelStampHydrated = 'palette';
     mat.userData.modelStampPaletteKind = modelStampPaletteKind(asset);
@@ -12093,7 +12488,7 @@
       else geo.computeVertexNormals();
       if (group.uvs.length === (group.positions.length / 3) * 2) geo.setAttribute('uv', new THREE.Float32BufferAttribute(group.uvs, 2));
       const sourceMat = materialLib[group.name];
-      const mat = sourceMat || new THREE.MeshLambertMaterial({ color: 0xffffff, flatShading: true });
+      const mat = sourceMat || new THREE.MeshLambertMaterial({ color: 0xffffff });
       if (!sourceMat) {
         mat.name = 'Missing MTL: ' + group.name;
         mat.userData.modelStampMissingMtl = true;
@@ -12183,10 +12578,11 @@
     if (!asset) return makeModelStampPlaceholder(null, 'Model missing');
     const cache = loadModelStampAsset(asset);
     if (cache && cache.state === 'ready' && cache.scene) {
-      return normalizeModelStampObject(cloneModelStampScene(cache.scene), asset);
+      const stamp = normalizeModelStampObject(cloneModelStampScene(cache.scene), asset);
+      return applyAppearanceToObject(stamp, 'model-stamp', opts.appearance);
     }
     const placeholder = makeModelStampPlaceholder(asset, cache && cache.errorMessage ? cache.errorMessage : 'Loading model');
-    return placeholder;
+    return applyAppearanceToObject(placeholder, 'model-stamp', opts.appearance);
   }
 
   function scheduleModelStampRefresh(modelStampId) {
@@ -15302,6 +15698,14 @@
     });
     return out;
   }
+  function replaceSelectionWithWorldCoords(coords) {
+    selectedCells.clear();
+    (coords || []).forEach(({ x, z }) => {
+      if (!Number.isFinite(x) || !Number.isFinite(z)) return;
+      selectedCells.add(makeKey(0, 0, Math.round(x), Math.round(z)));
+    });
+    notifySelectionChanged();
+  }
   function materializeSelectedCells() {
     if (!selectedCells.size) return [];
     const nextKeys = new Set();
@@ -15360,6 +15764,7 @@
     rotate: rotateSelectedCells,
     materialize: materializeSelectedCells,
     worldCoords: selectedSelectionWorldCoords,
+    replaceWorldCoords: replaceSelectionWithWorldCoords,
     containsWorldCoord(x, z) {
       return selectedSelectionWorldCoords().some(c => c.x === x && c.z === z);
     },
@@ -16874,48 +17279,81 @@
     ensureGhostBoardsAroundTarget();
   }
 
-  // Merge all ghost terrain meshes that share the same material into one
-  // BufferGeometry. This turns "64 meshes per ghost board" into "~number of
-  // terrain types" draw calls, making high preview distances practical.
+  // Merge all static ghost terrain leaf meshes that share the same material
+  // into one BufferGeometry. Full-quality ghost tiles are Groups containing
+  // risers, caps, bevel strips, weeds, and other small meshes; merging only
+  // direct board children misses almost all of that work.
   function mergeGhostTerrainByMaterial(board) {
     const byMat = new Map();
-    const toRemove = [];
+    const sourceMeshes = [];
+    const rootStats = new Map();
+    const mergedSources = new Set();
+    const boardCenter = new THREE.Vector3(
+      (board.userData.boardX || 0) * GRID,
+      0,
+      (board.userData.boardZ || 0) * GRID
+    );
+    const boardCenter2 = new THREE.Vector2(boardCenter.x, boardCenter.z);
 
-    for (const child of board.children) {
-      if (!child || !child.isMesh || child.userData.fadeRole !== 'tile') continue;
-      const mat = child.material;
-      if (!byMat.has(mat)) byMat.set(mat, []);
-      byMat.get(mat).push(child);
+    board.updateMatrixWorld(true);
+
+    for (const root of board.children.slice()) {
+      if (!root || !root.userData || root.userData.fadeRole !== 'tile') continue;
+      const stats = { sources: [], unmergedMeshCount: 0 };
+      root.traverse(o => {
+        if (!o || !o.isMesh || !o.geometry || !o.geometry.attributes || !o.geometry.attributes.position) return;
+        const material = o.userData && o.userData.baseMat ? o.userData.baseMat : o.material;
+        const mergeable = !Array.isArray(o.material) &&
+          material &&
+          !(o.userData && (o.userData.waterfall || o.userData.weatherFx || o.userData.noMerge));
+        if (!mergeable) {
+          stats.unmergedMeshCount++;
+          return;
+        }
+        if (!byMat.has(material)) byMat.set(material, []);
+        const source = { mesh: o, root };
+        byMat.get(material).push(source);
+        sourceMeshes.push(source);
+        stats.sources.push(source);
+      });
+      if (stats.sources.length || stats.unmergedMeshCount) rootStats.set(root, stats);
     }
 
-    for (const [mat, meshes] of byMat) {
-      if (meshes.length <= 1) continue;
+    for (const [mat, sources] of byMat) {
+      if (sources.length <= 1) continue;
 
-      let posArr = [];
-      let norArr = [];
-      let uvArr = [];
+      const posArr = [];
+      const norArr = [];
+      const uvArr = [];
+      const tempPos = new THREE.Vector3();
+      const tempNormal = new THREE.Vector3();
+      const normalMatrix = new THREE.Matrix3();
 
-      for (const m of meshes) {
+      for (const source of sources) {
+        const m = source.mesh;
         const g = m.geometry;
-        const pos = g.attributes.position.array;
-        const nor = g.attributes.normal ? g.attributes.normal.array : null;
-        const uv = g.attributes.uv ? g.attributes.uv.array : null;
+        const pos = g.attributes.position;
+        const nor = g.attributes.normal || null;
+        const uv = g.attributes.uv || null;
+        const index = g.index ? g.index.array : null;
+        normalMatrix.getNormalMatrix(m.matrixWorld);
+        const count = index ? index.length : pos.count;
 
-        const px = m.position.x;
-        const py = m.position.y;
-        const pz = m.position.z;
-
-        for (let i = 0; i < pos.length; i += 3) {
-          posArr.push(pos[i] + px, pos[i + 1] + py, pos[i + 2] + pz);
+        for (let i = 0; i < count; i++) {
+          const vi = index ? index[i] : i;
+          tempPos.fromBufferAttribute(pos, vi);
+          tempPos.applyMatrix4(m.matrixWorld);
+          tempPos.x -= boardCenter.x;
+          tempPos.z -= boardCenter.z;
+          posArr.push(tempPos.x, tempPos.y, tempPos.z);
           if (nor) {
-            norArr.push(nor[i], nor[i + 1], nor[i + 2]);
+            tempNormal.fromBufferAttribute(nor, vi).applyMatrix3(normalMatrix).normalize();
+            norArr.push(tempNormal.x, tempNormal.y, tempNormal.z);
           }
           if (uv) {
-            const j = (i / 3) * 2;
-            uvArr.push(uv[j], uv[j + 1]);
+            uvArr.push(uv.getX(vi), uv.getY(vi));
           }
         }
-        toRemove.push(m);
       }
 
       if (posArr.length === 0) continue;
@@ -16924,20 +17362,39 @@
       newGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(posArr), 3));
       if (norArr.length) newGeo.setAttribute('normal', new THREE.BufferAttribute(new Float32Array(norArr), 3));
       if (uvArr.length) newGeo.setAttribute('uv', new THREE.BufferAttribute(new Float32Array(uvArr), 2));
+      newGeo.computeBoundingBox();
       newGeo.computeBoundingSphere();
 
       const mergedMesh = new THREE.Mesh(newGeo, mat);
-      mergedMesh.castShadow = false;
-      mergedMesh.receiveShadow = true;
+      mergedMesh.position.set(boardCenter.x, 0, boardCenter.z);
       mergedMesh.frustumCulled = true;
       mergedMesh.userData = { fadeRole: 'tile', ghostMerged: true };
+      prepareFadeable(mergedMesh, {
+        ghost: true,
+        grayscale: true,
+        opacity: opacityAtWorldPosition(boardCenter2.x, boardCenter2.y),
+      });
       board.add(mergedMesh);
+      sources.forEach(source => mergedSources.add(source));
     }
 
-    // Remove the original per-tile meshes we merged.
-    for (const m of toRemove) {
-      board.remove(m);
-      // Don't dispose — geometries are cached/shared via geomCache.
+    // Remove the original source meshes. Empty all-static tile roots are removed
+    // wholesale; mixed roots keep their special unmerged children.
+    const rootsToRemove = new Set();
+    for (const [root, stats] of rootStats) {
+      if (!stats.sources.length || stats.unmergedMeshCount) continue;
+      if (stats.sources.every(source => mergedSources.has(source))) rootsToRemove.add(root);
+    }
+    for (const root of rootsToRemove) {
+      board.remove(root);
+      disposeGroup(root);
+    }
+    for (const source of sourceMeshes) {
+      if (!mergedSources.has(source)) continue;
+      const { mesh, root } = source;
+      if (rootsToRemove.has(root)) continue;
+      if (mesh.parent) mesh.parent.remove(mesh);
+      safeDisposeGeometry(mesh.geometry);
     }
   }
 
@@ -18082,7 +18539,7 @@
     if (kind === 'house' && isUnderpassTerrain(cell.terrain)) {
       mesh = wrapHouseForUnderpass(mesh, cell.terrain);
     }
-    applyAppearanceToObject(mesh, kind, cell.appearance);
+    if (kind !== 'model-stamp') applyAppearanceToObject(mesh, kind, cell.appearance);
     const appearanceForTransform = appearanceForRender;
     const userScale = appearanceForTransform && appearanceForTransform.objectScale ? appearanceForTransform.objectScale : 1;
     const userScaleX = appearanceForTransform && appearanceForTransform.scaleX ? appearanceForTransform.scaleX : 1;
@@ -18175,7 +18632,7 @@
     });
   }
 
-  function addCellExtra(x, z, extra) {
+  function addCellExtra(x, z, extra, opts = {}) {
     if (!world[x] || !world[x][z]) return;
     const cell = world[x][z];
     if (!cell.extras) cell.extras = [];
@@ -18184,7 +18641,13 @@
       const side = normalizeFenceSide(extra.fenceSide);
       const existingIdx = cell.extras.findIndex(e => e.kind === 'fence' && normalizeFenceSide(e.fenceSide) === side);
       if (existingIdx >= 0) {
-        cell.extras[existingIdx].floors = Math.min((cell.extras[existingIdx].floors || 1) + 1, MAX_FLOORS);
+        const requestedFloors = Math.max(1, Math.min(MAX_FLOORS, extra.floors || 1));
+        const currentFloors = cell.extras[existingIdx].floors || 1;
+        const nextFloors = opts.drawing
+          ? Math.max(currentFloors, requestedFloors)
+          : Math.min(Math.max(currentFloors + 1, requestedFloors), MAX_FLOORS);
+        if (nextFloors === currentFloors) return;
+        cell.extras[existingIdx].floors = nextFloors;
         // Animate just the one that changed — existing siblings stay put.
         renderCellExtras(x, z, { animateFrom: existingIdx });
         refreshVehiclesForWorldObstacleChange(x, z);
@@ -18634,7 +19097,8 @@
     else if (kind === 'fence') {
       const v = tool.activeVariant;
       const side = (v && v.fenceSide && v.fenceSide !== 'auto') ? v.fenceSide : 'n';
-      mesh = makeFence(normalizeFenceSide(side), 1);
+      const level = Math.max(1, Math.min(MAX_FLOORS, (v && v.floors) || 1));
+      mesh = makeFence(normalizeFenceSide(side), level);
     } else if (kind === 'house') {
       const v = tool.activeVariant;
       const bt = v && v.buildingType;
@@ -19265,6 +19729,8 @@
     { id: 'fence',  label: 'Fence',  kind: 'fence', color: '#8a5a3b', shortcut: '7', group: 'build',
       variants: [
         { id: 'edge',    label: 'Edge',      fenceSide: 'auto',     hint: 'nearest clicked edge' },
+        { id: 'wall',    label: 'Wall',      fenceSide: 'auto', floors: 4, hint: 'stone wall on nearest clicked edge' },
+        { id: 'boundary', label: 'Boundary', fenceSide: 'auto', floors: 5, hint: 'steel boundary on nearest clicked edge' },
         { id: 'north',   label: 'North',     fenceSide: 'n',        hint: 'north tile edge' },
         { id: 'east',    label: 'East',      fenceSide: 'e',        hint: 'east tile edge' },
         { id: 'south',   label: 'South',     fenceSide: 's',        hint: 'south tile edge' },
@@ -19461,7 +19927,11 @@
     if (k === 'bush')      return makeVoxelCropKind('bush');
     if (k === 'cow')       return makeVoxelAnimal('cow');
     if (k === 'sheep')     return makeVoxelAnimal('sheep');
-    if (k === 'fence')     return makeVoxelFence('n', 1);
+    if (k === 'fence') {
+      const v = tool.activeVariant;
+      const level = Math.max(1, Math.min(MAX_FLOORS, (v && v.floors) || 1));
+      return makeVoxelFence('n', level);
+    }
     if (k === 'house') {
       const v = tool.activeVariant;
       const bType = v && v.buildingType;
@@ -19645,6 +20115,32 @@
 
   let voxelStampRefreshTimer = 0;
   let selectedVoxelBuildId = VOXEL_BUILD_STAMPS[0] && VOXEL_BUILD_STAMPS[0].id;
+  let selectedAssetTemplateId = null;
+  const stampBuilderThumbQueue = [];
+  const stampBuilderThumbQueuedCanvases = new WeakSet();
+  let stampBuilderThumbQueueTimer = 0;
+  let stampBuilderThumbQueueRunId = 0;
+  const STAMP_BUILDER_RECENT_LS = 'tinyworld:stamp-builder-recent.v1';
+  const STAMP_BUILDER_RECENT_MAX = 12;
+  const STAMP_BUILDER_CATEGORY_DEFS = [
+    { id: 'all', label: 'All' },
+    { id: 'recent', label: 'Recent' },
+    { id: 'templates', label: 'Templates' },
+    { id: 'models', label: 'Models' },
+    { id: 'voxel', label: 'Voxel' },
+    { id: 'build', label: 'Build' },
+    { id: 'infra', label: 'Infra' },
+    { id: 'plants', label: 'Plants' },
+    { id: 'farm', label: 'Farm' },
+    { id: 'life', label: 'Life' },
+    { id: 'terrain', label: 'Terrain' },
+    { id: 'vehicles', label: 'Vehicles' },
+    { id: 'detected', label: 'Detected' },
+    { id: 'other', label: 'Other' },
+  ];
+  const STAMP_BUILDER_CATEGORY_IDS = new Set(STAMP_BUILDER_CATEGORY_DEFS.map(c => c.id));
+  let activeStampBuilderCategory = 'all';
+
   function rebuildVoxelStampRender() {
     for (const key in cellMeshes) {
       const parts = key.split(',');
@@ -19673,8 +20169,311 @@
     return input ? String(input.value || '').trim().toLowerCase() : '';
   }
 
-  function stampBuilderTools() {
+  function stampBuilderCategoryDef(id) {
+    return STAMP_BUILDER_CATEGORY_DEFS.find(c => c.id === id) || STAMP_BUILDER_CATEGORY_DEFS[0];
+  }
+
+  function stampBuilderCategoryLabel(id) {
+    return stampBuilderCategoryDef(id).label;
+  }
+
+  function loadRecentStampKeys() {
+    try {
+      const raw = JSON.parse(localStorage.getItem(STAMP_BUILDER_RECENT_LS) || '[]');
+      return Array.isArray(raw) ? raw.filter(key => typeof key === 'string' && key) : [];
+    } catch (_) {
+      return [];
+    }
+  }
+
+  function saveRecentStampKeys(keys) {
+    try {
+      localStorage.setItem(STAMP_BUILDER_RECENT_LS, JSON.stringify((keys || []).filter(Boolean).slice(0, STAMP_BUILDER_RECENT_MAX)));
+    } catch (_) {}
+  }
+
+  function rememberRecentStampTool(tool) {
+    const key = stampBuilderSelectionKey(tool);
+    if (!key) return;
+    const keys = loadRecentStampKeys().filter(item => item !== key);
+    keys.unshift(key);
+    saveRecentStampKeys(keys);
+  }
+
+  function removeRecentStampKey(key) {
+    if (!key) return;
+    const keys = loadRecentStampKeys().filter(item => item !== key);
+    saveRecentStampKeys(keys);
+  }
+
+  function canRememberRecentStampTool(tool) {
+    if (!tool || tool.select || tool.erase || tool.auto || tool.hidden) return false;
+    if (tool.assetTemplateId || tool.modelStampId || tool.voxelBuildId) return true;
+    return !!(tool.terrain || tool.kind);
+  }
+
+  function rememberSelectedStampTool(tool) {
+    if (canRememberRecentStampTool(tool)) rememberRecentStampTool(tool);
+  }
+
+  function normalizeStampBuilderCategory(id) {
+    return STAMP_BUILDER_CATEGORY_IDS.has(id) ? id : 'all';
+  }
+
+  function stampBuilderSemanticCategories(text) {
+    const value = String(text || '').toLowerCase();
+    const cats = new Set();
+    const rules = [
+      ['vehicles', /(^|[^a-z0-9])(plane|aircraft|airplane|stunt|crop[-_ ]?duster|jet|boat|boats|voxelboats?|ship|ships|vessel|car|cars|truck|trucks|train|trains|vehicle|vehicles|bus|buses|bike|bikes)(?=[^a-z0-9]|$)/],
+      ['farm', /(^|[^a-z0-9])(crop|farm|corn|wheat|pumpkin|carrot|sunflower|field|barn)(?=[^a-z0-9]|$)/],
+      ['build', /(^|[^a-z0-9])(building|buildings|city|house|tower|cottage|villa|skyscraper|castle|turret|manor|pagoda|temple|gate|machiya|hut|cabin)(?=[^a-z0-9]|$)/],
+      ['infra', /(^|[^a-z0-9])(fence|bridge|road|rail|path|street|wall|boundary|dock|pier)(?=[^a-z0-9]|$)/],
+      ['plants', /(^|[^a-z0-9])(tree|plant|flower|bush|tuft|grass|garden|bamboo|cherry|shrub|forest|leaf|leaves)(?=[^a-z0-9]|$)/],
+      ['life', /(^|[^a-z0-9])(cow|sheep|animal|person|people|human|crowd|character|horse)(?=[^a-z0-9]|$)/],
+      ['terrain', /(^|[^a-z0-9])(rock|stone|terrain|mountain|outcrop|sand|snow|water|lava|dirt)(?=[^a-z0-9]|$)/],
+    ];
+    for (const [id, pattern] of rules) {
+      if (pattern.test(value)) cats.add(id);
+    }
+    return cats;
+  }
+
+  function stampBuilderCategoryList(categories, fallback) {
+    const out = [];
+    for (const id of categories || []) {
+      if (id !== 'all' && STAMP_BUILDER_CATEGORY_IDS.has(id) && !out.includes(id)) out.push(id);
+    }
+    if (!out.length && fallback) out.push(fallback);
+    return out;
+  }
+
+  function stampBuilderCategoriesForBuiltIn(tool) {
+    const categories = new Set();
+    const baseTool = tool && tool.baseTool ? tool.baseTool : tool;
+    const group = baseTool && groupForTool(baseTool);
+    if (group && STAMP_BUILDER_CATEGORY_IDS.has(group.id)) categories.add(group.id);
+    const variant = tool && tool.activeVariant;
+    const text = [
+      tool && tool.label,
+      tool && tool.id,
+      tool && tool.kind,
+      variant && variant.label,
+      variant && variant.hint,
+    ].filter(Boolean).join(' ');
+    stampBuilderSemanticCategories(text).forEach(id => categories.add(id));
+    return stampBuilderCategoryList(categories, 'other');
+  }
+
+  function stampBuilderCategoriesForVoxelStamp(stamp) {
+    const categories = new Set(['voxel']);
+    const text = [stamp && stamp.name, stamp && stamp.id].filter(Boolean).join(' ');
+    stampBuilderSemanticCategories(text).forEach(id => categories.add(id));
+    return stampBuilderCategoryList(categories, 'voxel');
+  }
+
+  function stampBuilderCategoriesForModelAsset(asset) {
+    const categories = new Set(['models']);
+    if (asset && asset.supported === false) categories.add('detected');
+    const sidecars = [];
+    const rawSidecars = asset && asset.sidecars;
+    if (rawSidecars && Array.isArray(rawSidecars.textures)) sidecars.push(...rawSidecars.textures);
+    if (rawSidecars && Array.isArray(rawSidecars.mtl)) sidecars.push(...rawSidecars.mtl);
+    const text = [
+      asset && asset.label,
+      asset && asset.id,
+      asset && asset.path,
+      asset && asset.url,
+      asset && asset.format,
+      sidecars.map(item => [item.name, item.path, item.format].filter(Boolean).join(' ')).join(' '),
+    ].filter(Boolean).join(' ');
+    stampBuilderSemanticCategories(text).forEach(id => categories.add(id));
+    return stampBuilderCategoryList(categories, 'models');
+  }
+
+  function normalizedAssetTemplateTool(template, index) {
+    const clipboard = normalizeClipboardPayload(template && template.clipboard);
+    if (!clipboard) return null;
+    const id = (typeof template.id === 'string' && template.id) ? template.id : 'template-' + index;
+    return {
+      id: 'asset-template:' + id,
+      label: template.name || 'Template ' + (index + 1),
+      kind: 'asset-template',
+      assetTemplateId: id,
+      assetTemplate: {
+        id,
+        name: template.name || 'Template ' + (index + 1),
+        createdAt: Number(template.createdAt) || 0,
+        clipboard,
+      },
+      isAssetTemplate: true,
+      color: '#c98f54',
+      stampCategories: ['templates'],
+    };
+  }
+
+  function assetTemplateTools() {
+    return loadAssetTemplates()
+      .map(normalizedAssetTemplateTool)
+      .filter(Boolean);
+  }
+
+  function assetTemplateById(id) {
+    const match = assetTemplateTools().find(tool => tool.assetTemplateId === id);
+    return match ? match.assetTemplate : null;
+  }
+
+  function deleteAssetTemplate(id) {
+    if (!id) return false;
+    const templates = loadAssetTemplates();
+    let removed = null;
+    const next = [];
+    templates.forEach((template, index) => {
+      const normalized = normalizedAssetTemplateTool(template, index);
+      const templateId = normalized && normalized.assetTemplateId
+        ? normalized.assetTemplateId
+        : ((template && typeof template.id === 'string' && template.id) ? template.id : 'template-' + index);
+      if (templateId === id) {
+        removed = (normalized && normalized.assetTemplate) || template;
+      } else {
+        next.push(template);
+      }
+    });
+    if (!removed) return false;
+    saveAssetTemplates(next);
+    if (selectedAssetTemplateId === id) selectedAssetTemplateId = null;
+    if (selectedTool && selectedTool.kind === 'asset-template' && selectedTool.assetTemplateId === id) {
+      selectTool(DEFAULT_TOOL);
+    }
+    removeRecentStampKey('asset-template:' + id);
+    renderStampBuilderCards();
+    const status = document.getElementById('stamp-builder-status');
+    if (status) status.textContent = 'Deleted template: ' + (removed.name || id);
+    return true;
+  }
+
+  function assetTemplateSearchText(tool) {
+    const template = tool && tool.assetTemplate;
+    const cells = template && template.clipboard ? normalizeClipboardCells(template.clipboard.cells) : [];
+    return cells.map(item => {
+      const cell = item.cell || {};
+      const extras = Array.isArray(cell.extras) ? cell.extras.map(extra => extra && extra.kind).join(' ') : '';
+      return [cell.terrain, cell.kind, cell.buildingType, cell.fenceSide, extras].filter(Boolean).join(' ');
+    }).join(' ');
+  }
+
+  function renderAssetTemplateThumb(tool, canvas) {
+    const template = tool && tool.assetTemplate;
+    const cells = template && template.clipboard ? normalizeClipboardCells(template.clipboard.cells) : [];
+    if (!cells.length) {
+      drawFallbackThumb(canvas, tool && tool.label, tool && tool.color || '#c98f54');
+      return;
+    }
+    const terrainColors = {
+      grass: '#93c66b',
+      path: '#d7b77d',
+      dirt: '#a56c45',
+      water: '#66add6',
+      stone: '#a9adb3',
+      lava: '#e55b29',
+      sand: '#e4cf8a',
+      snow: '#edf3f4',
+    };
+    const kindColors = {
+      house: '#c77446',
+      tree: '#3f8b4c',
+      rock: '#747b82',
+      bridge: '#8f613c',
+      fence: '#9b7049',
+      crop: '#d2ab36',
+      corn: '#d8bb35',
+      wheat: '#d9b964',
+      pumpkin: '#dd782d',
+      carrot: '#df7b31',
+      sunflower: '#e5bf36',
+      flower: '#d2668f',
+      bush: '#507d48',
+      cow: '#4c5156',
+      sheep: '#e8e0cf',
+      'model-stamp': '#7fa0b8',
+      'voxel-build': '#8f80c7',
+    };
+    const size = template.clipboard.size || {};
+    const sizeX = Math.max(1, Number(size.x) || Math.max(...cells.map(c => c.dx)) + 1);
+    const sizeZ = Math.max(1, Number(size.z) || Math.max(...cells.map(c => c.dz)) + 1);
+    const dpr = Math.max(1, window.devicePixelRatio || 1);
+    canvas.width = THUMB_SIZE * dpr;
+    canvas.height = THUMB_SIZE * dpr;
+    const ctx = canvas.getContext('2d');
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.clearRect(0, 0, THUMB_SIZE, THUMB_SIZE);
+    ctx.fillStyle = '#f7edda';
+    ctx.fillRect(0, 0, THUMB_SIZE, THUMB_SIZE);
+    const pad = 13;
+    const gap = 2;
+    const cellSize = Math.max(2, Math.min((THUMB_SIZE - pad * 2 - gap * (sizeX - 1)) / sizeX, (THUMB_SIZE - pad * 2 - gap * (sizeZ - 1)) / sizeZ));
+    const totalW = sizeX * cellSize + Math.max(0, sizeX - 1) * gap;
+    const totalH = sizeZ * cellSize + Math.max(0, sizeZ - 1) * gap;
+    const startX = (THUMB_SIZE - totalW) / 2;
+    const startY = (THUMB_SIZE - totalH) / 2;
+    ctx.lineWidth = 1.25;
+    for (const item of cells) {
+      const cell = item.cell || {};
+      const x = startX + item.dx * (cellSize + gap);
+      const y = startY + item.dz * (cellSize + gap);
+      ctx.fillStyle = terrainColors[cell.terrain] || terrainColors.grass;
+      ctx.fillRect(x, y, cellSize, cellSize);
+      ctx.strokeStyle = 'rgba(76, 61, 39, 0.18)';
+      ctx.strokeRect(x + 0.5, y + 0.5, cellSize - 1, cellSize - 1);
+      if (cell.kind) {
+        ctx.fillStyle = kindColors[cell.kind] || '#8d6b4d';
+        const inset = Math.max(3, cellSize * 0.22);
+        ctx.fillRect(x + inset, y + inset, cellSize - inset * 2, cellSize - inset * 2);
+      }
+      if (Array.isArray(cell.extras) && cell.extras.length) {
+        ctx.fillStyle = 'rgba(62, 47, 31, 0.54)';
+        ctx.fillRect(x + 2, y + cellSize - 4, Math.max(3, cellSize - 4), 2);
+      }
+    }
+  }
+
+  function stampBuilderToolSearchText(tool) {
+    const variant = tool && tool.activeVariant;
+    const asset = tool && (tool.modelAsset || getModelStamp(tool.modelStampId));
+    const stamp = tool && (tool.voxelStamp || getVoxelBuildStamp(tool.voxelBuildId));
+    const templateText = tool && tool.isAssetTemplate ? assetTemplateSearchText(tool) : '';
+    const categories = (tool && tool.stampCategories ? tool.stampCategories : [])
+      .map(id => stampBuilderCategoryLabel(id))
+      .join(' ');
+    return [
+      tool && tool.label,
+      tool && tool.id,
+      tool && tool.kind,
+      categories,
+      variant && variant.label,
+      variant && variant.hint,
+      asset && asset.format,
+      asset && asset.path,
+      asset && asset.url,
+      stamp && stamp.name,
+      stamp && stamp.id,
+      templateText,
+    ].filter(Boolean).join(' ').toLowerCase();
+  }
+
+  function stampBuilderToolMatchesSearch(tool, q) {
+    if (!q) return true;
+    const text = stampBuilderToolSearchText(tool);
+    return q.split(/\s+/).filter(Boolean).every(part => text.includes(part));
+  }
+
+  function stampBuilderToolMatchesCategory(tool, category) {
+    if (category === 'all') return true;
+    return !!(tool && tool.stampCategories && tool.stampCategories.includes(category));
+  }
+
+  function stampBuilderAllTools() {
     const tools = [];
+    tools.push(...assetTemplateTools());
     for (const asset of MODEL_STAMP_ASSETS) {
       tools.push({
         id: 'model-stamp:' + asset.id,
@@ -19685,6 +20484,7 @@
         isModelStamp: true,
         supported: asset.supported,
         color: '#8aa4b8',
+        stampCategories: stampBuilderCategoriesForModelAsset(asset),
       });
     }
     for (const stamp of VOXEL_BUILD_STAMPS) {
@@ -19693,36 +20493,118 @@
         label: stamp.name,
         kind: 'voxel-build',
         voxelBuildId: stamp.id,
+        voxelStamp: stamp,
         isVoxelBuild: true,
+        stampCategories: stampBuilderCategoriesForVoxelStamp(stamp),
       });
     }
-    const ids = ['house', 'tree', 'rock', 'bridge', 'fence', 'crop', 'corn', 'wheat', 'pumpkin', 'carrot', 'sunflower', 'flower', 'bush', 'cow', 'sheep'];
+    const ids = [
+      'grass', 'path', 'dirt', 'water', 'stone', 'lava', 'sand', 'snow',
+      'house', 'tree', 'rock', 'bridge', 'fence',
+      'crop', 'corn', 'wheat', 'pumpkin', 'carrot', 'sunflower',
+      'tuft', 'flower', 'bush', 'cow', 'sheep',
+    ];
     for (const id of ids) {
       const tool = TOOLS.find(t => t.id === id);
       if (!tool) continue;
       if (tool.variants && tool.variants.length) {
         for (const variant of tool.variants) {
-          tools.push(Object.assign({}, tool, {
+          const stampTool = Object.assign({}, tool, {
             id: tool.id + ':' + variant.id,
             label: variant.label,
             activeVariant: variant,
             baseTool: tool,
             isBuiltInStamp: true,
-          }));
+          });
+          stampTool.stampCategories = stampBuilderCategoriesForBuiltIn(stampTool);
+          tools.push(stampTool);
         }
       } else {
-        tools.push(Object.assign({}, tool, { isBuiltInStamp: true }));
+        const stampTool = Object.assign({}, tool, { isBuiltInStamp: true });
+        stampTool.stampCategories = stampBuilderCategoriesForBuiltIn(stampTool);
+        tools.push(stampTool);
       }
     }
-    const q = stampBuilderSearchQuery();
-    if (!q) return tools;
-    return tools.filter(tool => {
-      const bits = [tool.label, tool.id, tool.kind, tool.modelAsset && tool.modelAsset.format, tool.modelAsset && tool.modelAsset.path].filter(Boolean).join(' ').toLowerCase();
-      return bits.includes(q);
+    return applyRecentStampCategories(tools);
+  }
+
+  function applyRecentStampCategories(tools) {
+    const recentKeys = loadRecentStampKeys();
+    if (!recentKeys.length) return tools;
+    const recentIndex = new Map(recentKeys.map((key, index) => [key, index]));
+    tools.forEach(tool => {
+      const key = stampBuilderSelectionKey(tool);
+      if (!recentIndex.has(key)) return;
+      const categories = new Set(tool.stampCategories || []);
+      categories.add('recent');
+      tool.stampCategories = stampBuilderCategoryList(categories, null);
+      tool.recentStampIndex = recentIndex.get(key);
     });
+    return tools;
+  }
+
+  function stampBuilderTools(sourceTools) {
+    const tools = Array.isArray(sourceTools) ? sourceTools : stampBuilderAllTools();
+    const q = stampBuilderSearchQuery();
+    const category = normalizeStampBuilderCategory(activeStampBuilderCategory);
+    if (category !== activeStampBuilderCategory) activeStampBuilderCategory = category;
+    const filtered = tools.filter(tool => {
+      return stampBuilderToolMatchesCategory(tool, category) && stampBuilderToolMatchesSearch(tool, q);
+    });
+    if (category === 'recent') {
+      filtered.sort((a, b) => (a.recentStampIndex ?? 9999) - (b.recentStampIndex ?? 9999));
+    }
+    return filtered;
+  }
+
+  function renderStampBuilderCategoryStrip(sourceTools) {
+    const strip = document.getElementById('stamp-builder-categories');
+    if (!strip) return;
+    const tools = Array.isArray(sourceTools) ? sourceTools : stampBuilderAllTools();
+    const q = stampBuilderSearchQuery();
+    const counts = { all: 0 };
+    for (const tool of tools) {
+      if (!stampBuilderToolMatchesSearch(tool, q)) continue;
+      counts.all++;
+      for (const id of tool.stampCategories || []) {
+        counts[id] = (counts[id] || 0) + 1;
+      }
+    }
+    const active = normalizeStampBuilderCategory(activeStampBuilderCategory);
+    activeStampBuilderCategory = active;
+    strip.innerHTML = '';
+    for (const def of STAMP_BUILDER_CATEGORY_DEFS) {
+      const count = counts[def.id] || 0;
+      if (def.id !== 'all' && !count && def.id !== active) continue;
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'stamp-category-btn' + (def.id === active ? ' active' : '');
+      btn.dataset.category = def.id;
+      btn.setAttribute('role', 'tab');
+      btn.setAttribute('aria-selected', def.id === active ? 'true' : 'false');
+      btn.setAttribute('aria-pressed', def.id === active ? 'true' : 'false');
+      btn.textContent = def.label;
+      const countEl = document.createElement('span');
+      countEl.className = 'stamp-category-count';
+      countEl.textContent = String(count);
+      btn.appendChild(countEl);
+      btn.addEventListener('click', () => {
+        activeStampBuilderCategory = def.id;
+        renderStampBuilderCards();
+        const status = document.getElementById('stamp-builder-status');
+        const shown = stampBuilderTools().length;
+        const scope = def.id === 'all' ? '' : ' in ' + def.label.toLowerCase();
+        if (status) status.textContent = 'Showing ' + shown + ' stamp' + (shown === 1 ? '' : 's') + scope;
+      });
+      strip.appendChild(btn);
+    }
   }
 
   function renderStampBuilderThumb(tool, canvas) {
+    if (tool && tool.isAssetTemplate) {
+      renderAssetTemplateThumb(tool, canvas);
+      return;
+    }
     // Cache hit: blit and skip the 3D scene build. Cards on this panel re-mount
     // on every state change, so caching is the dominant win.
     const cacheKey = thumbCacheKeyForTool(tool);
@@ -19767,8 +20649,68 @@
     scene.traverse(o => safeDisposeGeometry(o.geometry));
   }
 
+  function cancelStampBuilderThumbQueue() {
+    stampBuilderThumbQueueRunId++;
+    stampBuilderThumbQueue.length = 0;
+    if (stampBuilderThumbQueueTimer) {
+      clearTimeout(stampBuilderThumbQueueTimer);
+      stampBuilderThumbQueueTimer = 0;
+    }
+  }
+
+  function scheduleStampBuilderThumbQueue(delay = 0) {
+    if (stampBuilderThumbQueueTimer) return;
+    stampBuilderThumbQueueTimer = setTimeout(() => {
+      stampBuilderThumbQueueTimer = 0;
+      requestAnimationFrame(drainStampBuilderThumbQueue);
+    }, delay);
+  }
+
+  function drainStampBuilderThumbQueue() {
+    if (!stampBuilderThumbQueue.length) return;
+    const start = performance.now();
+    let built = 0;
+    while (stampBuilderThumbQueue.length && built < 2 && performance.now() - start < 12) {
+      const item = stampBuilderThumbQueue.shift();
+      if (!item || item.runId !== stampBuilderThumbQueueRunId) continue;
+      if (!item.canvas || !item.canvas.isConnected) continue;
+      stampBuilderThumbQueuedCanvases.delete(item.canvas);
+      if (item.canvas.dataset.stampKey !== item.key) continue;
+      try {
+        renderStampBuilderThumb(item.tool, item.canvas);
+      } catch (_) {
+        drawFallbackThumb(item.canvas, item.tool && item.tool.label, item.tool && item.tool.color || '#9b9a8f');
+      }
+      built++;
+    }
+    if (stampBuilderThumbQueue.length) scheduleStampBuilderThumbQueue(32);
+  }
+
+  function scheduleStampBuilderThumb(tool, canvas, key) {
+    if (!tool || !canvas) return;
+    const cacheKey = thumbCacheKeyForTool(tool);
+    const panelKey = cacheKey ? 'panel:' + cacheKey : '';
+    if (!tool.isAssetTemplate && drawCachedThumb(canvas, panelKey)) return;
+    drawFallbackThumb(canvas, tool.label, tool.color || '#9b9a8f');
+    if (tool.isAssetTemplate) {
+      try { renderAssetTemplateThumb(tool, canvas); }
+      catch (_) { drawFallbackThumb(canvas, tool.label, tool.color || '#c98f54'); }
+      return;
+    }
+    if (stampBuilderThumbQueuedCanvases.has(canvas)) return;
+    stampBuilderThumbQueuedCanvases.add(canvas);
+    stampBuilderThumbQueue.push({
+      runId: stampBuilderThumbQueueRunId,
+      tool,
+      canvas,
+      key,
+    });
+    scheduleStampBuilderThumbQueue();
+  }
+
   function stampBuilderSelectionKey(tool) {
     if (!tool) return '';
+    if (tool.assetTemplateId) return 'asset-template:' + tool.assetTemplateId;
     if (tool.modelStampId) return 'model-stamp:' + tool.modelStampId;
     if (tool.voxelBuildId) return 'voxel-build:' + tool.voxelBuildId;
     const variant = tool.activeVariant && tool.activeVariant.id ? tool.activeVariant.id : '';
@@ -19777,6 +20719,7 @@
 
   function currentStampBuilderSelectionKey() {
     if (!selectedTool) return '';
+    if (selectedTool.kind === 'asset-template' && selectedTool.assetTemplateId) return 'asset-template:' + selectedTool.assetTemplateId;
     if (selectedTool.kind === 'model-stamp' && selectedTool.modelStampId) return 'model-stamp:' + selectedTool.modelStampId;
     if (selectedTool.kind === 'voxel-build' && selectedTool.voxelBuildId) return 'voxel-build:' + selectedTool.voxelBuildId;
     const variant = selectedTool.activeVariant && selectedTool.activeVariant.id ? selectedTool.activeVariant.id : '';
@@ -19791,6 +20734,26 @@
   }
 
   function selectStampToolFromCard(tool) {
+    if (tool.isAssetTemplate) {
+      const template = tool.assetTemplate;
+      const clipboard = normalizeClipboardPayload(template && template.clipboard);
+      if (!template || !clipboard) return;
+      rememberRecentStampTool(tool);
+      selectedAssetTemplateId = template.id;
+      selectTool({
+        id: 'asset-template:' + template.id,
+        label: template.name,
+        kind: 'asset-template',
+        assetTemplateId: template.id,
+        assetTemplate: Object.assign({}, template, { clipboard }),
+        isAssetTemplate: true,
+        color: '#c98f54',
+      });
+      const status = document.getElementById('stamp-builder-status');
+      const count = clipboard.cells.length;
+      if (status) status.textContent = 'Selected template: ' + template.name + ' (' + count + ' cell' + (count === 1 ? '' : 's') + ')';
+      return;
+    }
     if (tool.isModelStamp) {
       const asset = tool.modelAsset || getModelStamp(tool.modelStampId);
       const status = document.getElementById('stamp-builder-status');
@@ -19798,6 +20761,7 @@
         if (status) status.textContent = (asset ? asset.format.toUpperCase() : 'Model') + ' detected, but only GLB/GLTF/OBJ are placeable right now';
         return;
       }
+      rememberRecentStampTool(tool);
       selectedModelStampId = asset.id;
       selectTool({
         id: 'model-stamp:' + asset.id,
@@ -19812,6 +20776,7 @@
       return;
     }
     const realTool = tool.baseTool || tool;
+    rememberRecentStampTool(tool);
     if (tool.baseTool && tool.activeVariant) realTool.activeVariant = tool.activeVariant;
     selectTool(realTool);
     if (tool.voxelBuildId) selectedVoxelBuildId = tool.voxelBuildId;
@@ -19822,16 +20787,29 @@
   function renderStampBuilderCards() {
     const grid = document.getElementById('stamp-builder-grid');
     if (!grid) return;
+    cancelStampBuilderThumbQueue();
     grid.innerHTML = '';
     updateStampBuilderSummary();
-    const tools = stampBuilderTools();
+    const allTools = stampBuilderAllTools();
+    renderStampBuilderCategoryStrip(allTools);
+    const tools = stampBuilderTools(allTools);
+    const status = document.getElementById('stamp-builder-status');
+    if (status) {
+      const q = stampBuilderSearchQuery();
+      const category = normalizeStampBuilderCategory(activeStampBuilderCategory);
+      const scope = category === 'all' ? '' : ' in ' + stampBuilderCategoryLabel(category).toLowerCase();
+      const matchText = q ? ' matching "' + q + '"' : '';
+      status.textContent = 'Showing ' + tools.length + ' stamp' + (tools.length === 1 ? '' : 's') + scope + matchText;
+    }
     const selectedKey = currentStampBuilderSelectionKey();
     if (!tools.length) {
       const empty = document.createElement('div');
       empty.className = 'stamp-builder-empty';
       empty.textContent = stampBuilderSearchQuery()
         ? 'No stamps match that search.'
-        : 'No stamps yet. Drop GLB/OBJ files into models/ or import a voxel build JSON.';
+        : activeStampBuilderCategory !== 'all'
+          ? 'No stamps in this category yet.'
+          : 'No stamps yet. Drop GLB/OBJ files into models/ or import a voxel build JSON.';
       grid.appendChild(empty);
       return;
     }
@@ -19842,8 +20820,25 @@
       card.className = 'stamp-card' + (key === selectedKey ? ' selected' : '') + (unsupported ? ' unsupported' : '');
       card.setAttribute('role', 'button');
       card.tabIndex = 0;
+      card.dataset.stampKey = key;
       card.setAttribute('aria-pressed', key === selectedKey ? 'true' : 'false');
+      if (tool.isAssetTemplate) {
+        const deleteBtn = document.createElement('button');
+        deleteBtn.type = 'button';
+        deleteBtn.className = 'stamp-card-delete';
+        deleteBtn.title = 'Delete template';
+        deleteBtn.setAttribute('aria-label', 'Delete template ' + tool.label);
+        deleteBtn.textContent = '×';
+        deleteBtn.addEventListener('click', e => {
+          e.preventDefault();
+          e.stopPropagation();
+          if (!confirm('Delete template "' + tool.label + '"?')) return;
+          deleteAssetTemplate(tool.assetTemplateId);
+        });
+        card.appendChild(deleteBtn);
+      }
       const canvas = document.createElement('canvas');
+      canvas.dataset.stampKey = key;
       const title = document.createElement('strong');
       title.textContent = tool.label;
       const meta = document.createElement('div');
@@ -19856,8 +20851,16 @@
         meta.appendChild(stampCardChip(unsupported ? 'detected' : 'model', unsupported ? 'warn' : 'model'));
         if (!unsupported && warning) meta.appendChild(stampCardChip('fallback', 'warn'));
         else if (!unsupported && hasTexture) meta.appendChild(stampCardChip('texture', 'model'));
+      } else if (tool.isAssetTemplate) {
+        const count = tool.assetTemplate && tool.assetTemplate.clipboard ? tool.assetTemplate.clipboard.cells.length : 0;
+        const size = tool.assetTemplate && tool.assetTemplate.clipboard && tool.assetTemplate.clipboard.size;
+        meta.appendChild(stampCardChip('template'));
+        if (size) meta.appendChild(stampCardChip(size.x + 'x' + size.z));
+        if (count) meta.appendChild(stampCardChip(count + ' cell' + (count === 1 ? '' : 's')));
       } else if (tool.isVoxelBuild) {
         meta.appendChild(stampCardChip('voxel'));
+      } else if (tool.terrain) {
+        meta.appendChild(stampCardChip('terrain'));
       } else {
         meta.appendChild(stampCardChip('built-in'));
       }
@@ -19870,11 +20873,7 @@
       });
       card.append(canvas, title, meta);
       grid.appendChild(card);
-      try {
-        renderStampBuilderThumb(tool, canvas);
-      } catch (err) {
-        drawFallbackThumb(canvas, tool.label, tool.color || '#9b9a8f');
-      }
+      scheduleStampBuilderThumb(tool, canvas, key);
     }
   }
 
@@ -20106,6 +21105,7 @@
     // user-applied rotation/offset so they don't bleed across tools.
     ensureGhostPreview();
     resetGhostTransform();
+    rememberSelectedStampTool(t);
     syncModelStampSettingsPanel(t);
     refreshOpenStampBuilderCards();
     twPerfMark('selectTool:end:' + (t && t.id ? t.id : 'unknown'));
@@ -20141,6 +21141,8 @@
         tool.activeVariant = v;
         renderFlyout(el, tool);
         if (typeof refreshToolThumb === 'function') refreshToolThumb(tool.id);
+        rememberSelectedStampTool(tool);
+        refreshOpenStampBuilderCards();
         // Active variant changed → rebuild the ghost preview to match.
         ensureGhostPreview();
         resetGhostTransform();
@@ -20177,6 +21179,7 @@
     const variant = selectedTool.activeVariant;
     const requested = variant && variant.fenceSide;
     if (requested && requested !== 'auto') return normalizeFenceSide(requested);
+    if (cell && cell.drawFenceSide) return normalizeFenceSide(cell.drawFenceSide);
     if (!cell || !Number.isFinite(cell.localX) || !Number.isFinite(cell.localZ)) return 'n';
     const d = [
       { side: 'w', value: Math.abs(cell.localX + 0.5) },
@@ -20187,6 +21190,12 @@
     return d[0].side;
   }
 
+  function fenceLevelFromSelectedTool() {
+    const variant = selectedTool && selectedTool.activeVariant;
+    const level = variant && Number.isFinite(variant.floors) ? variant.floors : 1;
+    return Math.max(1, Math.min(MAX_FLOORS, level || 1));
+  }
+
   // -------- click → place / erase --------
   // Remove the ghost board's mesh for a given local cell so a freshly
   // materialised home cellMesh doesn't render on top of the original
@@ -20195,7 +21204,7 @@
     rebuildGhostBoard(boardX, boardZ);
   }
 
-  function applyToolToCell(cell) {
+  function applyToolToCell(cell, opts = {}) {
     if (cell.boardX || cell.boardZ) {
       // Skip if the currently selected tool would no-op (e.g. auto mode
       // without an API key) — otherwise we'd materialise + remove the
@@ -20227,7 +21236,7 @@
         if (_entry.tile)   { _entry.tile.userData.revealed = true;   setElementOpacity(_entry.tile, 1, true); }
         if (_entry.object) { _entry.object.userData.revealed = true; setElementOpacity(_entry.object, 1, true); }
       }
-      applyTool(x, z);
+      applyTool(x, z, opts);
       // After setCell ran inside applyTool, re-stamp the override flag
       // AND re-force revealed/visible on whatever the latest mesh is.
       if (world[x] && world[x][z]) world[x][z].userEdited = true;
@@ -20237,7 +21246,7 @@
         if (_entry2.object) { _entry2.object.userData.revealed = true; setElementOpacity(_entry2.object, 1, true); }
       }
     } else {
-      applyTool(cell.x, cell.z);
+      applyTool(cell.x, cell.z, opts);
     }
   }
 
@@ -20251,7 +21260,56 @@
     return t;
   }
 
-  function applyTool(x, z) {
+  function applySelectedToolToSelection() {
+    const sel = window.__tinyworldSelection;
+    if (!sel || !sel.cells || !sel.cells.size) return false;
+    if (!selectedTool || selectedTool.select || selectedTool.auto) return false;
+    const selectedCoords = sel.materialize
+      ? sel.materialize()
+      : (sel.worldCoords ? sel.worldCoords() : []);
+    if (!selectedCoords.length) return false;
+    if (selectedTool.kind === 'asset-template') {
+      const template = selectedTool.assetTemplate || assetTemplateById(selectedTool.assetTemplateId || selectedAssetTemplateId);
+      const clipboard = normalizeClipboardPayload(template && template.clipboard);
+      if (!clipboard) return false;
+      const placedCoords = [];
+      selectedCoords.forEach(({ x: sx, z: sz }) => {
+        const placed = pasteClipboardPayloadAtTarget(clipboard, { x: sx, z: sz, userEdited: isOutsideHomeGrid(sx, sz) }, {
+          animate: true,
+          impactDust: true,
+          selectPlaced: false,
+        });
+        if (placed) {
+          clipboard.cells.forEach(item => {
+            placedCoords.push({ x: sx + item.dx, z: sz + item.dz });
+          });
+        }
+      });
+      if (!placedCoords.length) return false;
+      if (sel.replaceWorldCoords) sel.replaceWorldCoords(placedCoords);
+      else notifySelectionChanged();
+      return true;
+    }
+    const ghostTransform = {
+      rotation: ghostRotation,
+      offsetX: ghostOffsetX,
+      offsetZ: ghostOffsetZ,
+    };
+    selectedCoords.forEach(({ x: sx, z: sz }) => {
+      ghostRotation = ghostTransform.rotation;
+      ghostOffsetX = ghostTransform.offsetX;
+      ghostOffsetZ = ghostTransform.offsetZ;
+      applyTool(sx, sz, { skipSelectionBulk: true });
+    });
+    ghostRotation = ghostTransform.rotation;
+    ghostOffsetX = ghostTransform.offsetX;
+    ghostOffsetZ = ghostTransform.offsetZ;
+    resetGhostTransform();
+    notifySelectionChanged();
+    return true;
+  }
+
+  function applyTool(x, z, opts = {}) {
     if (selectedTool.auto) {
       if (!getAIProviderState().key) return; // Can't auto-place without API key
       applyAutoTool(x, z);
@@ -20260,42 +21318,20 @@
     if (selectedTool.select) {
       return;
     }
+    if (selectedTool.kind === 'asset-template') {
+      const template = selectedTool.assetTemplate || assetTemplateById(selectedTool.assetTemplateId || selectedAssetTemplateId);
+      const clipboard = normalizeClipboardPayload(template && template.clipboard);
+      if (!clipboard) return;
+      pasteClipboardPayloadAtTarget(clipboard, { x, z, userEdited: isOutsideHomeGrid(x, z) }, { animate: true, impactDust: true });
+      return;
+    }
 
     // --- Bulk apply to active selection (Shift+select + tool) ---
     const sel = window.__tinyworldSelection;
-    if (sel && sel.cells.size > 0) {
+    if (!opts.skipSelectionBulk && sel && sel.cells.size > 0) {
       const selectedCoords = sel.worldCoords ? sel.worldCoords() : [];
       if (selectedCoords.some(c => c.x === x && c.z === z)) {
-        // Apply current tool to every selected cell
-        if (selectedTool.terrain) {
-          selectedCoords.forEach(({ x: sx, z: sz }) => {
-            setCell(sx, sz, { terrain: selectedTool.terrain });
-          });
-        } else if (selectedTool.kind) {
-          selectedCoords.forEach(({ x: sx, z: sz }) => {
-            const current = getWorldCell(sx, sz);
-            const terrainForKind = selectedTool.terrainOverride || current.terrain || 'grass';
-            if (selectedTool.kind === 'model-stamp' && selectedTool.modelStampId) {
-              const cfg = getModelStampSettings(selectedTool.modelStampId);
-              setCell(sx, sz, {
-                kind: 'model-stamp',
-                terrain: terrainForKind === 'water' || terrainForKind === 'lava' ? 'grass' : terrainForKind,
-                floors: 1,
-                rotationY: cfg.rotationY,
-                offsetY: cfg.offsetY,
-                appearance: { modelStampId: selectedTool.modelStampId, objectScale: cfg.objectScale },
-              });
-            } else {
-              setCell(sx, sz, { kind: selectedTool.kind, terrain: terrainForKind });
-            }
-          });
-        } else if (selectedTool.erase) {
-          selectedCoords.forEach(({ x: sx, z: sz }) => {
-            const current = getWorldCell(sx, sz);
-            setCell(sx, sz, { terrain: current.terrain, kind: null });
-          });
-        }
-        // Keep selection active for rapid multi-tool use on the area
+        applySelectedToolToSelection();
         return;
       }
     }
@@ -20375,9 +21411,15 @@
     }
     if (selectedTool.kind === 'fence') {
       const side = fenceSideFromHover(currentHover);
+      const baseLevel = fenceLevelFromSelectedTool();
       // Same-side fence on a fence cell → level it up in place.
       if (cell.kind === 'fence' && normalizeFenceSide(cell.fenceSide) === side) {
-        const newLevel = Math.min((cell.floors || 1) + 1, MAX_FLOORS);
+        if (opts.drawing) {
+          if ((cell.floors || 1) >= baseLevel) return;
+          setCell(x, z, { terrain: cell.terrain, terrainFloors: terrainLevelForCell(cell), kind: 'fence', floors: baseLevel, fenceSide: side });
+          return;
+        }
+        const newLevel = Math.min(Math.max((cell.floors || 1) + 1, baseLevel), MAX_FLOORS);
         if (newLevel === (cell.floors || 1)) return;
         setCell(x, z, { terrain: cell.terrain, terrainFloors: terrainLevelForCell(cell), kind: 'fence', floors: newLevel, fenceSide: side });
         return;
@@ -20385,21 +21427,22 @@
       // Different-side fence on a fence cell → add the new side as an
       // extra so multiple fence sides co-exist on the same tile.
       if (cell.kind === 'fence') {
-        addCellExtra(x, z, { kind: 'fence', fenceSide: side });
+        addCellExtra(x, z, { kind: 'fence', fenceSide: side, floors: baseLevel }, { drawing: opts.drawing });
         return;
       }
       // Different main occupant → fence co-exists alongside it.
       if (cell.kind && cell.kind !== 'fence') {
-        addCellExtra(x, z, { kind: 'fence', fenceSide: side });
+        addCellExtra(x, z, { kind: 'fence', fenceSide: side, floors: baseLevel }, { drawing: opts.drawing });
         return;
       }
       // Empty cell → fence becomes the main kind.
       const gt2 = consumeGhostTransform();
-      setCell(x, z, { terrain: cell.terrain, terrainFloors: terrainLevelForCell(cell), kind: 'fence', floors: 1, fenceSide: side, rotationY: gt2.rotationY, offsetX: gt2.offsetX, offsetZ: gt2.offsetZ });
+      setCell(x, z, { terrain: cell.terrain, terrainFloors: terrainLevelForCell(cell), kind: 'fence', floors: baseLevel, fenceSide: side, rotationY: gt2.rotationY, offsetX: gt2.offsetX, offsetZ: gt2.offsetZ });
       return;
     }
     if (selectedTool.kind) {
       if (cell.kind === selectedTool.kind) {
+        if (opts.drawing) return;
         // Bridges have only 4 visual styles (wood → covered → stone → arch),
         // so cap their stacking there instead of running up to MAX_FLOORS.
         const stackMax = selectedTool.kind === 'bridge' ? 4 : MAX_FLOORS;
@@ -20447,7 +21490,9 @@
       const sameTerrain = selectedTool.terrain === cell.terrain;
       const nextTerrainFloors = nextKind
         ? terrainLevelForCell(cell)
-        : (sameTerrain ? Math.min(terrainLevelForCell(cell) + 1, MAX_FLOORS) : 1);
+        : (sameTerrain
+          ? (opts.drawing ? terrainLevelForCell(cell) : Math.min(terrainLevelForCell(cell) + 1, MAX_FLOORS))
+          : 1);
       setCell(x, z, {
         terrain: selectedTool.terrain,
         terrainFloors: nextTerrainFloors,
@@ -20488,8 +21533,12 @@
   let pointerDown = null;     // {x, y}
   let lastPointer = null;
   let didDrag = false;
-  let dragMode = null;        // 'orbit' | 'pan' | 'pinch' | 'select-area'
+  let dragMode = null;        // 'orbit' | 'pan' | 'pinch' | 'select-area' | 'draw' | 'move-selection'
   let selectionDragAnchor = null;
+  let selectionMoveDragLastCoord = null;
+  const drawVisitedCells = new Set();
+  const drawChangedWorldCoords = new Map();
+  let drawLastWorldCoord = null;
   let spaceDown = false;
   const DRAG_THRESHOLD = 5;
   const activePointers = new Map(); // pointerId -> {x, y, type}
@@ -20506,6 +21555,9 @@
     lastPointer = null;
     didDrag = false;
     dragMode = null;
+    drawVisitedCells.clear();
+    drawChangedWorldCoords.clear();
+    drawLastWorldCoord = null;
     spaceDown = false;
     pinchPrevDist = 0;
     pinchPrevMid = null;
@@ -20515,8 +21567,7 @@
     updateGhostPlacement();
   }
 
-  function updateHoverAt(x, y) {
-    const cell = pickTile(x, y);
+  function setHoverFromCell(cell) {
     if (cell) {
       hoverMesh.position.set(cell.worldX, hoverHeightForCell(cell), cell.worldZ);
       hoverMesh.visible = true;
@@ -20526,6 +21577,114 @@
       currentHover = null;
     }
     updateGhostPlacement();
+  }
+
+  function updateHoverAt(x, y) {
+    setHoverFromCell(pickTile(x, y));
+  }
+
+  function isDrawablePlacementTool(tool) {
+    return !!(tool && !tool.auto && !tool.select && (
+      tool.erase ||
+      tool.terrain ||
+      tool.kind === 'fence' ||
+      tool.kind === 'bridge'
+    ));
+  }
+
+  function drawKeyForHit(hit) {
+    if (!hit) return '';
+    const bx = hit.boardX || 0;
+    const bz = hit.boardZ || 0;
+    const x = hit.x + bx * GRID;
+    const z = hit.z + bz * GRID;
+    if (selectedTool && selectedTool.kind === 'fence') {
+      return x + ',' + z + ':' + fenceSideFromHover(hit);
+    }
+    return x + ',' + z;
+  }
+
+  function drawWorldCoordForHit(hit) {
+    if (!hit) return null;
+    const bx = hit.boardX || 0;
+    const bz = hit.boardZ || 0;
+    return { x: hit.x + bx * GRID, z: hit.z + bz * GRID };
+  }
+
+  function isSelectedWorldHit(hit) {
+    const coord = drawWorldCoordForHit(hit);
+    const sel = window.__tinyworldSelection;
+    return !!(coord && sel && sel.containsWorldCoord && sel.containsWorldCoord(coord.x, coord.z));
+  }
+
+  function drawFenceSideForStep(from, to, sourceHit) {
+    if (!from || !to) return null;
+    const dx = to.x - from.x;
+    const dz = to.z - from.z;
+    if (!dx && !dz) return null;
+    const localX = sourceHit && Number.isFinite(sourceHit.localX) ? sourceHit.localX : 0;
+    const localZ = sourceHit && Number.isFinite(sourceHit.localZ) ? sourceHit.localZ : 0;
+    if (Math.abs(dx) > Math.abs(dz)) return localZ < 0 ? 'n' : (localZ > 0 ? 's' : 'n');
+    if (Math.abs(dz) > Math.abs(dx)) return localX < 0 ? 'w' : (localX > 0 ? 'e' : 'w');
+    if (Math.abs(localX) > Math.abs(localZ)) return localX < 0 ? 'w' : 'e';
+    return localZ < 0 ? 'n' : 's';
+  }
+
+  function drawHitFromWorldCoord(x, z, sourceHit, drawFenceSide = null) {
+    const boardX = floorDiv(x, GRID);
+    const boardZ = floorDiv(z, GRID);
+    const lx = positiveMod(x, GRID);
+    const lz = positiveMod(z, GRID);
+    const p = (boardX || boardZ) ? ghostCellPos(boardX, boardZ, lx, lz) : tilePos(lx, lz);
+    return {
+      x: lx,
+      z: lz,
+      boardX,
+      boardZ,
+      worldX: p.x,
+      worldZ: p.z,
+      localX: sourceHit && Number.isFinite(sourceHit.localX) ? sourceHit.localX : 0,
+      localZ: sourceHit && Number.isFinite(sourceHit.localZ) ? sourceHit.localZ : 0,
+      drawFenceSide,
+    };
+  }
+
+  function applyDrawToolToSingleHit(hit) {
+    if (!hit) return false;
+    const key = drawKeyForHit(hit);
+    if (!key || drawVisitedCells.has(key)) return false;
+    drawVisitedCells.add(key);
+    setHoverFromCell(hit);
+    applyToolToCell(hit, { skipSelectionBulk: true, drawing: true });
+    if (!(selectedTool && selectedTool.erase)) {
+      const coord = drawWorldCoordForHit(hit);
+      if (coord) drawChangedWorldCoords.set(coord.x + ',' + coord.z, coord);
+    }
+    return true;
+  }
+
+  function applyDrawToolToHit(hit) {
+    const coord = drawWorldCoordForHit(hit);
+    if (!coord) return false;
+    let changed = false;
+    if (drawLastWorldCoord) {
+      const dx = coord.x - drawLastWorldCoord.x;
+      const dz = coord.z - drawLastWorldCoord.z;
+      const steps = Math.max(Math.abs(dx), Math.abs(dz));
+      let prevCoord = drawLastWorldCoord;
+      for (let i = 1; i <= steps; i++) {
+        const x = Math.round(drawLastWorldCoord.x + dx * (i / steps));
+        const z = Math.round(drawLastWorldCoord.z + dz * (i / steps));
+        const stepCoord = { x, z };
+        const drawFenceSide = drawFenceSideForStep(prevCoord, stepCoord, hit);
+        changed = applyDrawToolToSingleHit(drawHitFromWorldCoord(x, z, hit, drawFenceSide)) || changed;
+        prevCoord = stepCoord;
+      }
+    } else {
+      changed = applyDrawToolToSingleHit(hit);
+    }
+    drawLastWorldCoord = coord;
+    return changed;
   }
 
   renderer.domElement.addEventListener('contextmenu', e => e.preventDefault());
@@ -20552,12 +21711,16 @@
       return;
     }
 
-    dragMode = (e.button === 2 || spaceDown) ? 'pan' : 'orbit';
+    const pressHit = pickTile(e.clientX, e.clientY);
+    const wantsDraw = e.button === 0 && !spaceDown && !e.shiftKey && !e.metaKey && isDrawablePlacementTool(selectedTool);
+    const wantsSelectionMove = e.button === 0 && !spaceDown && !e.shiftKey && !e.metaKey && selectedTool && selectedTool.select && isSelectedWorldHit(pressHit);
+    dragMode = wantsDraw ? 'draw' : wantsSelectionMove ? 'move-selection' : ((e.button === 2 || spaceDown) ? 'pan' : 'orbit');
+    selectionMoveDragLastCoord = wantsSelectionMove ? drawWorldCoordForHit(pressHit) : null;
     // Rectangle drag (Shift+drag):
     //   - With Select tool → normal area selection
     //   - With any other tool → live preview rectangle; on release we fill the area with the current tool
     if (dragMode === 'orbit' && (e.shiftKey || e.metaKey)) {
-      const hit = pickTile(e.clientX, e.clientY);
+      const hit = pressHit;
       if (hit) {
         dragMode = 'select-area';
         selectionDragAnchor = { hit };
@@ -20567,9 +21730,17 @@
     pointerDown = { x: e.clientX, y: e.clientY };
     lastPointer = { x: e.clientX, y: e.clientY };
     didDrag = false;
+    drawVisitedCells.clear();
+    drawChangedWorldCoords.clear();
+    drawLastWorldCoord = null;
     // Touch devices don't have hover before contact, so prime currentHover
     // at the press location so a quick tap can place a tile.
-    if (e.pointerType !== 'mouse') updateHoverAt(e.clientX, e.clientY);
+    if (dragMode === 'draw') {
+      const hit = pressHit;
+      didDrag = !!applyDrawToolToHit(hit);
+    } else if (e.pointerType !== 'mouse') {
+      updateHoverAt(e.clientX, e.clientY);
+    }
     renderer.domElement.classList.add('dragging');
   });
 
@@ -20615,11 +21786,23 @@
         const ddy = e.clientY - lastPointer.y;
         if (dragMode === 'pan') {
           panCameraByPixels(ddx, ddy);
+        } else if (dragMode === 'draw') {
+          applyDrawToolToHit(pickTile(e.clientX, e.clientY));
         } else if (dragMode === 'select-area') {
           // Extend the marquee rectangle to the cell under the cursor.
           const hit = pickTile(e.clientX, e.clientY);
           if (hit && selectionDragAnchor) {
             setRectangleSelection(selectionDragAnchor.hit, hit, 'replace');
+          }
+        } else if (dragMode === 'move-selection') {
+          const hit = pickTile(e.clientX, e.clientY);
+          const coord = drawWorldCoordForHit(hit);
+          if (coord && selectionMoveDragLastCoord) {
+            const moveDx = coord.x - selectionMoveDragLastCoord.x;
+            const moveDz = coord.z - selectionMoveDragLastCoord.z;
+            if ((moveDx || moveDz) && shiftSelectedCellIntent(moveDx, moveDz)) {
+              selectionMoveDragLastCoord = coord;
+            }
           }
         } else {
           markCameraMoving();
@@ -20629,13 +21812,18 @@
           updateCamera();
         }
         // While dragging on touch, hide the hover marker so it doesn't lag.
-        if (e.pointerType !== 'mouse') {
+        if (e.pointerType !== 'mouse' && dragMode !== 'draw') {
           hoverMesh.visible = false;
           currentHover = null;
         }
       }
       lastPointer = { x: e.clientX, y: e.clientY };
     }
+  });
+
+  renderer.domElement.addEventListener('pointerleave', () => {
+    if (pointerDown || activePointers.size) return;
+    setHoverFromCell(null);
   });
 
   renderer.domElement.addEventListener('pointerup', e => {
@@ -20667,7 +21855,7 @@
       return;
     }
 
-    if (pointerDown && !didDrag && currentHover && dragMode !== 'pan' && dragMode !== 'select-area') {
+    if (pointerDown && !didDrag && currentHover && dragMode !== 'pan' && dragMode !== 'select-area' && dragMode !== 'draw') {
       // Plain click on the select tool is a no-op; the user must hold
       // shift to engage selection (shift+click for one cell, shift+drag
       // for a marquee). Other tools apply as usual.
@@ -20679,23 +21867,29 @@
     if (dragMode === 'select-area' && didDrag && selectedTool && !selectedTool.select) {
       const sel = window.__tinyworldSelection;
       if (sel && sel.cells.size > 0) {
-        // Trigger the bulk path inside applyTool by calling it on any selected cell
-        const firstKey = sel.cells.values().next().value;
-        if (firstKey) {
-          const [fx, fz] = firstKey.split(',').map(Number);
-          applyTool(fx, fz);   // will hit the selection bulk logic
+        // Trigger the bulk path inside applyTool by calling it on any selected cell.
+        // Keep the selection active for immediate colour/material/transform edits.
+        const firstCoord = sel.worldCoords && sel.worldCoords()[0];
+        if (firstCoord) {
+          applyTool(firstCoord.x, firstCoord.z);   // will hit the selection bulk logic
         }
-        clearSelection();
       }
     }
 
     // (Shift+click + shift+drag are handled by setRectangleSelection
     // in pointerdown/pointermove respectively.)
     if (activePointers.size === 0) {
+      if (dragMode === 'draw' && drawChangedWorldCoords.size && window.__tinyworldSelection && window.__tinyworldSelection.replaceWorldCoords) {
+        window.__tinyworldSelection.replaceWorldCoords(Array.from(drawChangedWorldCoords.values()));
+      }
       pointerDown = null;
       lastPointer = null;
       dragMode = null;
       selectionDragAnchor = null;
+      selectionMoveDragLastCoord = null;
+      drawVisitedCells.clear();
+      drawChangedWorldCoords.clear();
+      drawLastWorldCoord = null;
       // Touch devices: clear the hover marker after a tap so it doesn't linger.
       if (e.pointerType !== 'mouse') {
         hoverMesh.visible = false;
@@ -20719,6 +21913,10 @@
       dragMode = null;
       pinchPrevDist = 0;
       pinchPrevMid = null;
+      selectionMoveDragLastCoord = null;
+      drawVisitedCells.clear();
+      drawChangedWorldCoords.clear();
+      drawLastWorldCoord = null;
     }
   });
 
@@ -20798,25 +21996,32 @@
     return target.isContentEditable || tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
   }
 
+  const ASSET_TEMPLATES_LS = 'tinyworld:asset-templates.v1';
+  let assetClipboard = null;
   let copiedHoverCell = null;
-  function hoverWorldTarget(materializeGhost) {
-    if (!currentHover) return null;
-    const bx = currentHover.boardX || 0;
-    const bz = currentHover.boardZ || 0;
-    const x = currentHover.x + bx * GRID;
-    const z = currentHover.z + bz * GRID;
+  function worldTargetFromHit(hit, materializeGhost) {
+    if (!hit) return null;
+    const bx = hit.boardX || 0;
+    const bz = hit.boardZ || 0;
+    const x = hit.x + bx * GRID;
+    const z = hit.z + bz * GRID;
     if ((bx || bz) && materializeGhost) {
       const ghostCells = makeGhostWorld(bx, bz);
-      const ghostCell = ghostCells[currentHover.x][currentHover.z];
+      const ghostCell = ghostCells[hit.x][hit.z];
       if (!world[x]) world[x] = [];
       if (!world[x][z]) world[x][z] = { ...ghostCell, userEdited: true };
-      removeGhostCellMesh(bx, bz, currentHover.x, currentHover.z);
+      removeGhostCellMesh(bx, bz, hit.x, hit.z);
     }
     const cell = (bx || bz) && !materializeGhost
-      ? makeGhostWorld(bx, bz)[currentHover.x][currentHover.z]
+      ? makeGhostWorld(bx, bz)[hit.x][hit.z]
       : getWorldCell(x, z);
     return { x, z, cell, userEdited: !!(bx || bz) };
   }
+
+  function hoverWorldTarget(materializeGhost) {
+    return worldTargetFromHit(currentHover, materializeGhost);
+  }
+
   function cloneCellIntent(cell) {
     if (!cell) return null;
     return {
@@ -20829,34 +22034,335 @@
       extras: cloneExtras(cell.extras),
       rotationY: cell.rotationY || 0,
       offsetX: cell.offsetX || 0,
+      offsetY: cell.offsetY || 0,
       offsetZ: cell.offsetZ || 0,
       appearance: normalizeAppearance(cell.appearance),
+      waterFlow: normalizeWaterFlow(cell.waterFlow),
     };
   }
-  function copyHoveredCellIntent() {
-    const target = hoverWorldTarget(false);
-    if (!target || !target.cell) return false;
-    copiedHoverCell = cloneCellIntent(target.cell);
-    return !!copiedHoverCell;
+
+  function normalizeClipboardCells(cells) {
+    return (Array.isArray(cells) ? cells : [])
+      .map(item => {
+        const dx = Number(item && item.dx);
+        const dz = Number(item && item.dz);
+        const cell = cloneCellIntent(item && item.cell);
+        if (!Number.isFinite(dx) || !Number.isFinite(dz) || !cell) return null;
+        return { dx: Math.round(dx), dz: Math.round(dz), cell };
+      })
+      .filter(Boolean);
   }
-  function pasteHoveredCellIntent() {
-    if (!copiedHoverCell) return false;
-    const target = hoverWorldTarget(true);
-    if (!target) return false;
-    const current = getWorldCell(target.x, target.z);
-    let next = Object.assign({}, copiedHoverCell);
-    if (next.kind) {
-      next.terrain = next.kind === 'bridge' ? 'water'
-        : CROP_KINDS.has(next.kind) ? 'dirt'
-        : (current && current.terrain) || next.terrain || 'grass';
-      next.terrainFloors = terrainLevelForCell(current);
+
+  function normalizeClipboardPayload(payload) {
+    const cells = normalizeClipboardCells(payload && payload.cells);
+    if (!cells.length) return null;
+    return {
+      version: 1,
+      origin: payload.origin || { x: 0, z: 0 },
+      size: payload.size || {
+        x: Math.max(...cells.map(c => c.dx)) + 1,
+        z: Math.max(...cells.map(c => c.dz)) + 1,
+      },
+      cells,
+    };
+  }
+
+  function makeClipboardPayload(targets) {
+    const valid = (targets || []).filter(t => t && Number.isFinite(t.x) && Number.isFinite(t.z) && t.cell);
+    if (!valid.length) return null;
+    const originX = Math.min(...valid.map(t => t.x));
+    const originZ = Math.min(...valid.map(t => t.z));
+    const cells = valid
+      .sort((a, b) => (a.z - b.z) || (a.x - b.x))
+      .map(t => ({
+        dx: t.x - originX,
+        dz: t.z - originZ,
+        cell: cloneCellIntent(t.cell),
+      }))
+      .filter(t => t.cell);
+    if (!cells.length) return null;
+    return {
+      version: 1,
+      origin: { x: originX, z: originZ },
+      size: {
+        x: Math.max(...cells.map(c => c.dx)) + 1,
+        z: Math.max(...cells.map(c => c.dz)) + 1,
+      },
+      cells,
+    };
+  }
+
+  function selectedClipboardTargets(materialize) {
+    const sel = window.__tinyworldSelection;
+    if (!sel || !sel.cells || !sel.cells.size) return [];
+    if (materialize && sel.materialize) {
+      return sel.materialize().map(({ x, z }) => ({ x, z, cell: getWorldCell(x, z) }));
     }
-    setCell(target.x, target.z, Object.assign({}, next, {
-      userEdited: target.userEdited,
-      animate: true,
-      impactDust: true,
-    }));
+    const targets = [];
+    sel.cells.forEach(key => {
+      const c = parseCellKey(key);
+      const x = c.x + (c.bx || 0) * GRID;
+      const z = c.z + (c.bz || 0) * GRID;
+      targets.push({ x, z, cell: cellForKey(key) || getWorldCell(x, z) });
+    });
+    return targets;
+  }
+
+  function setAssetClipboard(payload) {
+    const clipboard = normalizeClipboardPayload(payload);
+    if (!clipboard) return false;
+    assetClipboard = clipboard;
+    copiedHoverCell = clipboard.cells.length === 1 ? cloneCellIntent(clipboard.cells[0].cell) : null;
     return true;
+  }
+
+  function copyActiveCellIntent() {
+    const selectedTargets = selectedClipboardTargets(false);
+    const payload = selectedTargets.length
+      ? makeClipboardPayload(selectedTargets)
+      : (() => {
+        const target = hoverWorldTarget(false);
+        return target && target.cell ? makeClipboardPayload([target]) : null;
+      })();
+    return !!(payload && setAssetClipboard(payload));
+  }
+
+  function activeTemplateClipboardPayload() {
+    const selectedTargets = selectedClipboardTargets(false);
+    if (selectedTargets.length) return makeClipboardPayload(selectedTargets);
+    const target = hoverWorldTarget(false);
+    return target && target.cell ? makeClipboardPayload([target]) : null;
+  }
+
+  function clearCellForCut(x, z) {
+    const cell = getWorldCell(x, z);
+    if (!cell) return;
+    const hadExtras = !!(cell.extras && cell.extras.length);
+    if (cell.kind || (cell.extras && cell.extras.length)) {
+      setCell(x, z, {
+        terrain: cell.terrain,
+        terrainFloors: terrainLevelForCell(cell),
+        kind: null,
+        floors: 1,
+        extras: [],
+        animate: false,
+        impactDust: false,
+      });
+      if (hadExtras && typeof renderCellExtras === 'function') renderCellExtras(x, z);
+    } else {
+      setCell(x, z, {
+        terrain: 'grass',
+        terrainFloors: 1,
+        kind: null,
+        floors: 1,
+        extras: [],
+        animate: false,
+        impactDust: false,
+        forceTile: true,
+      });
+    }
+  }
+
+  function cutActiveCellIntent() {
+    const selectedTargets = selectedClipboardTargets(true);
+    if (selectedTargets.length) {
+      const payload = makeClipboardPayload(selectedTargets);
+      if (!payload || !setAssetClipboard(payload)) return false;
+      selectedTargets.forEach(({ x, z }) => clearCellForCut(x, z));
+      if (window.__tinyworldSelection) window.__tinyworldSelection.clear();
+      return true;
+    }
+    const target = hoverWorldTarget(true);
+    if (!target || !target.cell) return false;
+    const payload = makeClipboardPayload([{ x: target.x, z: target.z, cell: target.cell }]);
+    if (!payload || !setAssetClipboard(payload)) return false;
+    clearCellForCut(target.x, target.z);
+    return true;
+  }
+
+  function deleteActiveCellIntent() {
+    const selectedTargets = selectedClipboardTargets(true);
+    if (selectedTargets.length) {
+      selectedTargets.forEach(({ x, z }) => clearCellForCut(x, z));
+      if (window.__tinyworldSelection) window.__tinyworldSelection.clear();
+      return true;
+    }
+    const target = hoverWorldTarget(true);
+    if (!target || !target.cell) return false;
+    clearCellForCut(target.x, target.z);
+    return true;
+  }
+
+  function pasteClipboardPayloadAtTarget(payload, target, opts = {}) {
+    const cells = normalizeClipboardCells(payload && payload.cells);
+    if (!cells.length) return false;
+    if (!target) return false;
+    const placed = [];
+    cells.forEach(item => {
+      const x = target.x + item.dx;
+      const z = target.z + item.dz;
+      const next = cloneCellIntent(item.cell);
+      if (!next) return;
+      setCell(x, z, Object.assign({}, next, {
+        userEdited: !!(target.userEdited || isOutsideHomeGrid(x, z)),
+        animate: opts.animate !== false,
+        impactDust: opts.impactDust !== false,
+        forceTile: true,
+      }));
+      placed.push({ x, z });
+    });
+    if (opts.selectPlaced !== false && placed.length && window.__tinyworldSelection && window.__tinyworldSelection.replaceWorldCoords) {
+      window.__tinyworldSelection.replaceWorldCoords(placed);
+    }
+    return placed.length > 0;
+  }
+
+  function pasteClipboardAtTarget(target, opts = {}) {
+    if (!assetClipboard && copiedHoverCell) {
+      setAssetClipboard(makeClipboardPayload([{ x: 0, z: 0, cell: copiedHoverCell }]));
+    }
+    if (!assetClipboard || !assetClipboard.cells || !assetClipboard.cells.length) return false;
+    return pasteClipboardPayloadAtTarget(assetClipboard, target, opts);
+  }
+
+  function pasteHoveredCellIntent() {
+    return pasteClipboardAtTarget(hoverWorldTarget(true), { animate: true, impactDust: true });
+  }
+
+  function selectedPasteFallbackTarget() {
+    const sel = window.__tinyworldSelection;
+    const coords = sel && sel.worldCoords ? sel.worldCoords() : [];
+    if (!coords.length) return null;
+    return {
+      x: Math.min(...coords.map(c => c.x)),
+      z: Math.min(...coords.map(c => c.z)),
+      userEdited: coords.some(c => isOutsideHomeGrid(c.x, c.z)),
+    };
+  }
+
+  function pasteClipboardAtActiveTarget() {
+    return pasteHoveredCellIntent() || pasteClipboardAtTarget(selectedPasteFallbackTarget(), { animate: true, impactDust: true });
+  }
+
+  function pasteClipboardPayloadAtActiveTarget(payload) {
+    return pasteClipboardPayloadAtTarget(payload, hoverWorldTarget(true), { animate: true, impactDust: true })
+      || pasteClipboardPayloadAtTarget(payload, selectedPasteFallbackTarget(), { animate: true, impactDust: true });
+  }
+
+  function duplicateActiveCellIntent() {
+    const selectedTargets = selectedClipboardTargets(true);
+    if (!selectedTargets.length) {
+      const target = hoverWorldTarget(false);
+      if (!target || !target.cell) return false;
+      const payload = makeClipboardPayload([target]);
+      if (!payload) return false;
+      return pasteClipboardPayloadAtTarget(payload, { x: target.x + 1, z: target.z, userEdited: isOutsideHomeGrid(target.x + 1, target.z) });
+    }
+    const payload = makeClipboardPayload(selectedTargets);
+    if (!payload) return false;
+    const maxX = Math.max(...selectedTargets.map(t => t.x));
+    const minZ = Math.min(...selectedTargets.map(t => t.z));
+    return pasteClipboardPayloadAtTarget(payload, { x: maxX + 1, z: minZ, userEdited: selectedTargets.some(t => isOutsideHomeGrid(t.x, t.z)) });
+  }
+
+  function shiftSelectedCellIntent(dx, dz) {
+    const selectedTargets = selectedClipboardTargets(true);
+    if (!selectedTargets.length) return false;
+    const payload = makeClipboardPayload(selectedTargets);
+    if (!payload || !payload.cells || !payload.cells.length) return false;
+    selectedTargets.forEach(({ x, z }) => clearCellForCut(x, z));
+    const target = {
+      x: (payload.origin && Number.isFinite(payload.origin.x) ? payload.origin.x : Math.min(...selectedTargets.map(t => t.x))) + dx,
+      z: (payload.origin && Number.isFinite(payload.origin.z) ? payload.origin.z : Math.min(...selectedTargets.map(t => t.z))) + dz,
+      userEdited: selectedTargets.some(t => isOutsideHomeGrid(t.x, t.z) || isOutsideHomeGrid(t.x + dx, t.z + dz)),
+    };
+    return pasteClipboardPayloadAtTarget(payload, target, { animate: true, impactDust: true });
+  }
+
+  function arrowSelectionShiftDelta(key) {
+    if (key === 'ArrowLeft') return { dx: -1, dz: 0 };
+    if (key === 'ArrowRight') return { dx: 1, dz: 0 };
+    if (key === 'ArrowUp') return { dx: 0, dz: -1 };
+    if (key === 'ArrowDown') return { dx: 0, dz: 1 };
+    return null;
+  }
+
+  function loadAssetTemplates() {
+    try {
+      const raw = JSON.parse(localStorage.getItem(ASSET_TEMPLATES_LS) || '[]');
+      return Array.isArray(raw) ? raw : [];
+    } catch (_) {
+      return [];
+    }
+  }
+
+  function saveAssetTemplates(list) {
+    try { localStorage.setItem(ASSET_TEMPLATES_LS, JSON.stringify((list || []).slice(0, 20))); } catch (_) {}
+  }
+
+  function assetTemplateCellLabel(cell) {
+    if (!cell) return 'cell';
+    if (cell.kind === 'house') {
+      const shape = cell.buildingType || 'house';
+      return shape === 'turret' ? 'castle' : shape;
+    }
+    if (cell.kind === 'model-stamp') {
+      const asset = getModelStamp(cell.appearance && cell.appearance.modelStampId);
+      return asset ? asset.label : 'model';
+    }
+    if (cell.kind === 'voxel-build') {
+      const stamp = getVoxelBuildStamp(cell.appearance && cell.appearance.voxelBuildId);
+      return stamp ? stamp.name : 'voxel build';
+    }
+    if (cell.kind) return cell.kind;
+    return cell.terrain || 'terrain';
+  }
+
+  function assetTemplateNameForClipboard(clipboard) {
+    const cells = normalizeClipboardCells(clipboard && clipboard.cells);
+    if (!cells.length) return 'Template';
+    const counts = new Map();
+    cells.forEach(item => {
+      const label = assetTemplateCellLabel(item.cell);
+      counts.set(label, (counts.get(label) || 0) + 1);
+    });
+    const labels = Array.from(counts.entries())
+      .sort((a, b) => (b[1] - a[1]) || a[0].localeCompare(b[0]))
+      .slice(0, 3)
+      .map(([label, count]) => {
+        const title = label.charAt(0).toUpperCase() + label.slice(1);
+        return count > 1 ? count + ' ' + title : title;
+      });
+    const base = labels.join(' + ');
+    const countPrefix = cells.length > 1 ? cells.length + '-cell ' : '';
+    return countPrefix + base;
+  }
+
+  function saveActiveSelectionTemplate() {
+    const payload = activeTemplateClipboardPayload();
+    if (!payload) return false;
+    const templates = loadAssetTemplates();
+    templates.unshift({
+      id: 'template-' + Date.now().toString(36),
+      name: assetTemplateNameForClipboard(payload),
+      createdAt: Date.now(),
+      clipboard: payload,
+    });
+    saveAssetTemplates(templates);
+    updateStampBuilderSummary();
+    refreshOpenStampBuilderCards();
+    return true;
+  }
+
+  function latestTemplateClipboardPayload() {
+    const templates = loadAssetTemplates();
+    const latest = templates[0] && templates[0].clipboard;
+    return normalizeClipboardPayload(latest);
+  }
+
+  function pasteLatestTemplateAtActiveTarget() {
+    const clipboard = latestTemplateClipboardPayload();
+    return !!(clipboard && pasteClipboardPayloadAtActiveTarget(clipboard));
   }
 
   // keyboard shortcuts
@@ -20864,18 +22370,22 @@
     if (shortcutTargetBlocked(e.target)) return;
     const comboKey = e.key.toLowerCase();
     if ((e.metaKey || e.ctrlKey) && !e.altKey && comboKey === 'c') {
-      if (copyHoveredCellIntent()) e.preventDefault();
+      if (copyActiveCellIntent()) e.preventDefault();
+      return;
+    }
+    if ((e.metaKey || e.ctrlKey) && !e.altKey && comboKey === 'x') {
+      if (cutActiveCellIntent()) e.preventDefault();
       return;
     }
     if ((e.metaKey || e.ctrlKey) && !e.altKey && comboKey === 'v') {
-      if (pasteHoveredCellIntent()) e.preventDefault();
+      if (pasteClipboardAtActiveTarget()) e.preventDefault();
       return;
     }
     // Never swallow OS-level keystrokes like Cmd+R (reload), Ctrl+R, Cmd+F, etc.
     if (e.metaKey || e.ctrlKey || e.altKey) return;
     const k = e.key.toLowerCase();
     if (generationViewLocked) {
-      if (e.code === 'Space' || k === 'c' || k === 'p' || k === 'i' || k === 'r' || k === 'f' || e.key.indexOf('Arrow') === 0) {
+      if (e.code === 'Space' || e.key === 'Backspace' || e.key === 'Delete' || k === 'c' || k === 'p' || k === 'i' || k === 'r' || k === 'f' || e.key.indexOf('Arrow') === 0) {
         e.preventDefault();
       }
       return;
@@ -20885,8 +22395,22 @@
       e.preventDefault();
       return;
     }
-    if ((e.key === 'ArrowLeft' || e.key === 'ArrowRight') && window.__tinyworldSelection && window.__tinyworldSelection.cells.size) {
-      if (window.__tinyworldSelection.rotate(e.key === 'ArrowLeft' ? -Math.PI / 2 : Math.PI / 2)) {
+    if (e.key === 'Backspace' || e.key === 'Delete') {
+      deleteActiveCellIntent();
+      e.preventDefault();
+      return;
+    }
+    const selectionApi = window.__tinyworldSelection;
+    const hasSelectedCells = !!(selectionApi && selectionApi.cells && selectionApi.cells.size);
+    if (hasSelectedCells && e.shiftKey) {
+      const delta = arrowSelectionShiftDelta(e.key);
+      if (delta && shiftSelectedCellIntent(delta.dx, delta.dz)) {
+        e.preventDefault();
+        return;
+      }
+    }
+    if ((e.key === 'ArrowLeft' || e.key === 'ArrowRight') && hasSelectedCells) {
+      if (selectionApi.rotate(e.key === 'ArrowLeft' ? -Math.PI / 2 : Math.PI / 2)) {
         e.preventDefault();
         return;
       }
@@ -20897,6 +22421,12 @@
       return;
     }
     if (k === 'c') doClear();
+    else if (k === 'd') {
+      if (duplicateActiveCellIntent()) e.preventDefault();
+    }
+    else if (k === 'l') {
+      if (pasteLatestTemplateAtActiveTarget()) e.preventDefault();
+    }
     else if (k === 'p' || k === 'i') togglePerspective();
     else if (k === 'r') { adjustHoverTerrainHeight(+1); }
     else if (k === 'f') { adjustHoverTerrainHeight(-1); }
@@ -21572,6 +23102,8 @@
     const closeBtn = document.getElementById('render-close');
     const resetBtn = document.getElementById('render-reset');
     const status = document.getElementById('render-status');
+    const settingsSearchEl = document.getElementById('settings-search');
+    const settingsSearchStatus = document.getElementById('settings-search-status');
     const shadowEl = document.getElementById('render-shadow');
     const resolutionEl = document.getElementById('render-resolution');
     const distanceEl = document.getElementById('render-distance');
@@ -21690,6 +23222,32 @@
     const settingsTabs = Array.from(modal.querySelectorAll('[data-settings-tab]'));
     const settingsPanels = Array.from(modal.querySelectorAll('[data-settings-panel]'));
 
+    settingsTabs.forEach(tab => {
+      if (tab.querySelector('.settings-tab-label')) return;
+      const labelText = tab.textContent.trim();
+      const hintText = tab.dataset.settingsDescription || '';
+      tab.dataset.settingsLabel = labelText;
+      tab.textContent = '';
+      const copy = document.createElement('span');
+      copy.className = 'settings-tab-copy';
+      const label = document.createElement('span');
+      label.className = 'settings-tab-label';
+      label.textContent = labelText;
+      copy.appendChild(label);
+      if (hintText) {
+        const hint = document.createElement('span');
+        hint.className = 'settings-tab-hint';
+        hint.textContent = hintText;
+        copy.appendChild(hint);
+      }
+      const count = document.createElement('span');
+      count.className = 'settings-tab-count';
+      count.hidden = true;
+      count.setAttribute('aria-hidden', 'true');
+      tab.append(copy, count);
+      tab.setAttribute('aria-label', hintText ? labelText + ', ' + hintText : labelText);
+    });
+
     function fillMaterialTextureSelect(select) {
       if (!select || select.options.length) return;
       for (const opt of MATERIAL_TEXTURE_OPTIONS) {
@@ -21713,11 +23271,143 @@
     fillMaterialTextureSelect(materialTextureEl);
     fillPartMaterialSelect(materialTargetEl);
 
-    function selectSettingsTab(name) {
-      settingsTabs.forEach(tab => tab.classList.toggle('active', tab.dataset.settingsTab === name));
-      settingsPanels.forEach(panel => panel.classList.toggle('active', panel.dataset.settingsPanel === name));
+    function selectSettingsTab(name, opts = {}) {
+      const activeTab = settingsTabs.find(tab => tab.dataset.settingsTab === name);
+      const activePanel = settingsPanels.find(panel => panel.dataset.settingsPanel === name);
+      if (!activeTab || !activePanel) return false;
+      settingsTabs.forEach(tab => {
+        const active = tab === activeTab;
+        tab.classList.toggle('active', active);
+        tab.setAttribute('aria-selected', active ? 'true' : 'false');
+        tab.tabIndex = active ? 0 : -1;
+      });
+      settingsPanels.forEach(panel => {
+        const active = panel === activePanel;
+        panel.classList.toggle('active', active);
+        panel.hidden = !active;
+      });
+      if (opts.focus && activeTab.focus) activeTab.focus();
+      return true;
     }
-    settingsTabs.forEach(tab => tab.addEventListener('click', () => selectSettingsTab(tab.dataset.settingsTab)));
+    function settingsSearchTerms() {
+      return (settingsSearchEl && settingsSearchEl.value || '')
+        .trim()
+        .toLowerCase()
+        .split(/\s+/)
+        .filter(Boolean);
+    }
+    function searchableSettingsText(el) {
+      if (!el) return '';
+      const metadata = [
+        el.dataset && el.dataset.settingsKeywords,
+        el.dataset && el.dataset.settingsDescription,
+        el.dataset && el.dataset.settingsPanel,
+        el.dataset && el.dataset.settingsTab,
+      ].filter(Boolean).join(' ');
+      const ids = Array.from(el.querySelectorAll('[id]')).map(node => node.id.replace(/^render-/, '').replace(/^crowd-/, '')).join(' ');
+      const values = Array.from(el.querySelectorAll('select, input, output')).map(node => {
+        if (node.tagName === 'SELECT') return Array.from(node.options).map(opt => opt.textContent || '').join(' ');
+        return node.getAttribute('placeholder') || '';
+      }).join(' ');
+      return (el.textContent + ' ' + metadata + ' ' + ids + ' ' + values).toLowerCase();
+    }
+    function matchesSettingsTerms(text, terms) {
+      return !terms.length || terms.every(term => text.includes(term));
+    }
+    function updateSettingsSearch(opts = {}) {
+      const terms = settingsSearchTerms();
+      const activePanel = settingsPanels.find(panel => panel.classList.contains('active')) || settingsPanels[0];
+      let totalMatches = 0;
+      let firstMatchPanel = null;
+      settingsPanels.forEach(panel => {
+        const panelMetadata = [
+          panel.dataset && panel.dataset.settingsKeywords,
+          panel.dataset && panel.dataset.settingsPanel,
+        ].filter(Boolean).join(' ').toLowerCase();
+        const panelMetadataMatches = terms.length > 0 && matchesSettingsTerms(panelMetadata, terms);
+        const groups = [];
+        let current = null;
+        Array.from(panel.children).forEach(child => {
+          if (child.classList && child.classList.contains('settings-section-title')) {
+            current = { title: child, rows: [] };
+            groups.push(current);
+          } else {
+            if (!current) {
+              current = { title: null, rows: [] };
+              groups.push(current);
+            }
+            current.rows.push(child);
+          }
+        });
+        let panelMatches = 0;
+        groups.forEach(group => {
+          const titleText = searchableSettingsText(group.title);
+          const titleMatches = panelMetadataMatches || matchesSettingsTerms(titleText, terms);
+          let visibleRows = 0;
+          group.rows.forEach(row => {
+            const rowMatches = panelMetadataMatches || titleMatches || matchesSettingsTerms(searchableSettingsText(row), terms);
+            row.hidden = terms.length ? !rowMatches : false;
+            if (rowMatches) {
+              visibleRows++;
+              panelMatches++;
+            }
+          });
+          if (group.title) group.title.hidden = terms.length ? !(titleMatches || visibleRows > 0) : false;
+        });
+        totalMatches += panelMatches;
+        if (panelMatches && !firstMatchPanel) firstMatchPanel = panel;
+        panel.dataset.settingsSearchMatches = String(panelMatches);
+        const tab = settingsTabs.find(t => t.dataset.settingsTab === panel.dataset.settingsPanel);
+        if (tab) {
+          tab.classList.toggle('search-miss', terms.length > 0 && panelMatches === 0);
+          tab.title = terms.length ? (panelMatches ? panelMatches + ' matching settings' : 'No matching settings') : '';
+          const count = tab.querySelector('.settings-tab-count');
+          if (count) {
+            count.textContent = String(panelMatches);
+            count.hidden = !(terms.length && panelMatches > 0);
+          }
+          const label = tab.dataset.settingsLabel || tab.textContent.trim();
+          const hint = tab.dataset.settingsDescription || '';
+          const baseLabel = hint ? label + ', ' + hint : label;
+          tab.setAttribute('aria-label', terms.length
+            ? baseLabel + ', ' + panelMatches + ' matching setting' + (panelMatches === 1 ? '' : 's')
+            : baseLabel);
+        }
+      });
+      if (terms.length && activePanel && !Number(activePanel.dataset.settingsSearchMatches) && firstMatchPanel && !opts.keepActive) {
+        selectSettingsTab(firstMatchPanel.dataset.settingsPanel);
+      }
+      if (settingsSearchStatus) {
+        settingsSearchStatus.textContent = terms.length
+          ? (totalMatches + (totalMatches === 1 ? ' match' : ' matches'))
+          : '';
+      }
+    }
+    settingsTabs.forEach((tab, idx) => {
+      tab.addEventListener('click', () => {
+        selectSettingsTab(tab.dataset.settingsTab);
+        updateSettingsSearch({ keepActive: true });
+      });
+      tab.addEventListener('keydown', e => {
+        const key = e.key;
+        if (key !== 'ArrowDown' && key !== 'ArrowRight' && key !== 'ArrowUp' && key !== 'ArrowLeft' && key !== 'Home' && key !== 'End') return;
+        e.preventDefault();
+        const last = settingsTabs.length - 1;
+        const nextIdx = key === 'Home' ? 0
+          : key === 'End' ? last
+            : (key === 'ArrowDown' || key === 'ArrowRight') ? (idx + 1) % settingsTabs.length
+              : (idx - 1 + settingsTabs.length) % settingsTabs.length;
+        const next = settingsTabs[nextIdx];
+        if (next) {
+          selectSettingsTab(next.dataset.settingsTab, { focus: true });
+          updateSettingsSearch({ keepActive: true });
+        }
+      });
+    });
+    if (settingsSearchEl) settingsSearchEl.addEventListener('input', () => updateSettingsSearch());
+    const initialSettingsTab = (settingsTabs.find(tab => tab.classList.contains('active')) || settingsTabs[0]);
+    if (initialSettingsTab) selectSettingsTab(initialSettingsTab.dataset.settingsTab);
+    updateSettingsSearch({ keepActive: true });
 
     function syncControls() {
       shadowEl.value = renderShadowQuality;
@@ -22103,6 +23793,10 @@
       syncControls();
       if (typeof window.__syncAiSettings === 'function') window.__syncAiSettings();
       openTinyModal(modal, closeBtn);
+      setTimeout(() => {
+        updateSettingsSearch({ keepActive: true });
+        if (settingsSearchEl && settingsSearchEl.focus) settingsSearchEl.focus();
+      }, 0);
     });
     closeBtn.addEventListener('click', () => { closeTinyModal(modal); });
     modal.addEventListener('click', e => { if (e.target === modal) closeTinyModal(modal); });
@@ -22305,6 +23999,10 @@
       const stamp = getVoxelBuildStamp(cell.appearance && cell.appearance.voxelBuildId);
       return stamp ? stamp.name : 'Voxel build';
     }
+    if (cell.kind === 'model-stamp') {
+      const asset = getModelStamp(cell.appearance && cell.appearance.modelStampId);
+      return asset ? asset.label : 'Model stamp';
+    }
     if (cell.kind === 'house') {
       const bt = cell.buildingType || 'cottage';
       return bt.charAt(0).toUpperCase() + bt.slice(1) + ' house';
@@ -22342,12 +24040,16 @@
     return updateSelectedBoardObjects(target => {
       const appearance = Object.assign({}, normalizeAppearance(target.cell.appearance) || {});
       const key = axis === 'x' ? 'scaleX' : axis === 'y' ? 'scaleY' : axis === 'z' ? 'scaleZ' : 'objectScale';
-      const current = appearance[key] || 1;
-      const min = key === 'objectScale' ? 0.25 : 0.15;
-      const max = key === 'objectScale' ? 4 : 5;
-      appearance[key] = Math.max(min, Math.min(max, current * amount));
-      if (Math.abs(appearance[key] - 1) < 0.001) delete appearance[key];
-      return { appearance };
+      if (amount === 'reset') {
+        delete appearance[key];
+      } else {
+        const current = appearance[key] || 1;
+        const min = key === 'objectScale' ? 0.25 : 0.15;
+        const max = key === 'objectScale' ? 4 : 5;
+        appearance[key] = Math.max(min, Math.min(max, current * amount));
+        if (Math.abs(appearance[key] - 1) < 0.001) delete appearance[key];
+      }
+      return { appearance: Object.keys(appearance).length ? appearance : null };
     });
   }
 
@@ -22357,6 +24059,31 @@
       offsetY: Math.max(-0.75, Math.min(2.5, (target.cell.offsetY || 0) + dy)),
       offsetZ: Math.max(-0.48, Math.min(0.48, (target.cell.offsetZ || 0) + dz)),
     }));
+  }
+
+  function centerSelectedBoardObjectOffset() {
+    return updateSelectedBoardObjects(() => ({
+      offsetX: 0,
+      offsetY: 0,
+      offsetZ: 0,
+    }));
+  }
+
+  function resetSelectedBoardObjectTransform() {
+    return updateSelectedBoardObjects(target => {
+      const appearance = Object.assign({}, normalizeAppearance(target.cell.appearance) || {});
+      delete appearance.objectScale;
+      delete appearance.scaleX;
+      delete appearance.scaleY;
+      delete appearance.scaleZ;
+      return {
+        rotationY: 0,
+        offsetX: 0,
+        offsetY: 0,
+        offsetZ: 0,
+        appearance: Object.keys(appearance).length ? appearance : null,
+      };
+    });
   }
 
   function seedVoxelBuildForSelectedObject(target) {
@@ -23108,6 +24835,20 @@
 
     function close() { panel.hidden = true; }
 
+    function firstSelectableStampCard() {
+      return panel.querySelector('.stamp-card:not(.unsupported)');
+    }
+
+    function activateFirstSelectableStampCard() {
+      const card = firstSelectableStampCard();
+      if (!card) {
+        if (status) status.textContent = 'No selectable stamps in this view';
+        return false;
+      }
+      card.click();
+      return true;
+    }
+
     openBtn.addEventListener('click', () => {
       if (panel.hidden) open();
       else close();
@@ -23136,6 +24877,27 @@
     }
     if (searchInput) {
       searchInput.addEventListener('input', () => renderStampBuilderCards());
+      searchInput.addEventListener('keydown', e => {
+        if (e.key === 'Enter') {
+          e.preventDefault();
+          activateFirstSelectableStampCard();
+          return;
+        }
+        if (e.key === 'ArrowDown') {
+          const card = firstSelectableStampCard();
+          if (!card) return;
+          e.preventDefault();
+          card.focus({ preventScroll: true });
+          card.scrollIntoView({ block: 'nearest' });
+          return;
+        }
+        if (e.key === 'Escape' && searchInput.value) {
+          e.preventDefault();
+          e.stopPropagation();
+          searchInput.value = '';
+          renderStampBuilderCards();
+        }
+      });
     }
     modelRangeInputs.forEach(input => {
       input.addEventListener('input', () => updateSelectedModelStampDefaults(false));
@@ -28754,6 +30516,24 @@
     const previewProps = document.getElementById('agent-selection-properties');
     const panelTitle = document.getElementById('agent-panel-title');
     const previewCanvas = document.getElementById('selection-preview-canvas');
+    const SELECTION_PROP_COLLAPSED_LS = 'tinyworld:selection-props-collapsed.v1';
+
+    function loadSelectionPropCollapsedSections() {
+      try {
+        const raw = JSON.parse(localStorage.getItem(SELECTION_PROP_COLLAPSED_LS) || '[]');
+        return new Set(Array.isArray(raw) ? raw.filter(item => typeof item === 'string') : []);
+      } catch (_) {
+        return new Set();
+      }
+    }
+
+    function saveSelectionPropCollapsedSections() {
+      try {
+        localStorage.setItem(SELECTION_PROP_COLLAPSED_LS, JSON.stringify(Array.from(selectionPropCollapsedSections)));
+      } catch (_) {}
+    }
+
+    const selectionPropCollapsedSections = loadSelectionPropCollapsedSections();
 
     // Preview rotator state (reused Three.js r128)
     let previewRenderer = null;
@@ -28774,6 +30554,7 @@
       const level = cell.floors || 1;
       const voxelRender = makeVoxelRenderForCell(kind, target.x || 0, target.z || 0, cell, level);
       if (voxelRender && !voxelRender.skip && voxelRender.mesh) return voxelRender.mesh;
+      if (kind === 'model-stamp') return makeModelStamp(cell.appearance && cell.appearance.modelStampId, { appearance: cell.appearance });
       if (kind === 'house') return makeHouse(cell.floors || 2, cell.buildingType || 'cottage');
       if (kind === 'tree') return makeTree(level);
       if (kind === 'rock') return makeRock(null, level, target.x || 0, target.z || 0, cell.terrain === 'water');
@@ -28821,7 +30602,12 @@
         // clear preview
         if (previewMesh) {
           if (previewScene) previewScene.remove(previewMesh);
+          disposeGroup(previewMesh);
           previewMesh = null;
+        }
+        if (previewRAF) {
+          cancelAnimationFrame(previewRAF);
+          previewRAF = null;
         }
         const actionsEl = document.getElementById('selection-preview-actions');
         if (actionsEl) actionsEl.innerHTML = '';
@@ -28847,6 +30633,7 @@
       // remove old mesh
       if (previewMesh) {
         previewScene.remove(previewMesh);
+        disposeGroup(previewMesh);
         previewMesh = null;
       }
       // create mesh from kind (reuse factories where possible)
@@ -28860,6 +30647,7 @@
         const mat = new THREE.MeshLambertMaterial({ color: 0x88aaff });
         obj = new THREE.Mesh(geo, mat);
       }
+      if (target.cell.kind !== 'model-stamp') applyAppearanceToObject(obj, target.cell.kind, target.cell.appearance);
       obj.scale.setScalar(0.95);
       frameSelectionPreviewObject(obj);
       previewScene.add(obj);
@@ -28872,6 +30660,10 @@
 
     function startPreviewRotate() {
       const tick = () => {
+        if (!previewMesh) {
+          previewRAF = null;
+          return;
+        }
         if (previewMesh) {
           previewMesh.rotation.y = (previewMesh.rotation.y || 0) + 0.012;
         }
@@ -28941,6 +30733,9 @@
       { label: 'Ash', value: '#a99b85', color: '#a99b85' },
       { label: 'Dark', value: '#3f2a18', color: '#3f2a18' },
     ];
+    function selectionColorOptions(options) {
+      return [{ label: 'Default', value: 'default' }].concat(options || []);
+    }
     const SELECTION_MATERIAL_OPTIONS = [
       { label: 'Default', value: 'default' },
       { label: 'Brick', value: 'brick' },
@@ -28952,6 +30747,72 @@
       { label: 'Dirt', value: 'cottage-dirt' },
       { label: 'Sand', value: 'sand' },
     ];
+    const SELECTION_COLOR_EDITABLE_KINDS = new Set([
+      'house', 'voxel-build', 'tree', 'rock', 'bridge', 'fence', 'crop',
+      'corn', 'wheat', 'pumpkin', 'carrot', 'sunflower', 'flower', 'bush',
+      'cow', 'sheep',
+    ]);
+    function isSelectionPartMaterialEditableCell(cell) {
+      return !!(cell && cell.kind && cell.kind !== 'model-stamp');
+    }
+    const SELECTION_CROP_COLOR_KINDS = new Set(['crop', 'corn', 'wheat', 'pumpkin', 'carrot', 'sunflower', 'flower', 'bush']);
+    function selectionColorConfig(kind) {
+      if (kind === 'house' || kind === 'voxel-build') {
+        return {
+          kinds: new Set([kind]),
+          rows: [
+            { key: 'topColor', label: 'Top', options: selectionColorOptions(SELECTION_TOP_COLOR_OPTIONS) },
+            { key: 'bodyColor', label: 'Body', options: selectionColorOptions(SELECTION_BODY_COLOR_OPTIONS) },
+          ],
+        };
+      }
+      if (kind === 'tree') {
+        return {
+          kinds: new Set(['tree']),
+          rows: [
+            { key: 'topColor', label: 'Leaves', options: selectionColorOptions(SELECTION_LEAF_COLOR_OPTIONS) },
+            { key: 'bodyColor', label: 'Trunk', options: selectionColorOptions(SELECTION_TRUNK_COLOR_OPTIONS) },
+          ],
+        };
+      }
+      if (kind === 'rock') {
+        return {
+          kinds: new Set(['rock']),
+          rows: [
+            { key: 'topColor', label: 'Highlight', options: selectionColorOptions(SELECTION_BODY_COLOR_OPTIONS) },
+            { key: 'bodyColor', label: 'Stone', options: selectionColorOptions(SELECTION_BODY_COLOR_OPTIONS) },
+          ],
+        };
+      }
+      if (kind === 'bridge' || kind === 'fence') {
+        return {
+          kinds: new Set([kind]),
+          rows: [
+            { key: 'bodyColor', label: kind === 'bridge' ? 'Wood' : 'Main', options: selectionColorOptions(SELECTION_TRUNK_COLOR_OPTIONS) },
+            { key: 'topColor', label: 'Accent', options: selectionColorOptions(SELECTION_TOP_COLOR_OPTIONS) },
+          ],
+        };
+      }
+      if (SELECTION_CROP_COLOR_KINDS.has(kind)) {
+        return {
+          kinds: SELECTION_CROP_COLOR_KINDS,
+          rows: [
+            { key: 'topColor', label: kind === 'bush' ? 'Berries' : kind === 'flower' ? 'Bloom' : 'Harvest', options: selectionColorOptions(SELECTION_TOP_COLOR_OPTIONS) },
+            { key: 'bodyColor', label: 'Stems', options: selectionColorOptions(SELECTION_LEAF_COLOR_OPTIONS) },
+          ],
+        };
+      }
+      if (kind === 'cow' || kind === 'sheep') {
+        return {
+          kinds: new Set([kind]),
+          rows: [
+            { key: 'bodyColor', label: kind === 'sheep' ? 'Wool' : 'Coat', options: selectionColorOptions(SELECTION_BODY_COLOR_OPTIONS) },
+            { key: 'topColor', label: kind === 'sheep' ? 'Face' : 'Markings', options: selectionColorOptions(SELECTION_TOP_COLOR_OPTIONS) },
+          ],
+        };
+      }
+      return null;
+    }
 
     function populatePreviewActions(target) {
       const container = document.getElementById('selection-preview-actions');
@@ -28959,46 +30820,49 @@
       container.innerHTML = '';
       if (!target || !target.cell) return;
       const kind = target.cell.kind;
-      if (kind === 'house' || kind === 'voxel-build') {
-        const bodyWrap = document.createElement('div');
-        bodyWrap.style.display = 'contents';
-        SELECTION_BODY_COLOR_OPTIONS.forEach(c => {
-          const chip = document.createElement('button');
-          chip.className = 'selection-prop-chip color-chip';
-          chip.innerHTML = `<span class="selection-prop-swatch" style="background:${c.color}"></span>${c.label}`;
-          chip.onclick = () => {
-            applySelectionProperty('bodyColor', c.value);
-            setTimeout(() => {
-              const t = selectedBoardObjectTarget();
-              if (t) updateSelectionPreview(t);
-            }, 10);
-          };
-          bodyWrap.appendChild(chip);
+      const colorConfig = selectionColorConfig(kind);
+      const currentAppearance = normalizeAppearance(target.cell.appearance) || {};
+      if (colorConfig) {
+        colorConfig.rows.forEach(row => {
+          const rowWrap = document.createElement('div');
+          rowWrap.style.display = 'contents';
+          row.options.forEach(c => {
+            const chip = document.createElement('button');
+            chip.type = 'button';
+            chip.className = 'selection-prop-chip color-chip';
+            chip.title = row.label + ': ' + c.label;
+            const activeColorValue = currentAppearance[row.key] || 'default';
+            if (activeColorValue === c.value) {
+              chip.classList.add('active');
+              chip.setAttribute('aria-pressed', 'true');
+            } else {
+              chip.setAttribute('aria-pressed', 'false');
+            }
+            if (c.color) {
+              const swatch = document.createElement('span');
+              swatch.className = 'selection-prop-swatch';
+              swatch.style.background = c.color;
+              chip.appendChild(swatch);
+            }
+            chip.appendChild(document.createTextNode(c.label));
+            chip.addEventListener('click', () => {
+              applySelectionProperty(row.key, c.value);
+              setTimeout(() => {
+                const t = selectedBoardObjectTarget();
+                if (t) updateSelectionPreview(t);
+              }, 10);
+            });
+            rowWrap.appendChild(chip);
+          });
+          container.appendChild(rowWrap);
         });
-        container.appendChild(bodyWrap);
-
-        const topWrap = document.createElement('div');
-        topWrap.style.display = 'contents';
-        SELECTION_TOP_COLOR_OPTIONS.forEach(c => {
-          const chip = document.createElement('button');
-          chip.className = 'selection-prop-chip color-chip';
-          chip.innerHTML = `<span class="selection-prop-swatch" style="background:${c.color}"></span>${c.label}`;
-          chip.onclick = () => {
-            applySelectionProperty('topColor', c.value);
-            setTimeout(() => {
-              const t = selectedBoardObjectTarget();
-              if (t) updateSelectionPreview(t);
-            }, 10);
-          };
-          topWrap.appendChild(chip);
-        });
-        container.appendChild(topWrap);
 
         // Voxel / Normal style toggle
-        if (kind !== 'voxel-build') {
+        if (kind === 'house') {
           const styleChip = document.createElement('button');
+          styleChip.type = 'button';
           styleChip.className = 'selection-prop-chip';
-          const isCurrentlyVoxel = target.cell.appearance?.objectStyle === 'voxel' || 
+          const isCurrentlyVoxel = target.cell.appearance?.objectStyle === 'voxel' ||
             (renderVoxelTerrain && target.cell.appearance?.objectStyle !== 'normal');
           styleChip.textContent = isCurrentlyVoxel ? 'Normal' : 'Voxel';
           styleChip.onclick = () => {
@@ -29014,39 +30878,66 @@
       }
     }
 
-    // Tab switching for selection preview (Preview vs Details)
+    function setSelectionTab(targetTab) {
+      if (!previewBox) return;
+      previewBox.querySelectorAll('.selection-tab').forEach(t => {
+        const active = t.getAttribute('data-tab') === targetTab;
+        t.classList.toggle('active', active);
+        t.setAttribute('aria-selected', active ? 'true' : 'false');
+      });
+      previewBox.querySelectorAll('.selection-tab-content').forEach(c => {
+        c.classList.toggle('active', c.getAttribute('data-content') === targetTab);
+      });
+      if (targetTab === 'preview') {
+        resizePreviewRenderer();
+        if (previewRenderer && previewScene && previewCamera) {
+          previewRenderer.render(previewScene, previewCamera);
+        }
+      }
+    }
+
+    // Tab switching for selection preview (Preview vs Properties)
     if (previewBox) {
       previewBox.addEventListener('click', (e) => {
         const tab = e.target.closest('.selection-tab');
         if (!tab) return;
-        const targetTab = tab.getAttribute('data-tab');
-        previewBox.querySelectorAll('.selection-tab').forEach(t => t.classList.toggle('active', t === tab));
-        previewBox.querySelectorAll('.selection-tab-content').forEach(c => {
-          c.classList.toggle('active', c.getAttribute('data-content') === targetTab);
-        });
-        // ensure preview fills width + re-renders when switched to
-        if (targetTab === 'preview') {
-          resizePreviewRenderer();
-          if (previewRenderer && previewScene && previewCamera) {
-            previewRenderer.render(previewScene, previewCamera);
-          }
-        }
+        setSelectionTab(tab.getAttribute('data-tab'));
       });
     }
 
     function applySelectionProperty(rowKey, value) {
+      if (rowKey === 'selectionAction') {
+        if (value === 'copy') copyActiveCellIntent();
+        else if (value === 'cut') cutActiveCellIntent();
+        else if (value === 'delete') deleteActiveCellIntent();
+        else if (value === 'apply-tool') applySelectedToolToSelection();
+        else if (value === 'paste') pasteClipboardAtActiveTarget();
+        else if (value === 'duplicate') duplicateActiveCellIntent();
+        else if (value === 'save-template') saveActiveSelectionTemplate();
+        else if (value === 'paste-template') pasteLatestTemplateAtActiveTarget();
+        renderSelection();
+        return;
+      }
       if (rowKey === 'rotate') {
         const sel = window.__tinyworldSelection;
         if (sel && sel.rotate) sel.rotate(value === 'left' ? -Math.PI / 2 : Math.PI / 2);
         return;
       }
+      if (rowKey === 'selectionMove') {
+        if (value === 'west') shiftSelectedCellIntent(-1, 0);
+        else if (value === 'east') shiftSelectedCellIntent(1, 0);
+        else if (value === 'north') shiftSelectedCellIntent(0, -1);
+        else if (value === 'south') shiftSelectedCellIntent(0, 1);
+        renderSelection();
+        return;
+      }
       if (rowKey === 'objectScale') {
-        scaleSelectedBoardObject(value === 'down' ? 0.85 : 1.18);
+        scaleSelectedBoardObject(value === 'reset' ? 'reset' : value === 'down' ? 0.85 : 1.18);
         return;
       }
       if (rowKey === 'objectScaleX' || rowKey === 'objectScaleY' || rowKey === 'objectScaleZ') {
         const axis = rowKey === 'objectScaleX' ? 'x' : rowKey === 'objectScaleY' ? 'y' : 'z';
-        scaleSelectedBoardObject(value === 'down' ? 0.85 : 1.18, axis);
+        scaleSelectedBoardObject(value === 'reset' ? 'reset' : value === 'down' ? 0.85 : 1.18, axis);
         return;
       }
       if (rowKey === 'objectMove') {
@@ -29057,6 +30948,11 @@
         else if (value === 'y+') moveSelectedBoardObject(0, step, 0);
         else if (value === 'z-') moveSelectedBoardObject(0, 0, -step);
         else if (value === 'z+') moveSelectedBoardObject(0, 0, step);
+        else if (value === 'center') centerSelectedBoardObjectOffset();
+        return;
+      }
+      if (rowKey === 'objectTransformReset') {
+        resetSelectedBoardObjectTransform();
         return;
       }
       if (rowKey === 'objectMaterial') {
@@ -29078,6 +30974,7 @@
         const scaleKey = rowKey === 'bodyMaterial' ? 'bodyTextureScale' : 'topTextureScale';
         const nextTexture = normalizeMaterialTextureKey(value);
         updateSelectedBoardObjects(target => {
+          if (!isSelectionPartMaterialEditableCell(target.cell)) return null;
           const appearance = Object.assign({}, normalizeAppearance(target.cell.appearance) || {});
           if (nextTexture === 'default') {
             delete appearance[textureKey];
@@ -29094,11 +30991,16 @@
           : rowKey === 'topMaterialScale' ? 'topTextureScale'
             : 'materialTextureScale';
         updateSelectedBoardObjects(target => {
+          if (rowKey !== 'objectMaterialScale' && !isSelectionPartMaterialEditableCell(target.cell)) return null;
           const appearance = Object.assign({}, normalizeAppearance(target.cell.appearance) || {});
-          const current = appearance[key] || 1;
-          appearance[key] = Math.max(0.5, Math.min(4, current * (value === 'down' ? 0.8 : 1.25)));
-          if (Math.abs(appearance[key] - 1) < 0.001) delete appearance[key];
-          return { appearance };
+          if (value === 'reset') {
+            delete appearance[key];
+          } else {
+            const current = appearance[key] || 1;
+            appearance[key] = Math.max(0.5, Math.min(4, current * (value === 'down' ? 0.8 : 1.25)));
+            if (Math.abs(appearance[key] - 1) < 0.001) delete appearance[key];
+          }
+          return { appearance: Object.keys(appearance).length ? appearance : null };
         });
         return;
       }
@@ -29125,10 +31027,11 @@
         const cell = getWorldCell(x, z);
         if (!cell) return;
         if (rowKey === 'bodyColor' || rowKey === 'topColor') {
-          if (cell.kind !== 'house' && cell.kind !== 'tree' && cell.kind !== 'voxel-build') return;
+          if (!SELECTION_COLOR_EDITABLE_KINDS.has(cell.kind)) return;
           const appearance = Object.assign({}, normalizeAppearance(cell.appearance) || {});
-          appearance[rowKey] = value;
-          setCell(x, z, { ...cell, appearance, animate: false, impactDust: false });
+          if (value === 'default') delete appearance[rowKey];
+          else appearance[rowKey] = value;
+          setCell(x, z, { ...cell, appearance: Object.keys(appearance).length ? appearance : null, animate: false, impactDust: false });
         } else if (rowKey === 'buildingType') {
           if (cell.kind !== 'house') return;
           const floors = value === 'tower' ? Math.max(cell.floors || 1, 2)
@@ -29170,64 +31073,175 @@
         return;
       }
       const primary = entries[0][0];
-      const rows = [];
-      rows.push({ key: 'rotate', label: 'Rotate', options: [
+      const sectionOrder = ['Edit', 'Transform', 'Appearance', 'Ground'];
+      const rowsBySection = {};
+      sectionOrder.forEach(section => { rowsBySection[section] = []; });
+      const addRow = (section, row) => {
+        if (!rowsBySection[section]) rowsBySection[section] = [];
+        rowsBySection[section].push(row);
+      };
+      const addRows = (section, sectionRows) => {
+        sectionRows.forEach(row => addRow(section, row));
+      };
+      const selectionCoords = selectedWorldCoords();
+      const selectedCells = selectionCoords.map(({ x, z }) => getWorldCell(x, z)).filter(Boolean);
+      const selectedTargets = selectedBoardObjectTargets();
+      const objectCells = selectedTargets.map(target => target.cell).filter(Boolean);
+      const partMaterialCells = objectCells.filter(isSelectionPartMaterialEditableCell);
+      const uniformValue = (items, getter) => {
+        let hasValue = false;
+        let firstValue = null;
+        for (const item of items) {
+          const value = getter(item);
+          if (value === undefined || value === null) return null;
+          if (!hasValue) {
+            hasValue = true;
+            firstValue = value;
+          } else if (value !== firstValue) {
+            return null;
+          }
+        }
+        return hasValue ? firstValue : null;
+      };
+      const uniformAppearanceValue = (items, key) => {
+        let hasValue = false;
+        let firstValue = null;
+        for (const item of items) {
+          const appearance = normalizeAppearance(item && item.appearance) || {};
+          const value = appearance[key] || 'default';
+          if (!hasValue) {
+            hasValue = true;
+            firstValue = value;
+          } else if (value !== firstValue) {
+            return null;
+          }
+        }
+        return hasValue ? firstValue : null;
+      };
+      const scaleResetValue = (items, key) => {
+        if (!items.length) return null;
+        return items.every(item => {
+          const appearance = normalizeAppearance(item && item.appearance) || {};
+          return !appearance[key] || Math.abs(appearance[key] - 1) < 0.001;
+        }) ? 'reset' : null;
+      };
+      const sizeValueForCell = cell => {
+        const level = cell && cell.kind ? (cell.floors || 1) : terrainLevelForCell(cell);
+        return level <= 1 ? 'small' : level >= 4 ? 'large' : 'medium';
+      };
+      const currentTerrain = uniformValue(selectedCells, cell => cell.terrain || 'grass');
+      const currentSize = uniformValue(selectedCells, sizeValueForCell);
+      const currentObjectMaterial = uniformValue(objectCells, cell => {
+        const appearance = normalizeAppearance(cell.appearance) || {};
+        return normalizeMaterialTextureKey(appearance.materialTexture || 'default');
+      });
+      const currentBodyMaterial = uniformValue(partMaterialCells, cell => {
+        const appearance = normalizeAppearance(cell.appearance) || {};
+        return normalizeMaterialTextureKey(appearance.bodyTexture || 'default');
+      });
+      const currentTopMaterial = uniformValue(partMaterialCells, cell => {
+        const appearance = normalizeAppearance(cell.appearance) || {};
+        return normalizeMaterialTextureKey(appearance.topTexture || 'default');
+      });
+      addRows('Edit', [
+        { key: 'selectionAction', label: 'Tool', options: [
+          { label: 'Apply tool', value: 'apply-tool' },
+          { label: 'Delete', value: 'delete' },
+        ] },
+        { key: 'selectionAction', label: 'Clipboard', options: [
+          { label: 'Copy', value: 'copy' },
+          { label: 'Cut', value: 'cut' },
+          { label: 'Paste', value: 'paste' },
+          { label: 'Duplicate', value: 'duplicate' },
+        ] },
+        { key: 'selectionAction', label: 'Templates', options: [
+          { label: 'Save template', value: 'save-template' },
+          { label: 'Paste latest', value: 'paste-template' },
+        ] },
+      ]);
+      addRow('Transform', { key: 'rotate', label: 'Rotate', options: [
         { label: 'Left', value: 'left' },
         { label: 'Right', value: 'right' },
       ] });
-      const selectedTarget = selectedBoardObjectTarget();
-      const selectedTargets = selectedBoardObjectTargets();
+      addRow('Transform', { key: 'selectionMove', label: 'Shift', options: [
+        { label: 'West', value: 'west' },
+        { label: 'East', value: 'east' },
+        { label: 'North', value: 'north' },
+        { label: 'South', value: 'south' },
+      ] });
       if (selectedTargets.length) {
-        rows.push(
-          { key: 'objectScale', label: 'Scale', options: [
+        addRows('Transform', [
+          { key: 'objectScale', label: 'Scale', currentValue: scaleResetValue(objectCells, 'objectScale'), options: [
             { label: 'Down', value: 'down' },
+            { label: 'Reset', value: 'reset' },
             { label: 'Up', value: 'up' },
           ] },
-          { key: 'objectScaleX', label: 'Scale X', options: [
+          { key: 'objectScaleX', label: 'Scale X', currentValue: scaleResetValue(objectCells, 'scaleX'), options: [
             { label: 'Down', value: 'down' },
+            { label: 'Reset', value: 'reset' },
             { label: 'Up', value: 'up' },
           ] },
-          { key: 'objectScaleY', label: 'Scale Y', options: [
+          { key: 'objectScaleY', label: 'Scale Y', currentValue: scaleResetValue(objectCells, 'scaleY'), options: [
             { label: 'Down', value: 'down' },
+            { label: 'Reset', value: 'reset' },
             { label: 'Up', value: 'up' },
           ] },
-          { key: 'objectScaleZ', label: 'Scale Z', options: [
+          { key: 'objectScaleZ', label: 'Scale Z', currentValue: scaleResetValue(objectCells, 'scaleZ'), options: [
             { label: 'Down', value: 'down' },
+            { label: 'Reset', value: 'reset' },
             { label: 'Up', value: 'up' },
           ] },
-          { key: 'objectMove', label: 'Move', options: [
+          { key: 'objectMove', label: 'Nudge', options: [
             { label: 'X-', value: 'x-' },
             { label: 'X+', value: 'x+' },
             { label: 'Y-', value: 'y-' },
             { label: 'Y+', value: 'y+' },
             { label: 'Z-', value: 'z-' },
             { label: 'Z+', value: 'z+' },
+            { label: 'Center', value: 'center' },
           ] },
-          { key: 'objectMaterial', label: 'All material', options: SELECTION_MATERIAL_OPTIONS },
-          { key: 'objectMaterialScale', label: 'All mat scale', options: [
-            { label: 'Smaller', value: 'up' },
-            { label: 'Larger', value: 'down' },
+          { key: 'objectTransformReset', label: 'Reset', options: [
+            { label: 'Transform', value: 'transform' },
           ] },
-          { key: 'bodyMaterial', label: 'Body material', options: SELECTION_MATERIAL_OPTIONS },
-          { key: 'bodyMaterialScale', label: 'Body mat scale', options: [
-            { label: 'Smaller', value: 'up' },
-            { label: 'Larger', value: 'down' },
+        ]);
+        const appearanceRows = [
+          { key: 'objectMaterial', label: 'All material', currentValue: currentObjectMaterial, options: SELECTION_MATERIAL_OPTIONS },
+          { key: 'objectMaterialScale', label: 'All mat scale', currentValue: scaleResetValue(objectCells, 'materialTextureScale'), options: [
+            { label: 'Smaller', value: 'down' },
+            { label: 'Larger', value: 'up' },
+            { label: 'Reset', value: 'reset' },
           ] },
-          { key: 'topMaterial', label: 'Top material', options: SELECTION_MATERIAL_OPTIONS },
-          { key: 'topMaterialScale', label: 'Top mat scale', options: [
-            { label: 'Smaller', value: 'up' },
-            { label: 'Larger', value: 'down' },
-          ] },
-        );
+        ];
+        if (partMaterialCells.length) {
+          appearanceRows.push(
+            { key: 'bodyMaterial', label: 'Body material', currentValue: currentBodyMaterial, options: SELECTION_MATERIAL_OPTIONS },
+            { key: 'bodyMaterialScale', label: 'Body mat scale', currentValue: scaleResetValue(partMaterialCells, 'bodyTextureScale'), options: [
+              { label: 'Smaller', value: 'down' },
+              { label: 'Larger', value: 'up' },
+              { label: 'Reset', value: 'reset' },
+            ] },
+            { key: 'topMaterial', label: 'Top material', currentValue: currentTopMaterial, options: SELECTION_MATERIAL_OPTIONS },
+            { key: 'topMaterialScale', label: 'Top mat scale', currentValue: scaleResetValue(partMaterialCells, 'topTextureScale'), options: [
+              { label: 'Smaller', value: 'down' },
+              { label: 'Larger', value: 'up' },
+              { label: 'Reset', value: 'reset' },
+            ] },
+          );
+        }
+        addRows('Appearance', appearanceRows);
         if (selectedTargets.some(t => t.cell && t.cell.kind !== 'voxel-build')) {
-          rows.push({ key: 'objectStyle', label: 'Style', options: [
+          const currentObjectStyle = uniformValue(objectCells.filter(cell => cell.kind !== 'voxel-build'), cell => {
+            const appearance = normalizeAppearance(cell.appearance) || {};
+            return appearance.objectStyle === 'voxel' ? 'voxel' : 'normal';
+          });
+          addRow('Appearance', { key: 'objectStyle', label: 'Style', currentValue: currentObjectStyle, options: [
             { label: 'Normal', value: 'normal' },
             { label: 'Voxel', value: 'voxel' },
           ] });
         }
       }
-      rows.push(
-        { key: 'terrain', label: 'Ground', options: [
+      addRows('Ground', [
+        { key: 'terrain', label: 'Ground', currentValue: currentTerrain, options: [
           { label: 'Grass', value: 'grass' },
           { label: 'Path', value: 'path' },
           { label: 'Dirt', value: 'dirt' },
@@ -29241,10 +31255,11 @@
           { label: 'Down', value: 'down' },
           { label: 'Up', value: 'up' },
         ] },
-      );
-      const hasWaterSelection = selectedWorldCoords().some(({ x, z }) => getWorldCell(x, z).terrain === 'water');
+      ]);
+      const waterCells = selectedCells.filter(cell => cell.terrain === 'water');
+      const hasWaterSelection = waterCells.length > 0;
       if (hasWaterSelection) {
-        rows.push({ key: 'waterFlow', label: 'Water flow', options: [
+        addRow('Ground', { key: 'waterFlow', label: 'Water flow', currentValue: uniformValue(waterCells, cell => normalizeWaterFlow(cell.waterFlow)), options: [
           { label: 'Auto', value: 'auto' },
           { label: 'North', value: 'n' },
           { label: 'South', value: 's' },
@@ -29252,61 +31267,98 @@
           { label: 'West', value: 'w' },
         ] });
       }
-      if (primary === 'house' || primary === 'voxel-build') {
-        rows.push(
-          { key: 'topColor', label: 'Top', color: true, options: SELECTION_TOP_COLOR_OPTIONS },
-          { key: 'bodyColor', label: 'Body', color: true, options: SELECTION_BODY_COLOR_OPTIONS },
-        );
+      const colorConfig = selectionColorConfig(primary);
+      if (colorConfig) {
+        const colorCells = selectedCells.filter(cell => colorConfig.kinds.has(cell.kind));
+        addRows('Appearance', colorConfig.rows.map(row => ({
+          key: row.key,
+          label: row.label,
+          color: true,
+          currentValue: uniformAppearanceValue(colorCells, row.key),
+          options: row.options,
+        })));
         if (primary === 'house') {
-          rows.push(
-          { key: 'buildingType', label: 'Shape', options: [
+          const houseCells = selectedCells.filter(cell => cell.kind === 'house');
+          addRow('Appearance', { key: 'buildingType', label: 'Shape', currentValue: uniformValue(houseCells, cell => cell.buildingType || 'cottage'), options: [
             { label: 'Cottage', value: 'cottage' },
             { label: 'Manor', value: 'manor' },
             { label: 'Tower', value: 'tower' },
             { label: 'Castle', value: 'turret' },
             { label: 'High-rise', value: 'skyscraper' },
-          ] },
-          );
+          ] });
         }
-      } else if (primary === 'tree') {
-        rows.push(
-          { key: 'topColor', label: 'Leaves', color: true, options: SELECTION_LEAF_COLOR_OPTIONS },
-          { key: 'bodyColor', label: 'Trunk', color: true, options: SELECTION_TRUNK_COLOR_OPTIONS },
-        );
       }
-      rows.push({ key: 'size', label: 'Item/ground size', options: [
+      addRow('Transform', { key: 'size', label: 'Size', currentValue: currentSize, options: [
         { label: 'Small', value: 'small' },
         { label: 'Medium', value: 'medium' },
         { label: 'Large', value: 'large' },
       ] });
-      rows.forEach(row => {
-        const wrap = document.createElement('div');
-        wrap.className = 'selection-prop-row';
-        const label = document.createElement('div');
-        label.className = 'selection-prop-label';
-        label.textContent = row.label;
-        const options = document.createElement('div');
-        options.className = 'selection-prop-options';
-        row.options.forEach(opt => {
-          const chip = document.createElement('button');
-          chip.type = 'button';
-          chip.className = 'selection-prop-chip' + (row.color ? ' color-chip' : '');
-          if (row.color && opt.color) {
-            const swatch = document.createElement('span');
-            swatch.className = 'selection-prop-swatch';
-            swatch.style.background = opt.color;
-            chip.appendChild(swatch);
-          }
-          chip.appendChild(document.createTextNode(opt.label));
-          chip.addEventListener('click', e => {
-            e.stopPropagation();
-            applySelectionProperty(row.key, opt.value);
-          });
-          options.appendChild(chip);
+      sectionOrder.forEach(sectionName => {
+        const rows = rowsBySection[sectionName] || [];
+        if (!rows.length) return;
+        const sectionKey = sectionName.toLowerCase().replace(/\s+/g, '-');
+        const isCollapsed = selectionPropCollapsedSections.has(sectionKey);
+        const sectionWrap = document.createElement('section');
+        sectionWrap.className = 'selection-prop-section' + (isCollapsed ? ' is-collapsed' : '');
+        sectionWrap.dataset.section = sectionKey;
+        sectionWrap.setAttribute('aria-label', sectionName + ' properties');
+        const sectionTitle = document.createElement('button');
+        sectionTitle.type = 'button';
+        sectionTitle.className = 'selection-prop-section-title';
+        sectionTitle.setAttribute('aria-expanded', isCollapsed ? 'false' : 'true');
+        sectionTitle.setAttribute('aria-label', sectionName + ' properties, ' + rows.length + ' row' + (rows.length === 1 ? '' : 's') + ', ' + (isCollapsed ? 'collapsed' : 'expanded'));
+        const sectionLabel = document.createElement('span');
+        sectionLabel.textContent = sectionName;
+        const sectionMeta = document.createElement('span');
+        sectionMeta.className = 'selection-prop-section-meta';
+        sectionMeta.textContent = rows.length + ' row' + (rows.length === 1 ? '' : 's');
+        const sectionCue = document.createElement('span');
+        sectionCue.className = 'selection-prop-section-cue';
+        sectionCue.setAttribute('aria-hidden', 'true');
+        sectionMeta.appendChild(sectionCue);
+        sectionTitle.append(sectionLabel, sectionMeta);
+        sectionTitle.addEventListener('click', e => {
+          e.stopPropagation();
+          if (selectionPropCollapsedSections.has(sectionKey)) selectionPropCollapsedSections.delete(sectionKey);
+          else selectionPropCollapsedSections.add(sectionKey);
+          saveSelectionPropCollapsedSections();
+          renderSelectionProperties(summary, entries);
         });
-        wrap.appendChild(label);
-        wrap.appendChild(options);
-        previewProps.appendChild(wrap);
+        sectionWrap.appendChild(sectionTitle);
+        rows.forEach(row => {
+          const wrap = document.createElement('div');
+          wrap.className = 'selection-prop-row';
+          const label = document.createElement('div');
+          label.className = 'selection-prop-label';
+          label.textContent = row.label;
+          const options = document.createElement('div');
+          options.className = 'selection-prop-options';
+          row.options.forEach(opt => {
+            const chip = document.createElement('button');
+            chip.type = 'button';
+            chip.className = 'selection-prop-chip' + (row.color ? ' color-chip' : '');
+            const hasCurrentValue = row.currentValue !== undefined && row.currentValue !== null;
+            const isActive = hasCurrentValue && String(row.currentValue) === String(opt.value);
+            if (hasCurrentValue) chip.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+            if (isActive) chip.classList.add('active');
+            if (row.color && opt.color) {
+              const swatch = document.createElement('span');
+              swatch.className = 'selection-prop-swatch';
+              swatch.style.background = opt.color;
+              chip.appendChild(swatch);
+            }
+            chip.appendChild(document.createTextNode(opt.label));
+            chip.addEventListener('click', e => {
+              e.stopPropagation();
+              applySelectionProperty(row.key, opt.value);
+            });
+            options.appendChild(chip);
+          });
+          wrap.appendChild(label);
+          wrap.appendChild(options);
+          sectionWrap.appendChild(wrap);
+        });
+        previewProps.appendChild(sectionWrap);
       });
       previewProps.hidden = false;
     }
@@ -29317,6 +31369,7 @@
       if (!summary) {
         panel.classList.remove('has-selection');
         previewBox.hidden = true;
+        updateSelectionPreview(null);
         syncAgentTargetChip(null, null);
         if (previewProps) {
           previewProps.innerHTML = '';
@@ -29347,6 +31400,8 @@
         previewList.appendChild(li);
       }
       renderSelectionProperties(summary, entries);
+      if (document.documentElement.classList.contains('ai-disabled')) setSelectionTab('properties');
+      updateSelectionPreview(selectedObject);
       if (panelTitle) panelTitle.textContent = 'Selection';
       // Slide the panel in (expanded) and pin so the user can chat about it.
       setPanelCollapsed(false, { pin: true });
