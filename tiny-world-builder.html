@@ -19997,7 +19997,12 @@
         stampCategories: stampBuilderCategoriesForVoxelStamp(stamp),
       });
     }
-    const ids = ['house', 'tree', 'rock', 'bridge', 'fence', 'crop', 'corn', 'wheat', 'pumpkin', 'carrot', 'sunflower', 'flower', 'bush', 'cow', 'sheep'];
+    const ids = [
+      'grass', 'path', 'dirt', 'water', 'stone', 'lava', 'sand', 'snow',
+      'house', 'tree', 'rock', 'bridge', 'fence',
+      'crop', 'corn', 'wheat', 'pumpkin', 'carrot', 'sunflower',
+      'flower', 'bush', 'cow', 'sheep',
+    ];
     for (const id of ids) {
       const tool = TOOLS.find(t => t.id === id);
       if (!tool) continue;
@@ -20223,6 +20228,8 @@
         else if (!unsupported && hasTexture) meta.appendChild(stampCardChip('texture', 'model'));
       } else if (tool.isVoxelBuild) {
         meta.appendChild(stampCardChip('voxel'));
+      } else if (tool.terrain) {
+        meta.appendChild(stampCardChip('terrain'));
       } else {
         meta.appendChild(stampCardChip('built-in'));
       }
