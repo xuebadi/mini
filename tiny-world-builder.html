@@ -1691,6 +1691,15 @@
     background: rgba(255, 255, 255, 0.75);
     border-color: rgba(60, 130, 247, 0.24);
   }
+  .selection-prop-chip.active,
+  .selection-prop-chip[aria-pressed="true"] {
+    background: rgba(60, 130, 247, 0.15);
+    border-color: rgba(60, 130, 247, 0.42);
+    color: #214f8e;
+    box-shadow:
+      0 1px 0 rgba(255, 255, 255, 0.72) inset,
+      0 0 0 1px rgba(60, 130, 247, 0.08);
+  }
   .selection-prop-chip:active { transform: translateY(1px); }
   .selection-prop-chip.color-chip {
     display: inline-flex;
@@ -29885,6 +29894,43 @@
       const addRows = (section, sectionRows) => {
         sectionRows.forEach(row => addRow(section, row));
       };
+      const selectionCoords = selectedWorldCoords();
+      const selectedCells = selectionCoords.map(({ x, z }) => getWorldCell(x, z)).filter(Boolean);
+      const selectedTargets = selectedBoardObjectTargets();
+      const objectCells = selectedTargets.map(target => target.cell).filter(Boolean);
+      const uniformValue = (items, getter) => {
+        let hasValue = false;
+        let firstValue = null;
+        for (const item of items) {
+          const value = getter(item);
+          if (value === undefined || value === null) return null;
+          if (!hasValue) {
+            hasValue = true;
+            firstValue = value;
+          } else if (value !== firstValue) {
+            return null;
+          }
+        }
+        return hasValue ? firstValue : null;
+      };
+      const sizeValueForCell = cell => {
+        const level = cell && cell.kind ? (cell.floors || 1) : terrainLevelForCell(cell);
+        return level <= 1 ? 'small' : level >= 4 ? 'large' : 'medium';
+      };
+      const currentTerrain = uniformValue(selectedCells, cell => cell.terrain || 'grass');
+      const currentSize = uniformValue(selectedCells, sizeValueForCell);
+      const currentObjectMaterial = uniformValue(objectCells, cell => {
+        const appearance = normalizeAppearance(cell.appearance) || {};
+        return normalizeMaterialTextureKey(appearance.materialTexture || 'default');
+      });
+      const currentBodyMaterial = uniformValue(objectCells, cell => {
+        const appearance = normalizeAppearance(cell.appearance) || {};
+        return normalizeMaterialTextureKey(appearance.bodyTexture || 'default');
+      });
+      const currentTopMaterial = uniformValue(objectCells, cell => {
+        const appearance = normalizeAppearance(cell.appearance) || {};
+        return normalizeMaterialTextureKey(appearance.topTexture || 'default');
+      });
       addRow('Edit', { key: 'selectionAction', label: 'Actions', options: [
         { label: 'Copy', value: 'copy' },
         { label: 'Cut', value: 'cut' },
@@ -29897,8 +29943,6 @@
         { label: 'Left', value: 'left' },
         { label: 'Right', value: 'right' },
       ] });
-      const selectedTarget = selectedBoardObjectTarget();
-      const selectedTargets = selectedBoardObjectTargets();
       if (selectedTargets.length) {
         addRows('Transform', [
           { key: 'objectScale', label: 'Scale', options: [
@@ -29927,31 +29971,35 @@
           ] },
         ]);
         addRows('Appearance', [
-          { key: 'objectMaterial', label: 'All material', options: SELECTION_MATERIAL_OPTIONS },
+          { key: 'objectMaterial', label: 'All material', currentValue: currentObjectMaterial, options: SELECTION_MATERIAL_OPTIONS },
           { key: 'objectMaterialScale', label: 'All mat scale', options: [
             { label: 'Smaller', value: 'down' },
             { label: 'Larger', value: 'up' },
           ] },
-          { key: 'bodyMaterial', label: 'Body material', options: SELECTION_MATERIAL_OPTIONS },
+          { key: 'bodyMaterial', label: 'Body material', currentValue: currentBodyMaterial, options: SELECTION_MATERIAL_OPTIONS },
           { key: 'bodyMaterialScale', label: 'Body mat scale', options: [
             { label: 'Smaller', value: 'down' },
             { label: 'Larger', value: 'up' },
           ] },
-          { key: 'topMaterial', label: 'Top material', options: SELECTION_MATERIAL_OPTIONS },
+          { key: 'topMaterial', label: 'Top material', currentValue: currentTopMaterial, options: SELECTION_MATERIAL_OPTIONS },
           { key: 'topMaterialScale', label: 'Top mat scale', options: [
             { label: 'Smaller', value: 'down' },
             { label: 'Larger', value: 'up' },
           ] },
         ]);
         if (selectedTargets.some(t => t.cell && t.cell.kind !== 'voxel-build')) {
-          addRow('Appearance', { key: 'objectStyle', label: 'Style', options: [
+          const currentObjectStyle = uniformValue(objectCells.filter(cell => cell.kind !== 'voxel-build'), cell => {
+            const appearance = normalizeAppearance(cell.appearance) || {};
+            return appearance.objectStyle === 'voxel' ? 'voxel' : 'normal';
+          });
+          addRow('Appearance', { key: 'objectStyle', label: 'Style', currentValue: currentObjectStyle, options: [
             { label: 'Normal', value: 'normal' },
             { label: 'Voxel', value: 'voxel' },
           ] });
         }
       }
       addRows('Ground', [
-        { key: 'terrain', label: 'Ground', options: [
+        { key: 'terrain', label: 'Ground', currentValue: currentTerrain, options: [
           { label: 'Grass', value: 'grass' },
           { label: 'Path', value: 'path' },
           { label: 'Dirt', value: 'dirt' },
@@ -29966,9 +30014,10 @@
           { label: 'Up', value: 'up' },
         ] },
       ]);
-      const hasWaterSelection = selectedWorldCoords().some(({ x, z }) => getWorldCell(x, z).terrain === 'water');
+      const waterCells = selectedCells.filter(cell => cell.terrain === 'water');
+      const hasWaterSelection = waterCells.length > 0;
       if (hasWaterSelection) {
-        addRow('Ground', { key: 'waterFlow', label: 'Water flow', options: [
+        addRow('Ground', { key: 'waterFlow', label: 'Water flow', currentValue: uniformValue(waterCells, cell => normalizeWaterFlow(cell.waterFlow)), options: [
           { label: 'Auto', value: 'auto' },
           { label: 'North', value: 'n' },
           { label: 'South', value: 's' },
@@ -29977,12 +30026,22 @@
         ] });
       }
       if (primary === 'house' || primary === 'voxel-build') {
+        const colorCells = selectedCells.filter(cell => cell.kind === 'house' || cell.kind === 'voxel-build');
+        const currentTopColor = uniformValue(colorCells, cell => {
+          const appearance = normalizeAppearance(cell.appearance) || {};
+          return appearance.topColor;
+        });
+        const currentBodyColor = uniformValue(colorCells, cell => {
+          const appearance = normalizeAppearance(cell.appearance) || {};
+          return appearance.bodyColor;
+        });
         addRows('Appearance', [
-          { key: 'topColor', label: 'Top', color: true, options: SELECTION_TOP_COLOR_OPTIONS },
-          { key: 'bodyColor', label: 'Body', color: true, options: SELECTION_BODY_COLOR_OPTIONS },
+          { key: 'topColor', label: 'Top', color: true, currentValue: currentTopColor, options: SELECTION_TOP_COLOR_OPTIONS },
+          { key: 'bodyColor', label: 'Body', color: true, currentValue: currentBodyColor, options: SELECTION_BODY_COLOR_OPTIONS },
         ]);
         if (primary === 'house') {
-          addRow('Appearance', { key: 'buildingType', label: 'Shape', options: [
+          const houseCells = selectedCells.filter(cell => cell.kind === 'house');
+          addRow('Appearance', { key: 'buildingType', label: 'Shape', currentValue: uniformValue(houseCells, cell => cell.buildingType || 'cottage'), options: [
             { label: 'Cottage', value: 'cottage' },
             { label: 'Manor', value: 'manor' },
             { label: 'Tower', value: 'tower' },
@@ -29991,12 +30050,21 @@
           ] });
         }
       } else if (primary === 'tree') {
+        const treeCells = selectedCells.filter(cell => cell.kind === 'tree');
+        const currentLeafColor = uniformValue(treeCells, cell => {
+          const appearance = normalizeAppearance(cell.appearance) || {};
+          return appearance.topColor;
+        });
+        const currentTrunkColor = uniformValue(treeCells, cell => {
+          const appearance = normalizeAppearance(cell.appearance) || {};
+          return appearance.bodyColor;
+        });
         addRows('Appearance', [
-          { key: 'topColor', label: 'Leaves', color: true, options: SELECTION_LEAF_COLOR_OPTIONS },
-          { key: 'bodyColor', label: 'Trunk', color: true, options: SELECTION_TRUNK_COLOR_OPTIONS },
+          { key: 'topColor', label: 'Leaves', color: true, currentValue: currentLeafColor, options: SELECTION_LEAF_COLOR_OPTIONS },
+          { key: 'bodyColor', label: 'Trunk', color: true, currentValue: currentTrunkColor, options: SELECTION_TRUNK_COLOR_OPTIONS },
         ]);
       }
-      addRow('Transform', { key: 'size', label: 'Size', options: [
+      addRow('Transform', { key: 'size', label: 'Size', currentValue: currentSize, options: [
         { label: 'Small', value: 'small' },
         { label: 'Medium', value: 'medium' },
         { label: 'Large', value: 'large' },
@@ -30024,6 +30092,10 @@
             const chip = document.createElement('button');
             chip.type = 'button';
             chip.className = 'selection-prop-chip' + (row.color ? ' color-chip' : '');
+            const hasCurrentValue = row.currentValue !== undefined && row.currentValue !== null;
+            const isActive = hasCurrentValue && String(row.currentValue) === String(opt.value);
+            if (hasCurrentValue) chip.setAttribute('aria-pressed', isActive ? 'true' : 'false');
+            if (isActive) chip.classList.add('active');
             if (row.color && opt.color) {
               const swatch = document.createElement('span');
               swatch.className = 'selection-prop-swatch';

@@ -28,6 +28,7 @@ Selection properties:
 
 - Keep selection property controls grouped by durable sections (`Edit`, `Transform`, `Appearance`, `Ground`) so dense multi-selection actions stay scannable.
 - Section changes should be presentation-only unless the edit contract changes; preserve existing row keys and route behavior through `applySelectionProperty()`.
+- Use `currentValue` plus `aria-pressed`/`.active` on property chips when a selected value is uniform, and leave mixed selections unpressed.
 
 Stamps panel:
 
