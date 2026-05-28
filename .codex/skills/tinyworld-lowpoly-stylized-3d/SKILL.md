@@ -47,6 +47,11 @@ Use this together with:
 - Model stamp factories should apply `opts.appearance` themselves so world rendering, ghost previews, and selection previews share texture/color overrides; avoid applying the same model-stamp appearance again at the board render wrapper.
 - Wear-and-tear should stay stylized: global grime/desaturation plus small batched chips/scuffs/moss beats realistic noise-heavy shader work.
 - Floating-board depth can reuse existing roof language by inverting a stepped roof form under the board: dark gray shingle-textured slabs, board-footprint width/depth, vertically compressed, and attached below the dirt body. Utility underside dressing should stay toy-like and readable: chunky pipe cylinders, cable trays, clamps, junction boxes, and short dangling cable drops in the existing steel/dark underside palette.
+- Visual richness should come from selective density contrast: keep cliffs,
+  walls, terrain bodies, and island masses chunky, then spend extra detail on
+  roofs, windows, crops, trees, path storytelling, and hero landmarks. Prefer
+  instanced/rule-based surface detail such as wheel ruts, edge roots, tiny
+  signs/crates, and beacon/banners over globally raising voxel resolution.
 - The Tower house variant has paired factories: `makeStoneTower` is the normal faceted/conical design and `makeVoxelStoneTower` is the voxel counterpart. Keep their silhouettes aligned when changing tower roof, balcony, window, door, or flag details. Castle/turret rendering should stay block-built: `makeTurret` delegates to the square voxel keep in `makeVoxelTurret`.
 
 ## Model import hygiene
@@ -73,6 +78,10 @@ Use this together with:
   replacing an object style, keep the older object factory as an inactive
   legacy helper instead of deleting it.
 - For aircraft: use shallow easing, pitch with climb/descent slope, and bank during turns. Do not teleport or dive straight down into the board.
+- Small world motion is preferred over heavy renderer tricks: tree asymmetry,
+  crop/wheat/corn/sunflower sway, window glow, smoke, waterfalls, clouds, and
+  engine movement should sell life while keeping object roots in the existing
+  `animatedCellObjects`/runtime sets.
 - Particle effects should be capped and use cheap cloned `MeshBasicMaterial`; dispose particle materials when particles die.
 
 ## Validation checklist

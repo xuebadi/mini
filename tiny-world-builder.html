@@ -6245,11 +6245,11 @@
     contrast: '1',
     brightness: '1',
     shadow: 'balanced',
-    lighting: '1.0',
-    ambientFill: '0.58',
-    frontFill: '0.55',
-    sideFill: '0.45',
-    backFill: '0.38',
+    lighting: '1.12',
+    ambientFill: '0.50',
+    frontFill: '0.46',
+    sideFill: '0.36',
+    backFill: '0.30',
     visibleDistance: '2',
     visibleSize: '8',
     clouds: '0.4',
@@ -6259,9 +6259,9 @@
     underCloudSpread: '1.35',
     skyBlueDepth: '0.58',
     skyBlueSaturation: '1',
-    distanceMist: '0.28',
+    distanceMist: '0.36',
     backdrop: '0.78',
-    backdropVignette: '0.18',
+    backdropVignette: '0.24',
     tiltBlur: '1.0',
     tiltFocus: '65',
     ghostOpacity: '1',
@@ -7356,6 +7356,10 @@
   const sideFillA = makeFillLight(SIDE_FILL_OFFSET_A);
   const sideFillB = makeFillLight(SIDE_FILL_OFFSET_B);
   const backFill = makeFillLight(BACK_FILL_OFFSET);
+  frontFill.color.setHex(0xffe3bf);
+  sideFillA.color.setHex(0xcfe6ff);
+  sideFillB.color.setHex(0xd9ecff);
+  backFill.color.setHex(0xb8ccff);
 
   // Fixed sun direction relative to the camera target — same angle of
   // attack everywhere on the map.
@@ -7418,13 +7422,13 @@
     // Sun controls shadow direction and contrast. Fill lights are non-shadowing
     // so dark faces can be lifted without flattening the diorama into CSS
     // brightness.
-    sun.intensity = 0.55 + renderLighting * 0.48;
-    hemi.intensity = 0.07 + renderAmbientFill * 0.22;
-    ambient.intensity = 0.035 + renderAmbientFill * 0.13;
-    frontFill.intensity = renderFrontFill * 0.34;
-    sideFillA.intensity = renderSideFill * 0.16;
-    sideFillB.intensity = renderSideFill * 0.16;
-    backFill.intensity = renderBackFill * 0.26;
+    sun.intensity = 0.62 + renderLighting * 0.58;
+    hemi.intensity = 0.08 + renderAmbientFill * 0.20;
+    ambient.intensity = 0.025 + renderAmbientFill * 0.105;
+    frontFill.intensity = renderFrontFill * 0.28;
+    sideFillA.intensity = renderSideFill * 0.13;
+    sideFillB.intensity = renderSideFill * 0.13;
+    backFill.intensity = renderBackFill * 0.20;
   }
 
   function setShadowQuality(value) {
@@ -9377,10 +9381,10 @@
       mesh.instanceMatrix.needsUpdate = true;
       g.add(mesh);
     }
-    addVoxelTerrainSurfaceDetails(g, terrain, x, z, topSize, rise + topHeight + 0.012);
+    addVoxelTerrainSurfaceDetails(g, terrain, x, z, topSize, rise + topHeight + 0.012, pathN, terrainN);
   }
 
-  function addVoxelTerrainSurfaceDetails(g, terrain, x, z, topSize, y) {
+  function addVoxelTerrainSurfaceDetails(g, terrain, x, z, topSize, y, pathN = null, terrainN = null) {
     if (terrain === 'water' || terrain === 'lava' || terrain === 'snow') return;
     const half = topSize * 0.5;
     const wear = Math.max(0, Math.min(1, renderMaterialWear || 0));
@@ -9401,6 +9405,7 @@
     const dotGeo = getBoxGeometry(0.045, 0.010, 0.045);
     const bladeGeo = getBoxGeometry(0.028, 0.052, 0.028);
     const paverGeo = getBoxGeometry(0.18, 0.012, 0.055);
+    const rutGeo = getBoxGeometry(0.045, 0.010, 0.66);
     const pebbleGeo = getBoxGeometry(0.055, 0.018, 0.040);
     const grimeGeo = getBoxGeometry(0.080, 0.006, 0.055);
     function scatter(i, seed, inset = 0.12) {
@@ -9444,6 +9449,19 @@
         });
       }
     } else if (terrain === 'path') {
+      const runsX = !!(pathN && (pathN.e || pathN.w) && !(pathN.n || pathN.s));
+      addBucket(M.pathScuff, rutGeo, 2, (i, d) => {
+        const offset = (i ? 1 : -1) * (0.13 + cellRand(x + i, z - i, 505) * 0.045);
+        if (runsX) {
+          d.position.set(0, y + 0.005, offset);
+          d.rotation.set(0, Math.PI / 2, 0);
+        } else {
+          d.position.set(offset, y + 0.005, 0);
+          d.rotation.set(0, 0, 0);
+        }
+        const s = 0.72 + cellRand(x - i, z + i, 507) * 0.32;
+        d.scale.set(1, 1, s);
+      });
       addBucket(M.pathTrim, paverGeo, 4, (i, d) => {
         const [px, pz] = scatter(i, 510, 0.08);
         d.position.set(px, y + 0.004, pz);
@@ -9470,6 +9488,25 @@
           d.rotation.set(0, cellRand(x, z - i, 680) * Math.PI, 0);
           d.scale.set(0.85, 1, 0.70);
         });
+      }
+      const hasGrassEdge = terrainN && (terrainN.n === 'grass' || terrainN.s === 'grass' || terrainN.e === 'grass' || terrainN.w === 'grass');
+      if (hasGrassEdge && cellRand(x, z, 734) > 0.86) {
+        const grassSides = [];
+        if (terrainN.n === 'grass') grassSides.push('n');
+        if (terrainN.s === 'grass') grassSides.push('s');
+        if (terrainN.w === 'grass') grassSides.push('w');
+        if (terrainN.e === 'grass') grassSides.push('e');
+        const side = grassSides[Math.min(grassSides.length - 1, Math.floor(cellRand(x, z, 735) * grassSides.length))] || 'n';
+        const edge = topSize * 0.5 - 0.12;
+        const along = (cellRand(x, z, 736) - 0.5) * topSize * 0.55;
+        const px = side === 'e' ? edge : side === 'w' ? -edge : along;
+        const pz = side === 's' ? edge : side === 'n' ? -edge : along;
+        vbox(g, 0.035, 0.28, 0.035, px, y + 0.14, pz, M.trunk, { noGap: true, noBevel: true, noShadow: true });
+        vbox(g, side === 'e' || side === 'w' ? 0.045 : 0.24, 0.11, side === 'e' || side === 'w' ? 0.24 : 0.045, px, y + 0.30, pz, M.bridgeWood, { noGap: true, noBevel: true, noShadow: true });
+      } else if (cellRand(x, z, 742) > 0.92) {
+        const [px, pz] = scatter(7, 744, 0.24);
+        vbox(g, 0.16, 0.12, 0.14, px, y + 0.06, pz, M.bridgeWoodD, { noGap: true, noBevel: true, noShadow: true, ry: cellRand(x, z, 745) * Math.PI });
+        vbox(g, 0.18, 0.035, 0.16, px, y + 0.138, pz, M.bridgeWood, { noGap: true, noBevel: true, noShadow: true, ry: cellRand(x, z, 745) * Math.PI });
       }
     } else if (terrain === 'dirt') {
       addBucket(M.dirt, pebbleGeo, 6, (i, d) => {
@@ -9805,13 +9842,39 @@
   }
 
   function addSurfaceEdgeWeeds(g, terrain, x, z, terrainN, topSize, topY) {
-    if (terrain === 'grass' || terrain === 'water' || terrain === 'lava' || terrain === 'snow') return;
+    if (terrain === 'water' || terrain === 'lava' || terrain === 'snow') return;
     const dirs = [
       { key: 'n', gx: 0, gz: -1 },
       { key: 's', gx: 0, gz: 1 },
       { key: 'w', gx: -1, gz: 0 },
       { key: 'e', gx: 1, gz: 0 },
     ];
+    if (terrain === 'grass') {
+      for (const dir of dirs) {
+        if (!terrainN || terrainN[dir.key] === 'grass') continue;
+        const count = 1 + Math.floor(cellRand(x + dir.gx, z + dir.gz, 1810) * 3);
+        for (let i = 0; i < count; i++) {
+          const r = cellRand(x * 13 + i + dir.gx, z * 17 - i + dir.gz, 1820);
+          const along = (r - 0.5) * topSize * 0.72;
+          const inset = 0.018 + cellRand(x - i, z + i, 1830) * 0.030;
+          const h = 0.10 + cellRand(x + i, z - i, 1840) * 0.16;
+          const w = 0.018 + cellRand(x - i * 2, z + i * 3, 1850) * 0.020;
+          let px = 0, pz = 0;
+          if (dir.key === 'n') { px = along; pz = -topSize * 0.5 + inset; }
+          if (dir.key === 's') { px = along; pz =  topSize * 0.5 - inset; }
+          if (dir.key === 'w') { px = -topSize * 0.5 + inset; pz = along; }
+          if (dir.key === 'e') { px =  topSize * 0.5 - inset; pz = along; }
+          const mat = i % 3 === 0 ? M.dirtRich : M.trunk;
+          vbox(g, w, h, w, px, topY - h * 0.5 + 0.004, pz, mat, {
+            noGap: true,
+            noBevel: true,
+            noShadow: true,
+            ry: cellRand(x + i, z - i, 1855) * Math.PI,
+          });
+        }
+      }
+      return;
+    }
     for (const dir of dirs) {
       if (!terrainN || terrainN[dir.key] !== 'grass') continue;
       const count = 2 + Math.floor(cellRand(x + dir.gx, z + dir.gz, 1860) * 3);
@@ -10523,23 +10586,41 @@
   }
 
   // -------- object factories --------
-  function makeTree(level = 1) {
+  function makeTree(level = 1, seedX = 0, seedZ = 0) {
     const L = Math.max(1, Math.min(MAX_FLOORS, level));
     const g = new THREE.Group();
+    const leanX = (cellRand(seedX, seedZ, 1010) - 0.5) * 0.12;
+    const leanZ = (cellRand(seedX, seedZ, 1020) - 0.5) * 0.12;
 
     // Trunk grows in both height and thickness with level.
     const trunkH = 0.5 + (L - 1) * 0.12;
     const trunkW = 0.18 + (L - 1) * 0.018;
     const trunk = new THREE.Mesh(getBoxGeometry(trunkW, trunkH, trunkW), M.trunk);
     trunk.position.y = trunkH / 2;
+    trunk.rotation.z = leanX * 0.18;
+    trunk.rotation.x = -leanZ * 0.18;
     g.add(trunk);
+
+    const branchCount = 2 + (L >= 4 ? 1 : 0);
+    for (let i = 0; i < branchCount; i++) {
+      const angle = cellRand(seedX + i, seedZ - i, 1030) * Math.PI * 2;
+      const len = 0.16 + cellRand(seedX - i, seedZ + i, 1040) * 0.11;
+      const branch = new THREE.Mesh(getBoxGeometry(0.050, 0.045, len), M.trunk);
+      branch.position.set(
+        Math.cos(angle) * len * 0.42,
+        trunkH * (0.45 + i * 0.12),
+        Math.sin(angle) * len * 0.42
+      );
+      branch.rotation.y = angle;
+      g.add(branch);
+    }
 
     // Lower canopy.
     const lowerW = 0.62 + (L - 1) * 0.06;
     const lowerH = 0.42 + (L - 1) * 0.04;
     const lower = new THREE.Mesh(roundedBox(lowerW, lowerH, lowerW, 0.08), M.leaves);
     const lowerY = trunkH + lowerH * 0.5 - 0.08;
-    lower.position.y = lowerY;
+    lower.position.set(leanX * 0.45, lowerY, leanZ * 0.45);
     g.add(lower);
 
     // Upper canopy.
@@ -10547,17 +10628,26 @@
     const upperH = 0.32 + (L - 1) * 0.03;
     const upper = new THREE.Mesh(roundedBox(upperW, upperH, upperW, 0.06), M.leaves);
     const upperY = lowerY + lowerH * 0.5 + upperH * 0.5 - 0.05;
-    upper.position.y = upperY;
+    upper.position.set(leanX, upperY, leanZ);
     g.add(upper);
+
+    for (let i = 0; i < 3; i++) {
+      const angle = cellRand(seedX + i, seedZ + i, 1050) * Math.PI * 2;
+      const r = 0.18 + cellRand(seedX - i, seedZ + i, 1060) * 0.11;
+      const s = 0.11 + cellRand(seedX + i, seedZ - i, 1070) * 0.055;
+      const leaf = new THREE.Mesh(roundedBox(s, s * 0.82, s, 0.035), i % 2 ? M.leavesDk : M.grassHi);
+      leaf.position.set(leanX * 0.55 + Math.cos(angle) * r, lowerY + 0.05 + i * 0.035, leanZ * 0.55 + Math.sin(angle) * r);
+      g.add(leaf);
+    }
 
     // At higher levels swap the wispy tip for a denser darker crown.
     if (L >= 3 && showCrowns) {
       const crown = new THREE.Mesh(roundedBox(0.30 + (L - 3) * 0.04, 0.28 + (L - 3) * 0.04, 0.30 + (L - 3) * 0.04, 0.06), M.leavesDk);
-      crown.position.y = upperY + upperH * 0.5 + 0.14;
+      crown.position.set(leanX * 1.2, upperY + upperH * 0.5 + 0.14, leanZ * 1.2);
       g.add(crown);
     } else {
       const tip = new THREE.Mesh(roundedBox(0.22, 0.18, 0.22, 0.04), M.leaves);
-      tip.position.y = upperY + upperH * 0.5 + 0.09;
+      tip.position.set(leanX * 1.2, upperY + upperH * 0.5 + 0.09, leanZ * 1.2);
       g.add(tip);
     }
 
@@ -11906,6 +11996,18 @@
     const flag = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.10, 0.02), M.flagRed);
     flag.position.set(0.11, wallH + 1.26, 0);
     g.add(flag);
+    const beaconCup = new THREE.Mesh(new THREE.CylinderGeometry(0.075, 0.095, 0.055, 8), matRoofD);
+    beaconCup.position.y = wallH + 1.40;
+    g.add(beaconCup);
+    const beacon = new THREE.Mesh(new THREE.SphereGeometry(0.065, 8, 8), M.windowLit);
+    beacon.position.y = wallH + 1.46;
+    g.add(beacon);
+    for (const side of [-1, 1]) {
+      const banner = new THREE.Mesh(getBoxGeometry(0.08, 0.34, 0.026), side < 0 ? M.flagRed : M.towerRoof);
+      banner.position.set(side * (radius + 0.14), balconyY - 0.16, 0.10);
+      banner.rotation.z = side * 0.06;
+      g.add(banner);
+    }
 
     // No chimneys — towers get magic, not fireplaces. Empty chimneyTops keeps
     // smoke loop happy.
@@ -15172,6 +15274,14 @@
     vbox(g, 0.07, 0.07, 0.07, 0, y + 0.05, 0, M.knob);
     vbox(g, 0.025, 0.32, 0.025, 0, y + 0.23, 0, stoneD);
     vbox(g, 0.18, 0.10, 0.025, 0.10, y + 0.32, 0, M.flagRed);
+    vbox(g, 0.13, 0.06, 0.13, 0, y + 0.42, 0, roofD);
+    vbox(g, 0.10, 0.10, 0.10, 0, y + 0.50, 0, M.windowLit);
+    for (const side of [-1, 1]) {
+      vbox(g, 0.075, 0.30, 0.026, side * 0.48, balconyY - 0.18, 0.10, side < 0 ? M.flagRed : roof, {
+        noGap: true,
+        rz: side * 0.045,
+      });
+    }
 
     g.userData = { kind: 'house', chimneyTops: [] };
     castReceive(g);
@@ -15256,22 +15366,32 @@
     return g;
   }
 
-  function makeVoxelTree(level = 1) {
+  function makeVoxelTree(level = 1, seedX = 0, seedZ = 0) {
     const g = new THREE.Group();
     const L = Math.max(1, Math.min(MAX_FLOORS, level || 1));
     const trunkH = 0.46 + (L - 1) * 0.08;
     const trunkW = 0.15 + (L - 1) * 0.014;
+    const leanX = (cellRand(seedX, seedZ, 1110) - 0.5) * 0.10;
+    const leanZ = (cellRand(seedX, seedZ, 1120) - 0.5) * 0.10;
     vbox(g, trunkW, trunkH, trunkW, 0, trunkH / 2, 0, M.trunk);
+    for (let i = 0; i < 2; i++) {
+      const angle = cellRand(seedX + i, seedZ - i, 1130) * Math.PI * 2;
+      const len = 0.16 + cellRand(seedX - i, seedZ + i, 1140) * 0.10;
+      vbox(g, 0.045, 0.045, len, Math.cos(angle) * len * 0.35, trunkH * (0.52 + i * 0.16), Math.sin(angle) * len * 0.35, M.trunk, {
+        ry: angle,
+        noGap: true,
+      });
+    }
     const y = trunkH;
     const leafMats = voxelTreeLeafMaterials();
-    vbox(g, 0.62 + L * 0.04, 0.26 + L * 0.02, 0.62 + L * 0.04, 0, y + 0.12, 0, leafMats[0]);
-    vbox(g, 0.48 + L * 0.035, 0.24 + L * 0.018, 0.48 + L * 0.035, 0, y + 0.32, 0, leafMats[1]);
-    vbox(g, 0.30 + L * 0.025, 0.20, 0.30 + L * 0.025, 0, y + 0.50, 0, leafMats[2]);
+    vbox(g, 0.62 + L * 0.04, 0.26 + L * 0.02, 0.62 + L * 0.04, leanX * 0.35, y + 0.12, leanZ * 0.35, leafMats[0]);
+    vbox(g, 0.48 + L * 0.035, 0.24 + L * 0.018, 0.48 + L * 0.035, leanX * 0.80, y + 0.32, leanZ * 0.80, leafMats[1]);
+    vbox(g, 0.30 + L * 0.025, 0.20, 0.30 + L * 0.025, leanX, y + 0.50, leanZ, leafMats[2]);
     const accents = [
-      [0.28, y + 0.20, -0.22, 0.18, leafMats[3]],
-      [-0.26, y + 0.18, 0.24, 0.16, leafMats[4]],
-      [0.20, y + 0.38, 0.22, 0.14, leafMats[5]],
-      [-0.18, y + 0.40, -0.22, 0.13, leafMats[2]],
+      [0.28 + leanX, y + 0.20, -0.22 + leanZ, 0.18, leafMats[3]],
+      [-0.26 + leanX * 0.6, y + 0.18, 0.24 + leanZ * 0.6, 0.16, leafMats[4]],
+      [0.20 + leanX, y + 0.38, 0.22 + leanZ, 0.14, leafMats[5]],
+      [-0.18 + leanX * 1.1, y + 0.40, -0.22 + leanZ * 1.1, 0.13, leafMats[2]],
     ];
     accents.forEach(([x, ay, z, s, mat]) => {
       vbox(g, s, Math.max(0.11, s * 0.82), s, x, ay, z, mat);
@@ -15535,7 +15655,7 @@
 
     if (kind === 'voxel-build') mesh = makeVoxelBuildStamp(cell.appearance && cell.appearance.voxelBuildId, { appearance: cell.appearance });
     else if (kind === 'model-stamp') mesh = makeModelStamp(cell.appearance && cell.appearance.modelStampId, { appearance: cell.appearance });
-    else if (kind === 'tree') mesh = makeVoxelTree(level);
+    else if (kind === 'tree') mesh = makeVoxelTree(level, x, z);
     else if (kind === 'rock') mesh = makeVoxelRock(getRockNeighbors(x, z), level, x, z, cell.terrain === 'water');
     else if (kind === 'bridge') mesh = makeVoxelBridge(getBridgeOrientation(x, z), level);
     else if (kind === 'tuft' || kind === 'flower' || kind === 'bush' || kind === 'crop' || kind === 'corn' || kind === 'wheat' || kind === 'carrot' || kind === 'sunflower') mesh = makeVoxelCropKind(kind, level);
@@ -15773,6 +15893,7 @@
   const smokeHouseObjects = new Set();
   const buildingWindowObjects = new Set();
   const buildingWindowBaseMaterials = new Set([M.windowB, M.manorWindow, M.skyGlass, M.castleSlit]);
+  const windAnimatedPlantKinds = new Set(['tree', 'tuft', 'flower', 'bush', 'crop', 'corn', 'wheat', 'carrot', 'sunflower']);
   const cropPositions = new Set();        // 'x,z' strings for home-grid cells whose kind is in CROP_KINDS
   let carriagePumpkin = null;             // {x, z} | null — current lowest-index max-floor pumpkin (Cinderella rule)
   const maxPumpkinPositions = new Set();  // 'x,z' of all pumpkins with floors >= MAX_FLOORS (home grid)
@@ -15780,7 +15901,7 @@
   function registerRuntimeObject(obj) {
     if (!obj || !obj.userData) return;
     const kind = obj.userData.kind;
-    if (kind === 'tree' || kind === 'tuft') animatedCellObjects.add(obj);
+    if (windAnimatedPlantKinds.has(kind)) animatedCellObjects.add(obj);
     if (kind === 'house') {
       smokeHouseObjects.add(obj);
       buildingWindowObjects.add(obj);
@@ -21998,7 +22119,7 @@
       posX = voxelRender.posX;
       posZ = voxelRender.posZ;
       setGridUserData = voxelRender.setGridUserData !== false;
-    } else if (kind === 'tree')      mesh = makeTree(level);
+    } else if (kind === 'tree')      mesh = makeTree(level, x, z);
     else if (kind === 'rock')      mesh = makeRock(getRockNeighbors(x, z), level, x, z, cell.terrain === 'water');
     else if (kind === 'bridge')    mesh = makeBridge(getBridgeOrientation(x, z), level);
     else if (kind === 'tuft')      mesh = makeTuft();
@@ -22565,7 +22686,7 @@
     layout['1,4'] = { terrain: 'grass', kind: 'house' };
     layout['2,4'] = { terrain: 'grass', kind: 'house' };
     layout['5,4'] = { terrain: 'grass', kind: 'house', buildingType: 'manor', floors: 2 };
-    layout['6,3'] = { terrain: 'grass', kind: 'house', buildingType: 'tower', floors: 3 };
+    layout['6,3'] = { terrain: 'grass', kind: 'house', buildingType: 'tower', floors: 5 };
 
     layout['0,0'] = { terrain: 'grass', kind: 'house', floors: 2 };
     layout['0,1'] = { terrain: 'grass', kind: 'fence' };
@@ -31503,6 +31624,12 @@
         obj.rotation.x = Math.cos(t * 0.65 + obj.userData.swayPhase) * 0.012;
       } else if (k === 'tuft') {
         obj.rotation.z = Math.sin(t * 1.2 + (obj.userData.gx + obj.userData.gz)) * 0.05;
+      } else if (windAnimatedPlantKinds.has(k)) {
+        const phase = (obj.userData.swayPhase || 0) + (obj.userData.gx || 0) * 0.41 + (obj.userData.gz || 0) * 0.23;
+        const tall = k === 'corn' || k === 'sunflower' || k === 'wheat';
+        const amp = tall ? 0.028 : 0.014;
+        obj.rotation.z = Math.sin(t * (tall ? 1.15 : 0.82) + phase) * amp;
+        obj.rotation.x = Math.cos(t * 0.72 + phase) * amp * 0.45;
       }
     }
 

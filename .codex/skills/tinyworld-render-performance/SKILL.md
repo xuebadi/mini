@@ -29,6 +29,11 @@ GPU caches (introduced for low-end GPU + visible-distance scaling):
   pools per exposed water edge, not one mesh per puff/drop. Keep the instance
   matrix update inside `updateWaterfallEffects()` and mark the pools
   non-shadowing.
+- Terrain/path storytelling details should be batched or rare. Wheel ruts,
+  surface flecks, pavers, pebbles, grass-edge roots, and small path signs/crates
+  belong in the voxel terrain surface-detail pass with cached geometries,
+  `InstancedMesh` buckets where possible, and `noShadow` on decorative extras;
+  do not scatter dozens of shadow-casting meshes per tile.
 - Waterfall curtain/blade variety should come from the shared shader sheets
   (`getWaterfallCurtainMaterial()` / `getWaterfallSurfaceMaterial()`), so each
   exposed water edge uses one vertical sheet plus one surface-flow sheet instead
@@ -57,8 +62,8 @@ GPU caches (introduced for low-end GPU + visible-distance scaling):
 - `fadeMatCache` shares fade materials in `FADE_BUCKETS = 16` opacity buckets keyed by (base material UUID, grayscale flag, bucket, keepFadeAtOpaque). `prepareFadeable` and `applyElementOpacity` look up via `pickFadeMaterial(baseMat, grayscale, displayOpacity, keepFadeAtOpaque)` instead of cloning per mesh. Terrain tile roots set `keepFadeAtOpaque` so they remain on the transparent/depthWrite-off fade material even at 100%; snapping terrain back to the base opaque material exposes diagonal face artifacts that are absent at 99% opacity. Cached materials are tagged `userData.cachedFade = true` and must never be mutated or disposed — they're shared by every mesh in their bucket. If you need a per-instance opacity (e.g. squash anim), clone the material yourself and tag it so it gets disposed individually.
 - Ghost boards are built incrementally via `pendingGhostBoards` queue, drained inside `animate()` by `processGhostBoardQueue(budgetMs)` with a small per-frame budget. `ensureGhostBoardsAroundTarget` only enqueues — it must never build synchronously, or load/reset/visible-distance changes hitch the main thread.
 - Per-frame object work is set-based: `animatedCellObjects` tracks swaying
-  trees/tufts and `smokeHouseObjects` tracks chimney sources. Do not return to
-  scanning every `cellMeshes` entry each frame for these effects.
+  trees/tufts/crops and `smokeHouseObjects` tracks chimney sources. Do not
+  return to scanning every `cellMeshes` entry each frame for these effects.
 - Pixel-drag panning must not call `ensureGhostBoardsAroundTarget()` directly
   on every pointer event. Route panning through `maybeEnsureGhostBoardsAroundTarget()`
   so preview-board enqueue/fade work only runs after a meaningful target move
