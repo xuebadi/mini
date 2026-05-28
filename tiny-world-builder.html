@@ -7027,6 +7027,7 @@
     const m = renderer.info.memory;
     const programs = (renderer.info.programs && renderer.info.programs.length) || 0;
     const ghostQueue = (typeof pendingGhostBoards !== 'undefined') ? pendingGhostBoards.length : 0;
+    const islandStats = (typeof editableIslandPerfStats === 'function') ? editableIslandPerfStats() : null;
     statsOverlay.textContent =
       'fps     ' + fps.toFixed(1) + '\n' +
       'frame   ' + avg.toFixed(2) + 'ms\n' +
@@ -7038,6 +7039,8 @@
       'texs    ' + m.textures + '\n' +
       'ghosts  ' + (typeof ghostBoards !== 'undefined' ? ghostBoards.size : 0) +
         (ghostQueue ? ' (+' + ghostQueue + ')' : '') + '\n' +
+      'islands ' + (islandStats ? (islandStats.count + ' f' + islandStats.full + '/p' + islandStats.proxy + '/h' + islandStats.hidden) : '-') + '\n' +
+      'cells   ' + Object.keys(cellMeshes).length + '\n' +
       'crops   ' + (typeof cropPositions !== 'undefined' ? cropPositions.size : 0) + '\n' +
       'maxPump ' + (typeof maxPumpkinPositions !== 'undefined' ? maxPumpkinPositions.size : 0);
   }
@@ -14224,6 +14227,9 @@
         editableIslandEnginePropellers.delete(prop);
         return;
       }
+      const islandId = prop.userData && prop.userData.editableIslandId;
+      const island = islandId ? editableIslandById.get(islandId) : null;
+      if (island && island.lod !== 'full') return;
       prop.rotation.z += dt * (prop.userData.spinSpeed || 10);
     });
   }
@@ -16093,6 +16099,42 @@
       size: large ? (requestedSize || VEHICLE_DEMO_LARGE_SIZE_DEFAULT) : null,
       carCount: large ? requestedCars : null,
     };
+  }
+
+  const ISLAND_STRESS_DEFAULT_COUNT = 50;
+  const ISLAND_STRESS_MAX_COUNT = 120;
+
+  function coerceIslandStressCount(value, fallback = ISLAND_STRESS_DEFAULT_COUNT) {
+    if (value === null || value === undefined || value === '') return fallback;
+    const n = parseInt(value, 10);
+    if (!Number.isFinite(n)) return fallback;
+    return Math.max(1, Math.min(ISLAND_STRESS_MAX_COUNT, n));
+  }
+
+  function getIslandStressDemoUrlRequest() {
+    const params = new URLSearchParams(window.location.search || '');
+    const hash = String(window.location.hash || '').replace(/^#\??/, '');
+    if (hash && hash.includes('=')) {
+      const hashParams = new URLSearchParams(hash);
+      hashParams.forEach((value, key) => { if (!params.has(key)) params.set(key, value); });
+    }
+    const demo = String(params.get('demo') || params.get('twbDemo') || '').toLowerCase().replace(/_/g, '-');
+    const enabled = demo === 'islands'
+      || demo === 'island-stress'
+      || demo === 'sky-islands'
+      || params.get('islandStress') === '1';
+    if (!enabled) return null;
+    return {
+      count: coerceIslandStressCount(params.get('islands') || params.get('islandCount') || params.get('count')),
+    };
+  }
+
+  function islandStressDemoShareUrl(count = ISLAND_STRESS_DEFAULT_COUNT) {
+    const url = new URL(window.location.href);
+    url.searchParams.set('demo', 'island-stress');
+    url.searchParams.set('islands', String(coerceIslandStressCount(count)));
+    url.searchParams.set('stats', '1');
+    return url.href;
   }
 
   function showVehicleDemoBadge(seed, vehicleCount, opts = {}) {
@@ -18275,6 +18317,80 @@
       : null;
   }
 
+  function stampEditableIslandSurface(root, island) {
+    if (!root || !island) return;
+    const data = {
+      kind: 'editable-island-surface',
+      editableIslandSurface: true,
+      editableIslandId: island.id,
+      boardX: island.boardX,
+      boardZ: island.boardZ,
+    };
+    root.traverse(node => {
+      node.userData = Object.assign({}, node.userData || {}, data);
+    });
+  }
+
+  function makeEditableIslandDefaultSurface(island) {
+    const span = GRID * TILE;
+    const surface = new THREE.Mesh(
+      getOpenBoxGeometry(span * 1.012, TOP_H, span * 1.012, false, true, false, false, false, false),
+      M.grass
+    );
+    surface.name = 'editable-island-default-grass-surface';
+    surface.position.y = TOP_H * 0.5 - 0.014;
+    surface.castShadow = false;
+    surface.receiveShadow = true;
+    surface.frustumCulled = true;
+    stampEditableIslandSurface(surface, island);
+    return surface;
+  }
+
+  function makeEditableIslandProxy(island) {
+    const g = new THREE.Group();
+    g.name = (island && island.id ? island.id : 'editable-island') + '-proxy';
+    g.userData = {
+      kind: 'editable-island-proxy',
+      noPointerPick: false,
+      editableIslandId: island && island.id,
+      boardX: island && island.boardX,
+      boardZ: island && island.boardZ,
+    };
+    const span = GRID * TILE;
+    const top = new THREE.Mesh(getOpenBoxGeometry(span, 0.12, span, false, true, false, false, false, false), M.grass);
+    top.position.y = 0.02;
+    const dirt = new THREE.Mesh(getOpenBoxGeometry(span * 0.98, 0.40, span * 0.98, true, true, false, false, false, false), M.dirtRich);
+    dirt.position.y = -0.22;
+    const under = new THREE.Mesh(getOpenBoxGeometry(span * 0.78, 0.28, span * 0.78, true, true, false, false, false, false), M.islandUnderD);
+    under.position.y = -0.58;
+    g.add(top, dirt, under);
+    stampEditableIslandSurface(top, island);
+    g.traverse(node => {
+      if (node.isMesh) {
+        node.castShadow = false;
+        node.receiveShadow = false;
+        node.frustumCulled = true;
+      }
+    });
+    g.visible = false;
+    return g;
+  }
+
+  function rebuildEditableIslandSurface(island) {
+    if (!island || !island.contentGroup) return;
+    if (island.surfaceMesh && island.surfaceMesh.parent) island.surfaceMesh.parent.remove(island.surfaceMesh);
+    if (island.surfaceMesh) disposeGroup(island.surfaceMesh);
+    island.surfaceMesh = makeEditableIslandDefaultSurface(island);
+    island.contentGroup.add(island.surfaceMesh);
+  }
+
+  function disposeEditableIslandSurface(island) {
+    if (!island || !island.surfaceMesh) return;
+    if (island.surfaceMesh.parent) island.surfaceMesh.parent.remove(island.surfaceMesh);
+    disposeGroup(island.surfaceMesh);
+    island.surfaceMesh = null;
+  }
+
   function makeEditableIslandBase(island) {
     const g = new THREE.Group();
     vbox(g, GRID * TILE, 0.10, GRID * TILE, 0, -DIRT_H - 0.055, 0, M.islandUnderD, { noGap: true });
@@ -18284,6 +18400,85 @@
     addIslandEdgeDressing(g);
     prepareHomeBorderForRender(g);
     return g;
+  }
+
+  function disposeEditableIslandBase(island) {
+    if (!island || !island.baseGroup) return;
+    if (Array.isArray(island.engines)) {
+      island.engines.forEach(engine => {
+        if (engine && engine.propeller) editableIslandEnginePropellers.delete(engine.propeller);
+        if (engine) {
+          engine.mesh = null;
+          engine.propeller = null;
+        }
+      });
+    }
+    if (island.baseGroup.parent) island.baseGroup.parent.remove(island.baseGroup);
+    disposeGroup(island.baseGroup);
+    island.baseGroup = null;
+  }
+
+  function ensureEditableIslandFullVisuals(island) {
+    if (!island || !island.group) return;
+    if (!island.baseGroup) {
+      island.baseGroup = makeEditableIslandBase(island);
+      island.group.add(island.baseGroup);
+    }
+    if (!island.surfaceMesh) rebuildEditableIslandSurface(island);
+  }
+
+  function releaseEditableIslandFullVisuals(island) {
+    disposeEditableIslandBase(island);
+    disposeEditableIslandSurface(island);
+  }
+
+  function editableIslandFocusDistance(island) {
+    if (!island || !island.group) return Infinity;
+    const dx = (island.positionX || 0) - target.x;
+    const dz = (island.positionZ || 0) - target.z;
+    const dy = (island.positionY || 0) * 0.45;
+    return Math.hypot(dx, dz, dy);
+  }
+
+  function editableIslandDesiredLod(island) {
+    if (!island) return 'hidden';
+    if (selectedEditableIslandId && island.id === selectedEditableIslandId) return 'full';
+    const span = GRID * TILE;
+    const d = editableIslandFocusDistance(island);
+    const fullDistance = Math.max(18, span * 2.8);
+    const proxyDistance = Math.max(54, span * 8.5);
+    if (d <= fullDistance) return 'full';
+    if (d <= proxyDistance) return 'proxy';
+    return 'hidden';
+  }
+
+  function setEditableIslandLod(island, lod, force = false) {
+    if (!island || (!force && island.lod === lod)) return;
+    if (lod === 'full') ensureEditableIslandFullVisuals(island);
+    else releaseEditableIslandFullVisuals(island);
+    island.lod = lod;
+    if (island.group) island.group.visible = lod !== 'hidden';
+    if (island.baseGroup) island.baseGroup.visible = lod === 'full';
+    if (island.contentGroup) island.contentGroup.visible = lod === 'full';
+    if (island.proxyGroup) island.proxyGroup.visible = lod === 'proxy';
+  }
+
+  function updateEditableIslandLods(force = false) {
+    for (const island of editableIslands) {
+      const lod = editableIslandDesiredLod(island);
+      if (force || island.lod !== lod) setEditableIslandLod(island, lod, force);
+    }
+  }
+
+  function editableIslandPerfStats() {
+    const stats = { count: editableIslands.length, full: 0, proxy: 0, hidden: 0 };
+    for (const island of editableIslands) {
+      const lod = island.lod || editableIslandDesiredLod(island);
+      if (lod === 'full') stats.full++;
+      else if (lod === 'proxy') stats.proxy++;
+      else stats.hidden++;
+    }
+    return stats;
   }
 
   function applyEditableIslandTransform(island) {
@@ -18347,37 +18542,13 @@
     selectedEditableIslandId = island ? island.id : null;
     selectedEditableIslandEngineRef = null;
     updateTransformGizmo(null);
+    updateEditableIslandLods(true);
   }
 
   function nextEditableIslandBoard() {
     let boardX = 20 + editableIslandSerial;
     while (editableIslandForBoard(boardX, 0)) boardX++;
     return { boardX, boardZ: 0 };
-  }
-
-  function seedEditableIslandBaseGrass(island, opts = {}) {
-    if (!island) return;
-    const wasSuppressSave = suppressSave;
-    suppressSave = true;
-    for (let x = 0; x < GRID; x++) {
-      for (let z = 0; z < GRID; z++) {
-        const gx = island.boardX * GRID + x;
-        const gz = island.boardZ * GRID + z;
-        setCell(gx, gz, {
-          terrain: 'grass',
-          terrainFloors: 1,
-          kind: null,
-          floors: 1,
-          extras: [],
-          userEdited: true,
-          animate: opts.animate === true,
-          impactDust: false,
-          forceTile: true,
-        });
-        if (world[gx] && world[gx][gz]) world[gx][gz].userEdited = true;
-      }
-    }
-    suppressSave = wasSuppressSave;
   }
 
   function createEditableIsland(opts = {}) {
@@ -18402,6 +18573,9 @@
       group: null,
       baseGroup: null,
       contentGroup: null,
+      surfaceMesh: null,
+      proxyGroup: null,
+      lod: 'full',
       engines,
       positionX: Number.isFinite(opts.positionX) ? opts.positionX : GRID + 1 + editableIslands.length * (GRID + 1),
       positionY: Number.isFinite(opts.positionY) ? opts.positionY : 0,
@@ -18409,26 +18583,26 @@
       rotationY: Number.isFinite(opts.rotationY) ? opts.rotationY : 0,
     };
     const group = new THREE.Group();
-    const baseGroup = makeEditableIslandBase(island);
     const contentGroup = new THREE.Group();
+    const proxyGroup = makeEditableIslandProxy(island);
     group.name = id;
     contentGroup.name = id + '-cells';
     group.userData = { editableIslandId: id, boardX: board.boardX, boardZ: board.boardZ };
     contentGroup.userData = { editableIslandId: id, boardX: board.boardX, boardZ: board.boardZ };
-    group.add(baseGroup);
     group.add(contentGroup);
+    group.add(proxyGroup);
     worldGroup.add(group);
     island.group = group;
-    island.baseGroup = baseGroup;
     island.contentGroup = contentGroup;
+    island.proxyGroup = proxyGroup;
     editableIslands.push(island);
     editableIslandById.set(id, island);
     editableIslandByBoardKey.set(editableIslandBoardKey(board.boardX, board.boardZ), island);
     destroyGhostBoard(board.boardX, board.boardZ);
     applyEditableIslandTransform(island);
 
-    seedEditableIslandBaseGrass(island);
-    selectEditableIsland(island);
+    if (opts.select !== false) selectEditableIsland(island);
+    updateEditableIslandLods(true);
     if (!opts.skipSave) saveState();
     return island;
   }
@@ -18529,6 +18703,56 @@
     editableIslandById.clear();
     editableIslandByBoardKey.clear();
   }
+
+  function runIslandStressDemo(count = ISLAND_STRESS_DEFAULT_COUNT, opts = {}) {
+    const total = coerceIslandStressCount(count);
+    stopSeededVehicleDemo({ clearVehicles: true });
+    dismissWelcomeForDemo();
+    if (opts.clearExisting !== false) clearEditableIslands();
+    const cols = Math.max(5, Math.ceil(Math.sqrt(total)));
+    const spacing = GRID * TILE + 2.4;
+    const rows = Math.ceil(total / cols);
+    const startX = -((cols - 1) * spacing) * 0.5;
+    const startZ = -GRID * 1.7 - ((rows - 1) * spacing) * 0.5;
+    const oldSuppressSave = suppressSave;
+    suppressSave = true;
+    const created = [];
+    try {
+      for (let i = 0; i < total; i++) {
+        const col = i % cols;
+        const row = Math.floor(i / cols);
+        const stagger = row % 2 ? spacing * 0.35 : 0;
+        const island = createEditableIsland({
+          id: 'stress-island-' + String(i + 1).padStart(3, '0'),
+          boardX: 240 + i,
+          boardZ: 12 + Math.floor(i / 64),
+          positionX: startX + col * spacing + stagger,
+          positionY: (i % 5) * 0.34,
+          positionZ: startZ + row * spacing,
+          rotationY: ((i % 8) - 3.5) * 0.05,
+          skipSave: true,
+          select: false,
+        });
+        if (island) created.push(island);
+      }
+    } finally {
+      suppressSave = oldSuppressSave;
+    }
+    if (created.length) selectEditableIsland(created[0]);
+    updateEditableIslandLods(true);
+    if (opts.stats !== false) ensureStatsOverlay();
+    window.__lastIslandStressDemo = {
+      count: created.length,
+      gridSize: GRID,
+      shareUrl: islandStressDemoShareUrl(total),
+      lod: editableIslandPerfStats(),
+    };
+    console.info('[island-stress] islands', created.length, window.__lastIslandStressDemo.shareUrl);
+    return window.__lastIslandStressDemo;
+  }
+
+  window.__runIslandStressDemo = runIslandStressDemo;
+  window.__islandStressDemoShareUrl = islandStressDemoShareUrl;
 
   // -------- ghost world generator --------
   // Deterministic — every (boardX, boardZ) produces identical content
@@ -21452,6 +21676,34 @@
       }
     }
 
+    let surfaceNode = h.object;
+    while (surfaceNode && !(surfaceNode.userData && surfaceNode.userData.editableIslandSurface)) surfaceNode = surfaceNode.parent;
+    if (surfaceNode && surfaceNode.userData) {
+      const island = editableIslandById.get(surfaceNode.userData.editableIslandId);
+      if (island && island.contentGroup && island.group && island.group.visible) {
+        const local = h.point.clone();
+        island.contentGroup.worldToLocal(local);
+        const gx = Math.floor(local.x + GRID / 2);
+        const gz = Math.floor(local.z + GRID / 2);
+        if (gx >= 0 && gx < GRID && gz >= 0 && gz < GRID) {
+          const p = editableIslandCellDisplayPoint(island, gx, gz);
+          const pLocal = tilePos(gx, gz);
+          return {
+            x: gx,
+            z: gz,
+            boardX: island.boardX,
+            boardZ: island.boardZ,
+            editableIslandId: island.id,
+            worldX: p.x,
+            worldY: p.y,
+            worldZ: p.z,
+            localX: local.x - pLocal.x,
+            localZ: local.z - pLocal.z,
+          };
+        }
+      }
+    }
+
     while (n && n.userData.gx === undefined) n = n.parent;
     if (n && n.userData.gx !== undefined) {
       if (!n.visible) return null;
@@ -23436,7 +23688,10 @@
     const hitIsland = cell && cell.editableIslandId
       ? editableIslandById.get(cell.editableIslandId)
       : (cell ? editableIslandForBoard(cell.boardX || 0, cell.boardZ || 0) : null);
-    if (hitIsland) selectedEditableIslandId = hitIsland.id;
+    if (hitIsland) {
+      selectedEditableIslandId = hitIsland.id;
+      updateEditableIslandLods(true);
+    }
     selectedEditableIslandEngineRef = null;
     if (selectedTool && selectedTool.island) {
       if (hitIsland) {
@@ -25134,13 +25389,16 @@
     updateUnsavedCopyForGrid();
     if (typeof buildHomeBorder === 'function') buildHomeBorder();
     for (const island of editableIslands) {
-      if (island.baseGroup) {
-        if (island.baseGroup.parent) island.baseGroup.parent.remove(island.baseGroup);
-        disposeGroup(island.baseGroup);
+      disposeEditableIslandBase(island);
+      disposeEditableIslandSurface(island);
+      if (island.proxyGroup) {
+        if (island.proxyGroup.parent) island.proxyGroup.parent.remove(island.proxyGroup);
+        disposeGroup(island.proxyGroup);
       }
-      island.baseGroup = makeEditableIslandBase(island);
-      island.group.add(island.baseGroup);
+      island.proxyGroup = makeEditableIslandProxy(island);
+      island.group.add(island.proxyGroup);
     }
+    updateEditableIslandLods(true);
 
     // Drop every ghost board — their world positions are anchored to GRID.
     for (const [key, board] of ghostBoards) {
@@ -29887,6 +30145,7 @@
     if (typeof window.__showcaseTick === 'function') window.__showcaseTick(dt);
     tickWeather(dt);
     tickIslandRocketEngines(t, dt);
+    updateEditableIslandLods();
     tickEditableIslandEngines(dt);
     tickUndersideDebris(dt);
     updateClouds(dt);
@@ -35991,9 +36250,10 @@
     if (!modal) return;
 
     const isDirectVehicleDemo = !!getVehicleDemoUrlRequest();
+    const isDirectIslandStressDemo = !!getIslandStressDemoUrlRequest();
 
     // Show welcome unless the user came with ?demo=vehicles (direct jump to cars)
-    if (!isDirectVehicleDemo) {
+    if (!isDirectVehicleDemo && !isDirectIslandStressDemo) {
       openTinyModal(modal, farmBtn || closeBtn);
     } else {
       // Direct demo URL → auto-dismiss welcome and run the demo
@@ -36572,6 +36832,7 @@
     startDeferredVisualStartupTasks();
     twPerfMark('boot:end');
     const vehicleDemoRequest = getVehicleDemoUrlRequest();
+    const islandStressRequest = getIslandStressDemoUrlRequest();
     if (vehicleDemoRequest) {
       setTimeout(() => runSeededVehicleDemo(vehicleDemoRequest.seed, {
         fromUrl: true,
@@ -36579,6 +36840,12 @@
         size: vehicleDemoRequest.size,
         carCount: vehicleDemoRequest.carCount,
       }), 0);
+    }
+    if (islandStressRequest) {
+      setTimeout(() => runIslandStressDemo(islandStressRequest.count, {
+        fromUrl: true,
+        stats: true,
+      }), vehicleDemoRequest ? 150 : 0);
     }
   }
 
@@ -37937,6 +38204,9 @@
           size: VEHICLE_DEMO_LARGE_SIZE_DEFAULT,
           carCount: VEHICLE_DEMO_LARGE_CARS_DEFAULT,
         });
+      } });
+      items.push({ group: 'World', label: 'Run 50 island stress demo', hint: 'duplicate sky-island LOD + stats overlay', run: () => {
+        runIslandStressDemo(ISLAND_STRESS_DEFAULT_COUNT, { stats: true });
       } });
       items.push({ group: 'World', label: 'Copy vehicle seed demo URL', hint: 'shareable cars-on-roads seed', run: async () => {
         const variant = activeVehicleDemoVariant === 'large' ? 'large' : 'standard';

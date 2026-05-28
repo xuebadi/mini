@@ -85,9 +85,10 @@ travelling along the X axis). Banner messages come from `BANNER_MESSAGES`.
   cell object. It keeps its own logical board coordinates so normal tools keep
   using `setCell()`, while the island group handles X/Y/Z positioning and Y
   rotation through the gizmo. Do not expose scale for island-board transforms.
-- New editable islands must seed their logical board with grass cells through
-  `setCell()` so the starting surface is visible and immediately replaceable
-  by normal terrain/object tools.
+- New editable islands should not seed every default grass cell through
+  `setCell()`. Keep default grass virtual, add one pickable default-surface
+  mesh for the board, and materialize sparse per-cell meshes only after the
+  user edits a cell.
 - Duplicate island undersides use static voxel lift engines ported from
   `voxel_lift_engine.html`: propellers face downward and the thrust/plume/glow
   system remains off. Do not register these with `islandRocketFlames` or
@@ -108,6 +109,10 @@ travelling along the X axis). Banner messages come from `BANNER_MESSAGES`.
 - Anything anchored to the island that animates must be ticked from the
   central animation loop (call sites near `updateCropDuster(dt)` in
   `renderer.setAnimationLoop(animate)`).
+- Duplicate islands use LOD: selected/near islands show full base/content,
+  mid/far islands show cheap proxy slabs, and hidden islands skip content,
+  underside detail, and engine propeller ticks. Preserve this before adding
+  new per-island animation or decoration.
 
 ## Validation
 

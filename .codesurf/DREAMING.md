@@ -1,12 +1,12 @@
 # CodeSurf Workspace Memory — tinyworld
 
-_Generated: 2026-05-27 (fifteenth pass)_
+_Generated: 2026-05-28 (sixteenth pass)_
 
 ---
 
 ## Overview
 
-Tiny World Builder is a single-file, no-bundler 3-D isometric world editor built on Three.js r128. The runtime is `tiny-world-builder.html` (inline CSS + JS; ~36,869 lines after latest commit). `LandscapeEngine.js` handles procedural continuous terrain; internals in `engine/landscape/` mixin modules (chunks.js, geometries.js, noise.js, shaders.js, water.js). Deployment is static: `publish.sh` → `dist/`. `npm test` runs ESLint + HTMLHint; all pass.
+Tiny World Builder is a single-file, no-bundler 3-D isometric world editor built on Three.js r128. The runtime is `tiny-world-builder.html` (inline CSS + JS; **38,410 lines** as of HEAD `dddcddb`). `LandscapeEngine.js` handles procedural continuous terrain; internals in `engine/landscape/` mixin modules (chunks.js, geometries.js, noise.js, shaders.js, water.js). Deployment is static: `publish.sh` → `dist/`. `npm test` runs ESLint + HTMLHint; all pass.
 
 ---
 
@@ -17,85 +17,54 @@ Tiny World Builder is a single-file, no-bundler 3-D isometric world editor built
 - All mutations via `setCell(x, z, opts)`; sparse-safe reads via `getWorldCell()` / `ensureWorldCell()`
 - Never write to `world[x][z]` directly outside init
 
-**Committed, stable on main (HEAD `ed08603`):**
-- Planet underlay
-- Water flow system
-- Ghost world generation
+**World format**
+- `world.schema.json` added — formal JSON Schema v4 for the world save format
+- Cells may be compact tuple arrays or object form; schema version must be `4`
+- Terrain enum: `grass`, `path`, `dirt`, `water`, `stone`, `lava`, `sand`, `snow`
+- Kind enum includes `voxel-build` and `model-stamp`; `appearance.modelStampId` links to stamp registry
+- Island boards supported: `islands[]` with per-island engine slots (lift/turbo/heavy, levels 1–3)
+
+**Stable on main (HEAD `dddcddb`):**
+- Planet underlay, water flow system, ghost world generation
 - Audio UI and defaults bootstrap
-- Updated editing controls (latest commit — includes `.codex/config.toml`, skill update, and 539-line HTML diff)
+- Updated editing controls (asset clipboard, stamp nav, freehand strokes)
+- Under-island visual effects: debris bursts, rocket smoke, waterfall tweaks, cylinder geometry cache
+- 3-D crowd character replacement path — animated GLTF clips cached; crowd sprites replaced by cloned 3-D actors when animated character stamp present; `vendor/tiny-crowd-layer.js` updated
+- New models: `Heisenberg.obj`, `Hitman_T_Pose.obj/.mtl/.png`, `Trap 1 Obj.obj/.mtl/.png`; `voxelboats.fbx` removed
+- `tools/model-stamps.js` updated with character-detection heuristic
+- `world.schema.json` — new formal world save format schema
+- `voxel_lift_engine.html` — new 200-line standalone Three.js 0.160 voxel lift demo
 
-**Properties Panel** — Preview/Properties tab split in place. "Details" tab renamed to "Properties". Panel stays visible without AI features. Row UI is chip-list based; controls not yet iconified or undo-aware.
-
-**Three.js r128 pinned.** No bundler, no npm runtime deps. Materials in `M.*` are shared; clone before mutating color. Do not bump Three.js version — shadows and material color spaces differ in newer releases.
+**Three.js r128 pinned.** No bundler, no npm runtime deps. Materials in `M.*` are shared; clone before mutating color.
 
 ---
 
 ## Branch State
 
-**main** — HEAD `ed08603` (working tree clean as of this pass):
-- `ed08603` Updated editing controls ← **NEW** (committed `.codex/config.toml`, `.codex/skills/tinyworld-asset-editing/SKILL.md`, `tiny-world-builder.html`)
-- `2e20a38` Add audio UI, defaults bootstrap, and assets
-- `78a019f` Merge asset system improvements
-- `c30bb6e` Finish asset move and stamp inventory
-- `48bfd87` Batch stamp card thumbnails
-- `7cfa92c` Improve stamp search keyboard flow
-- `f40143b` Select drawn placement strokes
-- `c394352` Clarify settings navigation
+**main** — HEAD `dddcddb` (ahead 1 of remote, not yet pushed)
 
-**Resolved since last pass:**
-- Previously uncommitted `tiny-world-builder.html`, `.codex/skills/tinyworld-asset-editing/SKILL.md`, and `.codex/config.toml` are now committed in `ed08603`.
+**Working tree has uncommitted changes:**
+- `.codex/skills/tinyworld-island-and-planes/SKILL.md`
+- `.codex/skills/tinyworld-render-performance/SKILL.md`
+- `tiny-world-builder.html`
 
-**Stale branches/worktrees to prune (still open):**
-- `asset-system-slice` — behind main after merge; `/private/tmp/tinyworld-asset-system` worktree stale
-- `worktree-agent-a17895f4`, `worktree-agent-a35bb1ef`, `worktree-agent-a6b44378` — local worktrees under `.claude/worktrees/`; all at `acfb18b`; safe to delete if no work in flight
+**Stale branches (safe to prune):** `asset-system-slice`, `worktree-agent-a17895f4`, `worktree-agent-a35bb1ef`, `worktree-agent-a6b44378` (all behind 131+)
 
 ---
 
 ## Skills Inventory
 
-All 17 local skills confirmed present in `.codex/skills/`:
-- `tinyworld-single-file`, `tinyworld-auto-batching`, `tinyworld-opacity-torch`, `tinyworld-tile-variation`, `tinyworld-asset-editing`, `tinyworld-visual-qa`, `tinyworld-render-performance`, `tinyworld-settings`, `tinyworld-webxr`, `tinyworld-crowd-layer`, `tinyworld-lowpoly-world-prompt`, `tinyworld-lowpoly-stylized-3d`, `tinyworld-integrations`, `tinyworld-runtime-state`, `tinyworld-island-and-planes`, `tinyworld-ghost-world-gen`, `threejs-primitive-reconstructor`
-
-**AGENTS.md routing table gap:** `tinyworld-ghost-world-gen` and `threejs-primitive-reconstructor` exist in `.codex/skills/` but are not listed in the AGENTS.md skill routing section — still unresolved.
-
----
-
-## Active In-Progress Work
-
-### Properties Panel Overhaul (design decided, nothing committed)
-
-Approach (Codex session, 2026-05-27):
-- Keep existing single-file structure; durable property row keys unchanged
-- Refactor UI to category tabs + compact icon-button rows (round +/- for scalars, icon buttons for rotate/position transforms)
-- Add history stack capturing state before each `setCell` mutation; expose undo/redo
-- Implement constrained in-scene transform gizmo — custom implementation, not TransformControls (r128 pinned, no bundler)
-- Skills to consult: `tinyworld-single-file`, `tinyworld-asset-editing`, `tinyworld-visual-qa`
-
----
-
-## Inspected Gaps (no patch committed)
-
-- **`makeModelStamp()` ignores `opts.appearance`** — `makeVoxelRenderForCell()` passes it at ~line 13391; `makeModelStamp()` doesn't consume it at ~line 12272. Low-risk patch candidate.
-- **Freehand fence extras** — may be subsumed by committed "avoid stacking drawn fence extras"; needs confirmation.
-- **Settings modal regrouping** — `#render-modal` at ~line 4713; tab/panel switching via `active` class on `data-settings-tab`/`data-settings-panel`; safe regrouping plan exists, not implemented.
-
----
-
-## OpenClaw / Cron Health (cross-workspace)
-
-- **MC Gateway** (`894a3d5b-7faa-4c0a-a40f-69fbdee7b78d`) — repeated `[assistant turn failed before producing content]`; unresolved
-- **VibeClaw Skills Scout**, **Article Generator**, **Wallpaper Generator** crons — all failing same way
-- **Tom Doerr Tweet Tracker** cron — running, no failures
-- **Lead heartbeats** (board `c3f78d0c-abf3-45d5-898e-27cd1d95c0d1`, agent Ava) — healthy, HEARTBEAT_OK
+17 local skills confirmed. **AGENTS.md routing gap (persistent):** `tinyworld-ghost-world-gen` and `threejs-primitive-reconstructor` not listed in AGENTS.md routing table.
 
 ---
 
 ## Open Threads
 
+- Push `main` to remote (1 commit ahead)
+- Commit uncommitted skill + HTML changes
 - Implement and commit Properties Panel overhaul (category tabs, icon buttons, undo/redo, custom constrained gizmo)
-- Confirm freehand fence extras gap is closed by existing commit
-- Patch `makeModelStamp()` to consume `opts.appearance` (~line 12272)
-- Add `tinyworld-ghost-world-gen` and `threejs-primitive-reconstructor` to AGENTS.md routing table
-- Diagnose and fix OpenClaw MC Gateway / VibeClaw cron repeated assistant-turn failures
-- Prune stale worktree branches (`worktree-agent-a17895f4`, `worktree-agent-a35bb1ef`, `worktree-agent-a6b44378`) and delete `/private/tmp/tinyworld-asset-system`
-- LandscapeEngine visual QA; Stamp panel undo + rotation/flip; NPC memorySummary cap; Seasons `M.*` audit; `plugins/`/`tools/` skill docs
+- Patch `makeModelStamp()` to consume `opts.appearance`
+- Add two missing skills to AGENTS.md routing table
+- Diagnose OpenClaw MC Gateway / VibeClaw cron assistant-turn failures
+- Authenticate X.com Chrome profile and `wacli` for Tom Doerr tracker + WhatsApp
+- Prune stale worktrees and branches
