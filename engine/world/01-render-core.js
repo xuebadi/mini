@@ -161,6 +161,7 @@
     planesEnabled: 'tinyworld:render:planesEnabled',
     distantWorlds: 'tinyworld:render:distantWorlds',
     cloudSea: 'tinyworld:render:cloudSea',
+    cloudStyle: 'tinyworld:render:cloudStyle',
     underCloudSpread: 'tinyworld:render:underCloudSpread',
     skyBlueDepth: 'tinyworld:render:skyBlueDepth',
     skyBlueSaturation: 'tinyworld:render:skyBlueSaturation',
@@ -238,6 +239,7 @@
     planesEnabled: '0',
     distantWorlds: '1',
     cloudSea: '0',
+    cloudStyle: 'voxel',
     underCloudSpread: '1.35',
     skyBlueDepth: '0.58',
     skyBlueSaturation: '1',
@@ -428,6 +430,8 @@
   let renderDistantWorlds = localStorage.getItem(RENDER_LS.distantWorlds) !== '0';
   // Soft sprite "cloud sea" below the islands; off by default (opt-in).
   let renderCloudSea = localStorage.getItem(RENDER_LS.cloudSea) === '1';
+  // Cloud style for the clouds around/above the islands: 'voxel' or 'soft'.
+  let renderCloudStyle = localStorage.getItem(RENDER_LS.cloudStyle) === 'soft' ? 'soft' : 'voxel';
   let renderUnderCloudSpread = storedNumber(RENDER_LS.underCloudSpread, 1.35, 0.7, 2.2);
   let renderSkyBlueDepth = storedNumber(RENDER_LS.skyBlueDepth, 0.58, 0, 1);
   let renderSkyBlueSaturation = storedNumber(RENDER_LS.skyBlueSaturation, 1, 0.25, 2.2);

@@ -31,6 +31,7 @@
     const planesEnabledEl = document.getElementById('render-planes-enabled');
     const distantWorldsEl = document.getElementById('render-distant-worlds');
     const cloudSeaEl = document.getElementById('render-cloud-sea');
+    const cloudSoftEl = document.getElementById('render-cloud-soft');
     const underCloudSpreadEl = document.getElementById('render-undercloud-spread');
     const skyBlueDepthEl = document.getElementById('render-sky-blue-depth');
     const skyBlueSaturationEl = document.getElementById('render-sky-blue-saturation');
@@ -347,6 +348,7 @@
       if (planesEnabledEl) planesEnabledEl.checked = !!renderPlanesEnabled;
       if (distantWorldsEl) distantWorldsEl.checked = !!renderDistantWorlds;
       if (cloudSeaEl) cloudSeaEl.checked = !!renderCloudSea;
+      if (cloudSoftEl) cloudSoftEl.checked = (renderCloudStyle === 'soft');
       if (underCloudSpreadEl) underCloudSpreadEl.value = String(Math.round(renderUnderCloudSpread * 100));
       if (skyBlueDepthEl) skyBlueDepthEl.value = String(Math.round(renderSkyBlueDepth * 100));
       if (skyBlueSaturationEl) skyBlueSaturationEl.value = String(Math.round(renderSkyBlueSaturation * 100));
@@ -486,6 +488,7 @@
       localStorage.setItem(RENDER_LS.planesEnabled, renderPlanesEnabled ? '1' : '0');
       localStorage.setItem(RENDER_LS.distantWorlds, renderDistantWorlds ? '1' : '0');
       localStorage.setItem(RENDER_LS.cloudSea, renderCloudSea ? '1' : '0');
+      localStorage.setItem(RENDER_LS.cloudStyle, renderCloudStyle);
       localStorage.setItem(RENDER_LS.underCloudSpread, renderUnderCloudSpread.toFixed(2));
       localStorage.setItem(RENDER_LS.skyBlueDepth, renderSkyBlueDepth.toFixed(2));
       localStorage.setItem(RENDER_LS.skyBlueSaturation, renderSkyBlueSaturation.toFixed(2));
@@ -536,6 +539,8 @@
       const oldPlanesEnabled = renderPlanesEnabled;
       const oldDistantWorlds = renderDistantWorlds;
       const oldCloudSea = renderCloudSea;
+      const oldCloudStyle = renderCloudStyle;
+      const oldCloudAmount = renderCloudAmount;
       setShadowQuality(shadowEl.value);
       setRenderResolutionScale(parseInt(resolutionEl.value, 10) / 100);
       setRenderVisibleDistance(0);
@@ -556,6 +561,7 @@
       renderPlanesEnabled = planesEnabledEl ? !!planesEnabledEl.checked : renderPlanesEnabled;
       renderDistantWorlds = distantWorldsEl ? !!distantWorldsEl.checked : renderDistantWorlds;
       renderCloudSea = cloudSeaEl ? !!cloudSeaEl.checked : renderCloudSea;
+      renderCloudStyle = cloudSoftEl && cloudSoftEl.checked ? 'soft' : 'voxel';
       renderUnderCloudSpread = underCloudSpreadEl ? parseInt(underCloudSpreadEl.value, 10) / 100 : renderUnderCloudSpread;
       renderSkyBlueDepth = skyBlueDepthEl ? parseInt(skyBlueDepthEl.value, 10) / 100 : renderSkyBlueDepth;
       renderSkyBlueSaturation = skyBlueSaturationEl ? parseInt(skyBlueSaturationEl.value, 10) / 100 : renderSkyBlueSaturation;
@@ -683,6 +689,14 @@
       if (oldCloudSea !== renderCloudSea && typeof setCloudSeaEnabled === 'function') {
         setCloudSeaEnabled(renderCloudSea);
       }
+      if (oldCloudStyle !== renderCloudStyle && typeof setCloudStyle === 'function') {
+        setCloudStyle(renderCloudStyle);
+      } else if (renderCloudStyle === 'soft'
+                 && (oldCloudHeight !== renderCloudHeight || oldCloudAmount !== renderCloudAmount)
+                 && typeof refreshSoftCloudsIfActive === 'function') {
+        // amount/height drive the soft-cloud layout — rebuild when they move
+        refreshSoftCloudsIfActive();
+      }
       if (oldSurfaceLinkedMaterials !== renderSurfaceLinkedMaterials) {
         commitPartMaterialAdjustments();
         rebuildTerrainRender();
@@ -739,7 +753,7 @@
     });
     closeBtn.addEventListener('click', () => { closeTinyModal(modal); });
     modal.addEventListener('click', e => { if (e.target === modal) closeTinyModal(modal); });
-    for (const el of [shadowEl, resolutionEl, distanceEl, visibleSizeEl, brightnessEl, lightingEl, ambientFillEl, frontFillEl, sideFillEl, backFillEl, saturationEl, contrastEl, cloudsEl, cloudSpeedEl, cloudHeightEl, cloudShadowEl, planesEnabledEl, distantWorldsEl, cloudSeaEl, underCloudSpreadEl, skyBlueDepthEl, skyBlueSaturationEl, distanceMistEl, backdropEl, backdropVignetteEl, pixelSizeEl, pixelDepthEdgeEl, pixelNormalEdgeEl, shaderAntialiasEl, tiltBlurEl, tiltFocusEl, ghostOpacityEl, floorOpacityEl, objectOpacityEl, voxelGapEl, voxelBevelEl, voxelTerrainEl, surfaceLinkedMaterialsEl, showCrownsEl, terrainVoxelResolutionEl, terrainTintEl, terrainTextureEl, terrainTextureScaleEl, terrainToneEl, materialTintEl, materialTextureEl, materialTextureScaleEl, materialToneEl, materialWearEl, crowdCountEl, crowdScaleEl, crowdSpeedEl, crowdBobEl, crowdSwayEl, crowdLeanEl, crowdZoneRadiusEl, crowdShowZonesEl, crowdPausedEl, crowdEnabledEl, crowdDebugEl, crowdModeEl, crowdCountLiveEl, crowdScaleLiveEl, crowdSpeedLiveEl, crowdZoneRadiusLiveEl, crowdShowZonesLiveEl, crowdShowArrowsLiveEl, crowdPausedLiveEl, crowdEnabledLiveEl]) {
+    for (const el of [shadowEl, resolutionEl, distanceEl, visibleSizeEl, brightnessEl, lightingEl, ambientFillEl, frontFillEl, sideFillEl, backFillEl, saturationEl, contrastEl, cloudsEl, cloudSpeedEl, cloudHeightEl, cloudShadowEl, planesEnabledEl, distantWorldsEl, cloudSeaEl, cloudSoftEl, underCloudSpreadEl, skyBlueDepthEl, skyBlueSaturationEl, distanceMistEl, backdropEl, backdropVignetteEl, pixelSizeEl, pixelDepthEdgeEl, pixelNormalEdgeEl, shaderAntialiasEl, tiltBlurEl, tiltFocusEl, ghostOpacityEl, floorOpacityEl, objectOpacityEl, voxelGapEl, voxelBevelEl, voxelTerrainEl, surfaceLinkedMaterialsEl, showCrownsEl, terrainVoxelResolutionEl, terrainTintEl, terrainTextureEl, terrainTextureScaleEl, terrainToneEl, materialTintEl, materialTextureEl, materialTextureScaleEl, materialToneEl, materialWearEl, crowdCountEl, crowdScaleEl, crowdSpeedEl, crowdBobEl, crowdSwayEl, crowdLeanEl, crowdZoneRadiusEl, crowdShowZonesEl, crowdPausedEl, crowdEnabledEl, crowdDebugEl, crowdModeEl, crowdCountLiveEl, crowdScaleLiveEl, crowdSpeedLiveEl, crowdZoneRadiusLiveEl, crowdShowZonesLiveEl, crowdShowArrowsLiveEl, crowdPausedLiveEl, crowdEnabledLiveEl]) {
       if (!el) continue;
       el.addEventListener('input', applyFromControls);
       el.addEventListener('change', applyFromControls);

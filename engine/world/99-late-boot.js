@@ -19,3 +19,9 @@
   if (typeof setCloudSeaEnabled === 'function' && typeof renderCloudSea !== 'undefined') {
     setCloudSeaEnabled(renderCloudSea);
   }
+
+  // Apply persisted cloud style (voxel vs soft sprite clouds). Default 'voxel'
+  // is a no-op; 'soft' hides the voxel clouds and builds the sprite clumps.
+  if (typeof setCloudStyle === 'function' && typeof renderCloudStyle !== 'undefined') {
+    setCloudStyle(renderCloudStyle);
+  }
