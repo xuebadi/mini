@@ -421,7 +421,7 @@
   }
   let renderCloudAmount = storedNumber(RENDER_LS.clouds, 0.61, 0, 1);
   let renderCloudSpeed = storedNumber(RENDER_LS.cloudSpeed, 0.35, 0, 1);
-  let renderCloudHeight = storedNumber(RENDER_LS.cloudHeight, 6, 2, 14);
+  let renderCloudHeight = storedNumber(RENDER_LS.cloudHeight, 9.5, 9, 16);
   // Cloud shadow strength — controls per-puff alphaTest so only the
   // denser parts of each cloud cast on the world below.
   let renderCloudShadow = storedNumber(RENDER_LS.cloudShadow, 0, 0, 1);

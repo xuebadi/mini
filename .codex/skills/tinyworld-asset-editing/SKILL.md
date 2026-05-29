@@ -66,6 +66,10 @@ Selection properties:
   axes. When an island is rotated, transform both selected tile centers and
   edge-strip offsets through the island group instead of offsetting borders in
   world X/Z.
+- The Layers panel is a read-only world hierarchy surface. It should select
+  cells through `window.__tinyworldSelection.replaceWorldCoords()`, not by
+  mutating selection internals, and should refresh from `tinyworld:selection-changed`,
+  `tinyworld:world-changed`, and `tinyworld:grid-changed` events.
 - Model stamps should expose All material / All mat scale controls, but Body/Top material controls should be limited to selected asset kinds with known Tiny World material buckets; mixed selections must not write part-material fields onto model stamps.
 
 Stamps panel:

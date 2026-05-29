@@ -1774,13 +1774,17 @@
     homeRenderQueueCursor = 0;
     homeRenderQueued.clear();
 
-    if (skipRebuild) return;
+    if (skipRebuild) {
+      window.dispatchEvent(new CustomEvent('tinyworld:grid-changed', { detail: { grid: GRID } }));
+      return;
+    }
 
     if (useWindowedHomeRendering()) {
       resetCameraDefaults();
       requestHomeRenderWindowSync({ force: true });
       if (typeof ensureGhostBoardsAroundTarget === 'function') ensureGhostBoardsAroundTarget();
       saveState();
+      window.dispatchEvent(new CustomEvent('tinyworld:grid-changed', { detail: { grid: GRID } }));
       return;
     }
 
@@ -1853,6 +1857,7 @@
     // Re-frame the camera so the new board centres correctly.
     resetCameraDefaults();
     saveState();
+    window.dispatchEvent(new CustomEvent('tinyworld:grid-changed', { detail: { grid: GRID } }));
   }
 
   // Keep the unsaved-areas banner + reset confirm copy in sync with
@@ -1979,6 +1984,7 @@
     }
     if (typeof playSfx === 'function') playSfx('whoosh');
     if (typeof fireWebhook === 'function') fireWebhook('world.reset', {});
+    window.dispatchEvent(new CustomEvent('tinyworld:world-changed', { detail: { scope: 'world.reset' } }));
   }
 
   function confirmReset() {
@@ -2028,6 +2034,7 @@
       requestHomeRenderWindowSync({ force: true });
       saveState();
       if (typeof fireWebhook === 'function') fireWebhook('world.clear', {});
+      window.dispatchEvent(new CustomEvent('tinyworld:world-changed', { detail: { scope: 'world.clear' } }));
       return;
     }
     const TILE_STAGGER = 0.022;
@@ -2052,5 +2059,6 @@
           forceTile: true,
         });
     if (typeof fireWebhook === 'function') fireWebhook('world.clear', {});
+    window.dispatchEvent(new CustomEvent('tinyworld:world-changed', { detail: { scope: 'world.clear' } }));
   }
 

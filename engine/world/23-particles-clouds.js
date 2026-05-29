@@ -337,6 +337,33 @@
   var CLOUD_MAX = 14;
   var CLOUD_RANGE_X = 24; // wrap-around x extent (centred on 0)
   var CLOUD_Z_RANGE = 18;
+  var SKY_CLOUD_MIN_HEIGHT = 9.5;
+
+  function skyCloudHeight() {
+    return Math.max(SKY_CLOUD_MIN_HEIGHT, renderCloudHeight || 0);
+  }
+
+  function keepSkyCloudOffBuildPlane(cloud) {
+    if (!cloud) return;
+    // In the editor's overhead/isometric cameras, clouds directly above the
+    // active build area read like white textures mapped onto roofs. Keep sky
+    // clouds in a soft perimeter around the camera target; under-island clouds
+    // still provide the low mist layer below the board.
+    const noFlyX = Math.min(CLOUD_RANGE_X * 0.62, Math.max(5.8, Math.min(GRID * 0.5 + 2.2, viewSize * 0.82)));
+    const noFlyZ = Math.min(CLOUD_Z_RANGE * 0.62, Math.max(4.8, Math.min(GRID * 0.5 + 2.0, viewSize * 0.82)));
+    const dx = cloud.position.x - target.x;
+    const dz = cloud.position.z - target.z;
+    if (Math.abs(dx) >= noFlyX || Math.abs(dz) >= noFlyZ) return;
+    const pushX = noFlyX - Math.abs(dx);
+    const pushZ = noFlyZ - Math.abs(dz);
+    if (pushX < pushZ) {
+      const sign = dx < 0 ? -1 : 1;
+      cloud.position.x = target.x + sign * (noFlyX + Math.random() * 2.5);
+    } else {
+      const sign = dz < 0 ? -1 : 1;
+      cloud.position.z = target.z + sign * (noFlyZ + Math.random() * 2.0);
+    }
+  }
 
   // Build a per-puff cloned material so each piece of the cloud can sit
   // at its own opacity — gives the cloud a wispy, uneven feel instead of
@@ -502,9 +529,10 @@
     c.position.set(
       cx + (initial ? (Math.random() - 0.5) * CLOUD_RANGE_X * 2
                     : -CLOUD_RANGE_X - Math.random() * 4),
-      renderCloudHeight + (Math.random() - 0.5) * CLOUD_Y_JITTER,
+      skyCloudHeight() + (Math.random() - 0.5) * CLOUD_Y_JITTER,
       cz + (Math.random() - 0.5) * CLOUD_Z_RANGE
     );
+    keepSkyCloudOffBuildPlane(c);
     c.userData.driftSpeed = 0.35 + Math.random() * 0.45; // base m/s, then multiplied by renderCloudSpeed
     c.userData.yOffset = (Math.random() - 0.5) * CLOUD_Y_JITTER;
     cloudGroup.add(c);
@@ -516,7 +544,7 @@
     if (!clouds) return;
     for (const c of clouds) {
       const off = c.userData.yOffset || 0;
-      c.position.y = renderCloudHeight + off;
+      c.position.y = skyCloudHeight() + off;
     }
   }
 
@@ -1056,7 +1084,8 @@
         c.position.x = cx - CLOUD_RANGE_X - Math.random() * 2;
         c.position.z = cz + (Math.random() - 0.5) * CLOUD_Z_RANGE;
         c.userData.yOffset = (Math.random() - 0.5) * CLOUD_Y_JITTER;
-        c.position.y = renderCloudHeight + c.userData.yOffset;
+        c.position.y = skyCloudHeight() + c.userData.yOffset;
+        keepSkyCloudOffBuildPlane(c);
         continue;
       }
       // The user panned far enough that this cloud is now outside the
@@ -1066,8 +1095,9 @@
         c.position.x = cx + (Math.random() - 0.5) * CLOUD_RANGE_X * 2;
         c.position.z = cz + (Math.random() - 0.5) * CLOUD_Z_RANGE;
         c.userData.yOffset = (Math.random() - 0.5) * CLOUD_Y_JITTER;
-        c.position.y = renderCloudHeight + c.userData.yOffset;
+        c.position.y = skyCloudHeight() + c.userData.yOffset;
       }
+      keepSkyCloudOffBuildPlane(c);
     }
   }
 

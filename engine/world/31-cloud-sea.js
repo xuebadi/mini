@@ -171,14 +171,19 @@
     const rand = _puffRand('sky-clouds');
     const amount = Math.max(0, Math.min(1, (typeof renderCloudAmount === 'number') ? renderCloudAmount : 0.6));
     const clusters = Math.round(amount * 14) + 2;
-    const spread = GRID * TILE * 1.6;        // how far clouds wander from centre
-    const baseY = (typeof renderCloudHeight === 'number') ? renderCloudHeight : 6;
+    // Soft clouds are large view-facing transparent sprites. If they sit over
+    // the editable board they appear pasted onto roofs/walls, because they are
+    // genuinely in front of those pixels from an overhead camera. Keep them in
+    // a perimeter ring instead of the build plane.
+    const spread = Math.max(GRID * TILE * 2.8, 22);
+    const noFlyRadius = Math.max(GRID * TILE * 0.9 + 6.5, 12);
+    const baseY = Math.max(9.5, (typeof renderCloudHeight === 'number') ? renderCloudHeight : 9.5);
     const placements = [];
     for (let cl = 0; cl < clusters; cl++) {
       const ca = rand() * Math.PI * 2;
-      const cr = spread * (0.25 + 0.75 * rand());
+      const cr = noFlyRadius + (spread - noFlyRadius) * Math.sqrt(rand());
       const cx = Math.cos(ca) * cr, cz = Math.sin(ca) * cr;
-      const cy = baseY + (rand() - 0.5) * 2.4;
+      const cy = baseY + (rand() - 0.5) * 2.0;
       const puffs = 6 + Math.floor(rand() * 9);
       for (let p = 0; p < puffs; p++) {
         // Clumps are wider than tall, so they read as cloud, not a ball.

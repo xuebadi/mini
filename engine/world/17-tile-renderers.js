@@ -458,6 +458,12 @@
 
   const CROP_KINDS = new Set(['crop', 'corn', 'wheat', 'pumpkin', 'carrot', 'sunflower']);
 
+  function notifyWorldChanged(x, z) {
+    window.dispatchEvent(new CustomEvent('tinyworld:world-changed', {
+      detail: { x, z, cell: world[x] && world[x][z] ? world[x][z] : null }
+    }));
+  }
+
   function setCell(x, z, opts) {
     const profileStart = repaintProfileBegin();
     try {
@@ -588,6 +594,7 @@
         saveState();
         repaintProfileEnd('state.save', saveStart);
         emitCellWebhook();
+        notifyWorldChanged(x, z);
       }
       return;
     }
@@ -686,6 +693,7 @@
     saveState();
     repaintProfileEnd('state.save', saveStart);
     emitCellWebhook();
+    notifyWorldChanged(x, z);
   }
 
   // Cinderella rule: only ONE pumpkin tile across the home grid is the

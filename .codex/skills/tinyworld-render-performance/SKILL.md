@@ -150,6 +150,11 @@ GPU caches (introduced for low-end GPU + visible-distance scaling):
 - Building windows can switch to `M.windowLit` at dusk/night via per-window deterministic seeds. Keep this set-based (`buildingWindowObjects`) and update on time-of-day changes, not by scanning every cell each frame.
 - Ghost boards should participate in the shadow pass — same sun, same shadows everywhere. If Preview/ghost shadows disappear, first check that `prepareFadeable` has not forced ghost meshes to `castShadow = false`, and that any merged/batched ghost terrain explicitly preserves `receiveShadow`/`castShadow` after replacing source meshes. The factory-level `castReceive` / `groundReceiveOnly` choices should apply uniformly unless there is a deliberate, visible-quality-approved LOD exception.
 - Voxel cloud visual opacity is independent from Cloud shadow. Do not drive visible cloud materials with `alphaTest`; cloud shadow breakup belongs on each puff's `customDepthMaterial` so lowering the shadow slider never hides the clouds themselves.
+- Sky clouds should stay above and around the active build plane, not directly
+  over rooftops/buildings in overhead editor views. Keep the high visual minimum
+  and no-fly/perimeter exclusion in `23-particles-clouds.js` and
+  `31-cloud-sea.js` aligned with the Cloud height settings/defaults so clouds
+  do not read as textures mapped onto buildings.
 - When Cloud shadow is 0, cloud puffs should set `castShadow = false` so they leave the shadow-map pass entirely. Alpha-testing every cloud out in the depth material still costs draw calls.
 - Cloud shadow defaults to 0. Visible clouds may remain, but they must not enter
   the shadow pass unless the user explicitly raises Cloud shadow.

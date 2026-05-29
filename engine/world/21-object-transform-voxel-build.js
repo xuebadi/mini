@@ -819,7 +819,7 @@
       renderContrast = 1;
       renderCloudAmount = 0.61;
       renderCloudSpeed = 0.35;
-      renderCloudHeight = 7;
+      renderCloudHeight = 9.5;
       renderCloudShadow = 0;
       renderPlanesEnabled = false;
       if (typeof setPlanesEnabled === 'function') setPlanesEnabled(false);
