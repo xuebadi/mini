@@ -1732,10 +1732,26 @@
       if (min < 1080) return 'tod-day';                  // 08:00 - 18:00
       return 'tod-dusk';                                 // 18:00 - 21:00
     }
+    function isUiAfterHours(min) {
+      return min >= 1080 || min < 480;
+    }
+    function applyUiThemeMode() {
+      const mode = ['auto', 'light', 'dark'].includes(uiThemeMode) ? uiThemeMode : 'auto';
+      const afterHours = isUiAfterHours(currentTodMinutes);
+      // Light mode intentionally still darkens after hours: white/grey chrome
+      // disappears against bright night clouds and star maps.
+      const dark = mode === 'dark' || afterHours;
+      document.body.dataset.uiThemeMode = mode;
+      document.body.classList.toggle('ui-theme-dark', dark);
+      document.body.classList.toggle('ui-theme-light', !dark);
+      document.body.classList.toggle('ui-theme-after-hours', afterHours);
+    }
+    window.__applyUiThemeMode = applyUiThemeMode;
     function applyTod(min) {
       currentTodMinutes = min;
       document.body.classList.remove('tod-dawn','tod-day','tod-dusk','tod-night');
       document.body.classList.add(todClassFromMinutes(min));
+      applyUiThemeMode();
       applyLights();
       if (typeof updateAllBuildingWindowLights === 'function') updateAllBuildingWindowLights();
       if (typeof requestMinimapRepaint === 'function') requestMinimapRepaint();
@@ -1865,16 +1881,26 @@
       const tod = todProfile(todMinutes);
       const wx  = weatherProfile(weather);
       const seasonGround = seasonHemiGround(season);
+      const nightFill = (todMinutes >= 1260 || todMinutes < 360)
+        ? 1
+        : (todMinutes >= 1080 && todMinutes < 1260)
+          ? (todMinutes - 1080) / 180
+          : (todMinutes >= 360 && todMinutes < 480)
+            ? 1 - (todMinutes - 360) / 120
+            : 0;
       try {
-        sun.intensity = Math.max(0, lightBase.sunI * (tod.sunI / 1.35) * wx.mul);
-        const sc = wx.tint != null ? lerpColor(tod.sunC, wx.tint, 0.35) : tod.sunC;
+        sun.intensity = Math.max(0, lightBase.sunI * (tod.sunI / 1.35) * wx.mul * (1 - nightFill * 0.44));
+        const moonCloud = lerpColor(tod.sunC, 0x9fb4e5, nightFill * 0.42);
+        const sc = wx.tint != null ? lerpColor(moonCloud, wx.tint, 0.35) : moonCloud;
         sun.color.setHex(sc);
-        hemi.intensity = Math.max(0, lightBase.hemiI * (tod.hemiI / 0.90) * wx.hemiMul);
+        const hemiBase = Math.max(0, lightBase.hemiI * (tod.hemiI / 0.90) * wx.hemiMul);
+        const hemiFloor = nightFill * (0.14 + renderAmbientFill * 0.18) * wx.hemiMul;
+        hemi.intensity = Math.max(hemiBase, hemiFloor);
         if (hemi.intensity > 0.75) hemi.intensity = 0.75;
-        hemi.color.setHex(tod.hemiSky);
-        hemi.groundColor.setHex(lerpColor(tod.hemiGround, seasonGround, 0.45));
-        const ambBoost = (tod.sunI < 0.5) ? 1.6 : 1.0;
-        ambient.intensity = Math.max(0, lightBase.ambI * ambBoost);
+        hemi.color.setHex(lerpColor(tod.hemiSky, 0xb7c8ff, nightFill * 0.30));
+        hemi.groundColor.setHex(lerpColor(lerpColor(tod.hemiGround, seasonGround, 0.45), 0x3f4250, nightFill * 0.36));
+        const ambBoost = (tod.sunI < 0.5) ? 1.35 : 1.0;
+        ambient.intensity = Math.max(lightBase.ambI * ambBoost, nightFill * (0.075 + renderAmbientFill * 0.065));
         // 3D scene background — drives the colour visible past the world
         // edge.  This is what makes 'night' actually look dark instead of
         // just the canvas darkening behind a static cream backdrop.
@@ -1915,6 +1941,15 @@
     applyTod(todMinutes);
     applySeason(season);
     applyWeather(weather);
+    const uiThemeSelect = document.getElementById('ui-theme-mode');
+    if (uiThemeSelect) {
+      uiThemeSelect.value = ['auto', 'light', 'dark'].includes(uiThemeMode) ? uiThemeMode : 'auto';
+      uiThemeSelect.addEventListener('change', () => {
+        uiThemeMode = ['auto', 'light', 'dark'].includes(uiThemeSelect.value) ? uiThemeSelect.value : 'auto';
+        try { localStorage.setItem(RENDER_LS.uiTheme, uiThemeMode); } catch (_) {}
+        applyUiThemeMode();
+      });
+    }
 
     if (timeBtn && timePopup) {
       const range = document.getElementById('time-range');

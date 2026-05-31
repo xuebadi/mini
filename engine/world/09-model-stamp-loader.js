@@ -2727,10 +2727,11 @@
     return g;
   }
 
-  function makeVoxelFence(side = 'n', level = 1, castle = false, roadGate = false, pathOrientation = 'x') {
+  function makeVoxelFence(side = 'n', level = 1, castle = false, roadGate = false, pathOrientation = 'x', style = 'wood') {
     const g = new THREE.Group();
     const lv = Math.max(1, Math.min(MAX_FLOORS, level || 1));
     const normalized = FENCE_SIDES.has(side) ? side : 'n';
+    const fenceStyle = typeof normalizeFenceStyle === 'function' ? normalizeFenceStyle(style) : 'wood';
     const alongX = roadGate ? pathOrientation === 'x' : (normalized === 'n' || normalized === 's' || normalized === 'center-x');
     const offsetX = normalized === 'w' ? -0.43 : normalized === 'e' ? 0.43 : 0;
     const offsetZ = normalized === 'n' ? -0.43 : normalized === 's' ? 0.43 : 0;
@@ -2741,7 +2742,28 @@
       g.userData = { kind: 'fence', level: lv, side: normalized };
       return g;
     }
-    if (castle || lv >= 4 || roadGate) {
+    if (fenceStyle === 'garden' && !castle && !roadGate && lv < 4) {
+      const postH = lv === 1 ? 0.42 : (lv === 2 ? 0.50 : 0.56);
+      const postMat = M.fenceGarden || M.fence;
+      const railMat = M.fenceGardenD || M.fence;
+      const vineMat = M.fenceVine || M.cropStem || postMat;
+      const fruitMat = M.fenceFruit || M.pumpkin || railMat;
+      const ends = alongX ? [[-0.50, offsetZ], [0.50, offsetZ]] : [[offsetX, -0.50], [offsetX, 0.50]];
+      ends.forEach(([x, z]) => {
+        vbox(g, 0.11, postH, 0.11, x, postH / 2, z, postMat);
+        vbox(g, 0.14, 0.045, 0.14, x, postH + 0.025, z, railMat);
+      });
+      for (const y of [0.14, 0.31, ...(lv >= 3 ? [0.46] : [])]) {
+        vbox(g, alongX ? 1.08 : 0.052, 0.052, alongX ? 0.052 : 1.08, offsetX, y, offsetZ, railMat);
+      }
+      for (const a of [-0.25, 0, 0.25]) {
+        vbox(g, 0.045, postH * 0.70, 0.045, alongX ? a : offsetX, postH * 0.38, alongX ? offsetZ : a, postMat);
+      }
+      vbox(g, alongX ? 0.82 : 0.038, 0.035, alongX ? 0.038 : 0.82, offsetX, postH * 0.84, offsetZ, vineMat);
+      for (const a of [-0.32, 0.18]) {
+        vbox(g, 0.055, 0.055, 0.055, alongX ? a : offsetX, postH * 0.90, alongX ? offsetZ : a, fruitMat, { noShadow: true });
+      }
+    } else if (castle || lv >= 4 || roadGate) {
       const h = roadGate ? 0.62 + Math.max(0, lv - 3) * 0.05 : (castle ? 0.56 : 0.46);
       if (roadGate) {
         for (const s of [-1, 1]) vbox(g, 0.14, h, 0.14, alongX ? s * 0.42 : 0, h / 2, alongX ? 0 : s * 0.42, mat);
@@ -2761,18 +2783,19 @@
         vbox(g, alongX ? 1.08 : 0.045, 0.055, alongX ? 0.045 : 1.08, offsetX, y, offsetZ, dark);
       }
     }
-    g.userData = { kind: 'fence', level: lv, side: normalized };
+    g.userData = { kind: 'fence', level: lv, side: normalized, fenceStyle };
     castReceive(g);
     optimizeVoxelObjectGroup(g, { reason: 'voxel-fence' });
     return g;
   }
 
-  function makeVoxelFenceSpan(side = 'n', level = 1, length = 1) {
+  function makeVoxelFenceSpan(side = 'n', level = 1, length = 1, style = 'wood') {
     const spanCells = Math.max(1, Math.floor(length || 1));
-    if (spanCells <= 1) return makeVoxelFence(side, level, false, false);
+    if (spanCells <= 1) return makeVoxelFence(side, level, false, false, 'x', style);
     const g = new THREE.Group();
     const lv = Math.max(1, Math.min(MAX_FLOORS, level || 1));
     const normalized = FENCE_SIDES.has(side) ? side : 'n';
+    const fenceStyle = typeof normalizeFenceStyle === 'function' ? normalizeFenceStyle(style) : 'wood';
     const alongX = normalized === 'n' || normalized === 's' || normalized === 'center-x';
     const offsetX = normalized === 'w' ? -0.43 : normalized === 'e' ? 0.43 : 0;
     const offsetZ = normalized === 'n' ? -0.43 : normalized === 's' ? 0.43 : 0;
@@ -2781,7 +2804,31 @@
     const dark = lv >= 4 ? M.castleStoneD : (lv >= 3 ? M.fenceWire : M.fence);
 
     const alongPos = i => -spanLen / 2 + i * TILE;
-    if (lv >= 4) {
+    if (fenceStyle === 'garden' && lv < 4) {
+      const postH = lv === 1 ? 0.42 : (lv === 2 ? 0.50 : 0.56);
+      const postMat = M.fenceGarden || M.fence;
+      const railMat = M.fenceGardenD || M.fence;
+      const vineMat = M.fenceVine || M.cropStem || postMat;
+      const fruitMat = M.fenceFruit || M.pumpkin || railMat;
+      for (let i = 0; i <= spanCells; i++) {
+        const p = alongPos(i);
+        vbox(g, 0.11, postH, 0.11, alongX ? p : offsetX, postH / 2, alongX ? offsetZ : p, postMat);
+        vbox(g, 0.14, 0.045, 0.14, alongX ? p : offsetX, postH + 0.025, alongX ? offsetZ : p, railMat);
+      }
+      for (const y of [0.14, 0.31, ...(lv >= 3 ? [0.46] : [])]) {
+        vbox(g, alongX ? spanLen + 0.08 : 0.052, 0.052, alongX ? 0.052 : spanLen + 0.08, offsetX, y, offsetZ, railMat);
+      }
+      for (let cell = 0; cell < spanCells; cell++) {
+        const base = -spanLen / 2 + cell * TILE + TILE * 0.5;
+        for (const delta of [-0.24, 0.05, 0.30]) {
+          const p = base + delta;
+          vbox(g, 0.045, postH * 0.70, 0.045, alongX ? p : offsetX, postH * 0.38, alongX ? offsetZ : p, postMat);
+        }
+        const fruitP = base + (cell % 2 ? 0.18 : -0.26);
+        vbox(g, 0.055, 0.055, 0.055, alongX ? fruitP : offsetX, postH * 0.90, alongX ? offsetZ : fruitP, fruitMat, { noShadow: true });
+      }
+      vbox(g, alongX ? spanLen - 0.18 : 0.038, 0.035, alongX ? 0.038 : spanLen - 0.18, offsetX, postH * 0.84, offsetZ, vineMat);
+    } else if (lv >= 4) {
       const h = 0.46;
       vbox(g, alongX ? spanLen + 0.08 : 0.18, h, alongX ? 0.18 : spanLen + 0.08, offsetX, h / 2, offsetZ, mat);
       vbox(g, alongX ? spanLen + 0.12 : 0.22, 0.06, alongX ? 0.22 : spanLen + 0.12, offsetX, h + 0.03, offsetZ, dark);
@@ -2799,7 +2846,7 @@
         vbox(g, alongX ? spanLen + 0.08 : 0.045, 0.055, alongX ? 0.045 : spanLen + 0.08, offsetX, y, offsetZ, dark);
       }
     }
-    g.userData = { kind: 'fence', level: lv, side: normalized, batchedSpan: true, spanCells };
+    g.userData = { kind: 'fence', level: lv, side: normalized, fenceStyle, batchedSpan: true, spanCells };
     castReceive(g);
     optimizeVoxelObjectGroup(g, { reason: 'voxel-fence-span' });
     return g;
@@ -2892,6 +2939,97 @@
     return g;
   }
 
+  function makeVoxelLightDecal(width, length, mat, x, y, z, rotationZ = 0) {
+    const mesh = new THREE.Mesh(new THREE.PlaneGeometry(width, length), mat);
+    mesh.rotation.x = -Math.PI / 2;
+    mesh.rotation.z = rotationZ;
+    mesh.position.set(x || 0, y || 0.026, z || 0);
+    mesh.renderOrder = 4;
+    mesh.userData.noShadow = true;
+    mesh.userData.lightVisual = true;
+    return mesh;
+  }
+
+  function makeVoxelLightSource(kind, level = 1) {
+    const g = new THREE.Group();
+    const lv = Math.max(1, Math.min(MAX_FLOORS, level || 1));
+    const isSpot = kind === 'spotlight';
+    g.userData = { kind, level: lv, placeableLightSource: true, noVoxelBatch: true };
+
+    if (isSpot) {
+      vbox(g, 0.46, 0.08, 0.34, 0, 0.04, -0.03, M.lampMetal);
+      vbox(g, 0.34, 0.06, 0.22, 0, 0.10, -0.03, M.lampTrim);
+      vbox(g, 0.10, 0.18, 0.10, -0.12, 0.19, -0.08, M.lampMetal);
+      vbox(g, 0.26, 0.16, 0.22, 0.05, 0.28, 0.07, M.lampMetal, { rx: -0.34 });
+      vbox(g, 0.18, 0.10, 0.08, 0.09, 0.27, 0.20, M.lampGlass, { rx: -0.34, noShadow: true });
+      const cone = new THREE.Mesh(new THREE.ConeGeometry(0.34, 0.92, 14, 1, true), M.lampCone);
+      cone.position.set(0.10, 0.18, 0.58);
+      // ConeGeometry points toward +Y; rotate so the tip sits at the lamp
+      // and the wide haze opens forward/down onto the ground.
+      cone.rotation.x = -Math.PI / 2 + 0.23;
+      cone.userData.noShadow = true;
+      cone.userData.lightVisual = true;
+      g.add(cone);
+      g.add(makeVoxelLightDecal(0.95, 1.65, M.spotPool, 0.08, 0.025, 0.72, 0));
+      const glow = new THREE.Mesh(getDodecahedronGeometry(0.14), M.lampGlow);
+      glow.position.set(0.09, 0.27, 0.20);
+      glow.userData.noShadow = true;
+      glow.userData.lightVisual = true;
+      g.add(glow);
+      const haze = new THREE.Sprite(M.lampHazeSprite);
+      haze.position.set(0.09, 0.30, 0.20);
+      haze.scale.set(0.64, 0.64, 0.64);
+      haze.userData.noShadow = true;
+      haze.userData.lightVisual = true;
+      g.add(haze);
+      const targetObj = new THREE.Object3D();
+      targetObj.position.set(0.08, 0.08, 0.86);
+      g.add(targetObj);
+      const spot = new THREE.SpotLight(0xffbd72, 0, 5.2, Math.PI / 5.4, 0.54, 1.32);
+      spot.position.set(0.09, 0.29, 0.18);
+      spot.target = targetObj;
+      spot.castShadow = false;
+      spot.visible = false;
+      spot.userData.placeableLight = true;
+      spot.userData.baseIntensity = 1.12;
+      g.add(spot);
+    } else {
+      vbox(g, 0.18, 0.08, 0.18, 0, 0.04, 0, M.lampMetal);
+      vcylinder(g, 0.045, 0.66 + lv * 0.025, 0, 0.38 + lv * 0.012, 0, M.lampMetal, 10);
+      vbox(g, 0.22, 0.05, 0.22, 0, 0.73 + lv * 0.025, 0, M.lampTrim);
+      const glass = new THREE.Mesh(getDodecahedronGeometry(0.15), M.lampGlass);
+      glass.position.set(0, 0.84 + lv * 0.025, 0);
+      glass.scale.y = 0.92;
+      glass.userData.noShadow = true;
+      g.add(glass);
+      const cap = new THREE.Mesh(getCylinderGeometry(0.13, 0.055, 10), M.lampMetal);
+      cap.position.set(0, 0.99 + lv * 0.025, 0);
+      g.add(cap);
+      const glow = new THREE.Mesh(getDodecahedronGeometry(0.26), M.lampGlow);
+      glow.position.copy(glass.position);
+      glow.userData.noShadow = true;
+      glow.userData.lightVisual = true;
+      g.add(glow);
+      g.add(makeVoxelLightDecal(1.45, 1.45, M.lampPool, 0, 0.025, 0, 0));
+      const haze = new THREE.Sprite(M.lampHazeSprite);
+      haze.position.copy(glass.position);
+      haze.scale.set(0.82, 0.82, 0.82);
+      haze.userData.noShadow = true;
+      haze.userData.lightVisual = true;
+      g.add(haze);
+      const point = new THREE.PointLight(0xffbf70, 0, 4.8, 1.42);
+      point.position.copy(glass.position);
+      point.castShadow = false;
+      point.visible = false;
+      point.userData.placeableLight = true;
+      point.userData.baseIntensity = 1.08;
+      g.add(point);
+    }
+
+    castReceive(g);
+    return g;
+  }
+
   function makeVoxelMicroKind(kind, level = 1, x = 0, z = 0) {
     const g = new THREE.Group();
     if (kind === 'chimney') {
@@ -2937,17 +3075,19 @@
     else if (kind === 'tuft' || kind === 'flower' || kind === 'bush' || kind === 'crop' || kind === 'corn' || kind === 'wheat' || kind === 'carrot' || kind === 'sunflower') mesh = makeVoxelCropKind(kind, level);
     else if (kind === 'pumpkin') mesh = (level >= MAX_FLOORS && isCarriagePumpkin(x, z)) ? makeVoxelPumpkinCarriage() : makeVoxelCropKind('pumpkin', level);
     else if (kind === 'cow' || kind === 'sheep') mesh = makeVoxelAnimal(kind);
+    else if (kind === 'lamp-post' || kind === 'spotlight') mesh = makeVoxelLightSource(kind, level);
     else if (kind === 'chimney' || kind === 'ripple' || kind === 'shrub' || kind === 'stone' || kind === 'pebble' || kind === 'bridge-rail') mesh = makeVoxelMicroKind(kind, level, x, z);
     else if (kind === 'fence') {
+      const fenceStyle = typeof fenceStyleForCell === 'function' ? fenceStyleForCell(cell) : 'wood';
       if (cell.terrain === 'path') {
         const pn = getPathNeighbors(x, z);
         const pathAxis = (pn.e || pn.w) ? 'x' : (pn.n || pn.s) ? 'z' : 'x';
-        mesh = makeVoxelFence(normalizeFenceSide(cell.fenceSide), level, false, true, pathAxis);
+        mesh = makeVoxelFence(normalizeFenceSide(cell.fenceSide), level, false, true, pathAxis, fenceStyle);
       } else {
         const span = findFenceRenderSpan(x, z);
         if (span && !span.isAnchor) return { skip: true };
         if (span && span.length > 1) {
-          mesh = makeVoxelFenceSpan(span.side, span.level, span.length);
+          mesh = makeVoxelFenceSpan(span.side, span.level, span.length, span.style);
           const a = cellRenderPositionForCell(span.anchorX, span.anchorZ);
           posX = a.x;
           posZ = a.z;
@@ -2955,7 +3095,7 @@
           else posZ += (span.length - 1) * TILE / 2;
           setGridUserData = false;
         } else {
-          mesh = makeVoxelFence(normalizeFenceSide(cell.fenceSide), level, isCastleFence(x, z), false);
+          mesh = makeVoxelFence(normalizeFenceSide(cell.fenceSide), level, isCastleFence(x, z), false, 'x', fenceStyle);
         }
       }
     } else if (kind === 'house') {

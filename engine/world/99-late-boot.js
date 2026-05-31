@@ -25,3 +25,7 @@
   if (typeof setCloudStyle === 'function' && typeof renderCloudStyle !== 'undefined') {
     setCloudStyle(renderCloudStyle);
   }
+
+  if (typeof applyStarlitAtmosphereSettings === 'function') {
+    applyStarlitAtmosphereSettings();
+  }

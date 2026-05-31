@@ -78,6 +78,19 @@ Use this together with:
   roofs, windows, crops, trees, path storytelling, and hero landmarks. Prefer
   instanced/rule-based surface detail such as wheel ruts, edge roots, tiny
   signs/crates, and beacon/banners over globally raising voxel resolution.
+- Garden fences are a style of the existing fence kind (`appearance.fenceStyle:
+  "garden"`), not a separate object kind. They should stay dark timber with a
+  simple vine rail and small warm fruit accents, and still flow through the
+  contiguous fence span renderer for long runs.
+- Lamp and spotlight stamps should read as physical voxel objects first:
+  chunky metal bases/heads with warm emissive glass, plus a blurred haze and a
+  fake ground spill decal. Spotlights point from the fixture outward/down; the
+  light cone should be narrow at the head and wider/softer where it falls on
+  the ground.
+- Blast/shield art direction is locked to the supplied Voxel Blast Shield Core
+  classes, adapted into TinyWorld rather than recreated. Keep the dark damaged
+  metal panels, four rising corner keystones, panel chains extending from the
+  corners, outward blue rune faces, and `window.VoxelShield` controls intact.
 - The Tower house variant has paired factories: `makeStoneTower` is the normal faceted/conical design and `makeVoxelStoneTower` is the voxel counterpart. Keep their silhouettes aligned when changing tower roof, balcony, window, door, or flag details. Castle/turret rendering should stay block-built: `makeTurret` delegates to the square voxel keep in `makeVoxelTurret`.
 
 ## Model import hygiene

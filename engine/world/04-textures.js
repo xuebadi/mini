@@ -831,7 +831,7 @@
     walls: { label: 'Walls', materials: ['wallCream', 'wallTrim', 'manorBrick', 'manorBrickD', 'towerStone', 'towerStoneD', 'castleStone', 'castleStoneD', 'skyBody'] },
     roofs: { label: 'Roofs', materials: ['roofBlue', 'roofBlueD', 'manorRoof', 'manorRoofD', 'towerRoof', 'towerRoofD', 'skyRoof'] },
     trim: { label: 'Trim / frames / columns', materials: ['woodTrim', 'manorTrim', 'skyFrame', 'step', 'chimney'] },
-    windows: { label: 'Windows / glass', materials: ['windowB', 'windowLit', 'manorWindow', 'skyGlass', 'castleSlit'] },
+    windows: { label: 'Windows / glass', materials: ['windowB', 'windowLit', 'windowNight', 'manorWindow', 'skyGlass', 'castleSlit'] },
     wood: { label: 'Wood / doors / fences', materials: ['door', 'bridgeWood', 'bridgeWoodD', 'fence'] },
     foliage: { label: 'Trees / foliage', materials: ['leaves', 'leavesDk', 'rockMoss'] },
     crops: { label: 'Crops / flowers', materials: ['cropLeaf', 'cropStem', 'cornStalk', 'cornCob', 'cornLeaf', 'wheatStalk', 'wheatHead', 'pumpkin', 'pumpkinDk', 'pumpkinStem', 'carrotBody', 'sunflowerStalk', 'sunflowerPetal', 'sunflowerCenter'] },
@@ -1237,6 +1237,8 @@
     const objectStyle = rawObjectStyle === 'normal' || rawObjectStyle === 'voxel'
       ? rawObjectStyle
       : null;
+    const rawFenceStyle = String(value.fenceStyle || value.fence || '').toLowerCase();
+    const fenceStyle = rawFenceStyle === 'garden' ? 'garden' : null;
     const out = {};
     if (bodyColor) out.bodyColor = bodyColor;
     if (topColor) out.topColor = topColor;
@@ -1259,6 +1261,7 @@
       if (Math.abs(topTextureScale - 1) > 0.001) out.topTextureScale = +topTextureScale.toFixed(3);
     }
     if (objectStyle) out.objectStyle = objectStyle;
+    if (fenceStyle) out.fenceStyle = fenceStyle;
     return Object.keys(out).length ? out : null;
   }
   function sameAppearance(a, b) {

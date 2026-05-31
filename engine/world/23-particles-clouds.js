@@ -349,8 +349,9 @@
     // active build area read like white textures mapped onto roofs. Keep sky
     // clouds in a soft perimeter around the camera target; under-island clouds
     // still provide the low mist layer below the board.
-    const noFlyX = Math.min(CLOUD_RANGE_X * 0.62, Math.max(5.8, Math.min(GRID * 0.5 + 2.2, viewSize * 0.82)));
-    const noFlyZ = Math.min(CLOUD_Z_RANGE * 0.62, Math.max(4.8, Math.min(GRID * 0.5 + 2.0, viewSize * 0.82)));
+    const boardSpan = GRID * TILE;
+    const noFlyX = Math.min(CLOUD_RANGE_X * 0.86, Math.max(12, boardSpan * 0.95 + 4.5, viewSize * 1.08));
+    const noFlyZ = Math.min(CLOUD_Z_RANGE * 0.86, Math.max(10, boardSpan * 0.95 + 3.5, viewSize * 1.02));
     const dx = cloud.position.x - target.x;
     const dz = cloud.position.z - target.z;
     if (Math.abs(dx) >= noFlyX || Math.abs(dz) >= noFlyZ) return;
@@ -373,6 +374,10 @@
     const m = baseMat.clone();
     m.transparent = true;
     m.opacity = opacity;
+    if (m.emissive) {
+      m.emissive.setHex(0xff9a64);
+      m.emissiveIntensity = 0;
+    }
     m.depthWrite = false;
     // Keep visual cloud opacity independent from the shadow slider. Shadow
     // breakup is handled by per-mesh customDepthMaterial below; using
@@ -382,6 +387,7 @@
     m.userData = m.userData || {};
     m.userData.cloudInstance = true;
     m.userData.cloudOpacity = opacity;
+    m.userData.cloudBright = baseMat === M.cloud;
     return m;
   }
 
@@ -561,6 +567,7 @@
     while (clouds.length < target) {
       spawnCloud(true);
     }
+    if (typeof applyCloudRimLightSetting === 'function') applyCloudRimLightSetting();
   }
 
   var underIslandCloudGroup = new THREE.Group();
@@ -612,6 +619,7 @@
       underIslandCloudGroup.add(c);
       underIslandClouds.push(c);
     }
+    if (typeof applyCloudRimLightSetting === 'function') applyCloudRimLightSetting();
   }
 
   function updateUnderIslandClouds(dt) {

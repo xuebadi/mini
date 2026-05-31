@@ -19,7 +19,7 @@
     } catch (_) { return; }
     const FLAT_REQUIRED = new Set([
       'house','fence','bridge','tree','tuft','flower','bush','cow','sheep',
-      'crop','corn','wheat','pumpkin','carrot','sunflower',
+      'crop','corn','wheat','pumpkin','carrot','sunflower','lamp-post','spotlight',
     ]);
     function fixCells(cells) {
       if (!Array.isArray(cells)) return 0;
@@ -351,7 +351,7 @@
       // earlier procedural generator that didn't enforce the rule.
       const FLAT_REQUIRED = new Set([
         'house','fence','bridge','tree','tuft','flower','bush','cow','sheep',
-        'crop','corn','wheat','pumpkin','carrot','sunflower',
+        'crop','corn','wheat','pumpkin','carrot','sunflower','lamp-post','spotlight',
         'chimney','shrub','stone','pebble','bridge-rail','voxel-build','model-stamp',
       ]);
       if (normalizedKind === 'house' && (terrain === 'water' || terrain === 'path' || terrain === 'lava')) {
@@ -370,6 +370,7 @@
             kind: e.kind || e.k || null,
             fenceSide: (e.fenceSide || e.s) ? normalizeFenceSide(e.fenceSide || e.s) : null,
             floors: e.floors || e.f || 1,
+            appearance: normalizeAppearance(e.appearance || e.a),
           })).filter(e => e.kind === 'fence' || e.kind === 'tuft')
         : [];
       let rotationY = 0, offsetX = 0, offsetY = 0, offsetZ = 0;
@@ -694,7 +695,9 @@
       floors: floors || 1,
       buildingType: buildingType || null,
       fenceSide: kind === 'fence' ? normalizeFenceSide(fenceSide) : null,
-      extras: Array.isArray(extras) ? extras : [],
+      extras: Array.isArray(extras) ? extras.map(e => Object.assign({}, e, {
+        appearance: normalizeAppearance(e && (e.appearance || e.a)),
+      })) : [],
       rotationY, offsetX, offsetY, offsetZ,
       appearance: normalizeAppearance(appearance),
       waterFlow: normalizeWaterFlow(waterFlow),

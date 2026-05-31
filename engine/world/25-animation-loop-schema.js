@@ -51,6 +51,8 @@
     tickUndersideDebris(dt);
     updateClouds(dt);
     if (typeof tickCloudSea === 'function') tickCloudSea(t, dt);
+    if (typeof updateStarlitAtmosphere === 'function') updateStarlitAtmosphere(dt);
+    if (typeof tickVoxelShield === 'function') tickVoxelShield(dt, t);
     tickWaterTextureFlow(dt);
     updateWaterfallEffects(t);
     repaintProfileEnd('tick.effects', tickStart);
@@ -377,6 +379,8 @@
           "bush",
           "cow",
           "sheep",
+          "lamp-post",
+          "spotlight",
           "voxel-build",
           "model-stamp"
         ]
@@ -586,6 +590,12 @@
             "type": "integer",
             "minimum": 1,
             "maximum": 8
+          },
+          "appearance": {
+            "$ref": "#/$defs/appearance"
+          },
+          "a": {
+            "$ref": "#/$defs/appearance"
           }
         },
         "anyOf": [
@@ -682,6 +692,12 @@
             "enum": [
               "normal",
               "voxel"
+            ]
+          },
+          "fenceStyle": {
+            "type": "string",
+            "enum": [
+              "garden"
             ]
           }
         }

@@ -202,7 +202,9 @@
     else if (kind === 'pumpkin')   mesh = (level >= MAX_FLOORS && isCarriagePumpkin(x, z)) ? makePumpkinCarriage() : makePumpkin();
     else if (kind === 'carrot')    mesh = makeCarrot();
     else if (kind === 'sunflower') mesh = makeSunflower();
+    else if (kind === 'lamp-post' || kind === 'spotlight') mesh = makeVoxelLightSource(kind, level);
     else if (kind === 'fence') {
+      const fenceStyle = typeof fenceStyleForCell === 'function' ? fenceStyleForCell(cell) : 'wood';
       if (cell.terrain === 'path') {
         // Pick orientation from neighbouring path cells so the gate
         // spans across the road, not along it.
@@ -212,7 +214,7 @@
       } else {
         mesh = isCastleFence(x, z)
           ? makeCastleWallSegment(getCastleWallNeighbors(x, z))
-          : makeFence(normalizeFenceSide(cell.fenceSide), level);
+          : makeFence(normalizeFenceSide(cell.fenceSide), level, fenceStyle);
       }
     }
     else if (kind === 'house') {
@@ -381,7 +383,7 @@
     cell.extras.forEach((ex, i) => {
       let mesh = null;
       if (ex.kind === 'tuft') mesh = makeVoxelCropKind('tuft', ex.floors || 1);
-      else if (ex.kind === 'fence') mesh = makeVoxelFence(normalizeFenceSide(ex.fenceSide), ex.floors || 1, false, false);
+      else if (ex.kind === 'fence') mesh = makeVoxelFence(normalizeFenceSide(ex.fenceSide), ex.floors || 1, false, false, 'x', typeof fenceStyleFromAppearance === 'function' ? fenceStyleFromAppearance(ex.appearance) : 'wood');
       if (!mesh) return;
       // Smaller, corner-offset extras so they sit alongside the main
       // kind without overlapping its silhouette.
@@ -421,7 +423,11 @@
     // De-dupe identical fence sides; level them up instead.
     if (extra.kind === 'fence') {
       const side = normalizeFenceSide(extra.fenceSide);
-      const existingIdx = cell.extras.findIndex(e => e.kind === 'fence' && normalizeFenceSide(e.fenceSide) === side);
+      const style = typeof fenceStyleFromAppearance === 'function' ? fenceStyleFromAppearance(extra.appearance) : 'wood';
+      const existingIdx = cell.extras.findIndex(e => {
+        const existingStyle = typeof fenceStyleFromAppearance === 'function' ? fenceStyleFromAppearance(e.appearance) : 'wood';
+        return e.kind === 'fence' && normalizeFenceSide(e.fenceSide) === side && existingStyle === style;
+      });
       if (existingIdx >= 0) {
         const requestedFloors = Math.max(1, Math.min(MAX_FLOORS, extra.floors || 1));
         const currentFloors = cell.extras[existingIdx].floors || 1;

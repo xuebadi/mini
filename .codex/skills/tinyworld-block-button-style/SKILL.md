@@ -26,6 +26,7 @@ off on this as the house style — reuse it for any new icon square/tile.
 | terrain   | `rgba(123,194,48,0.16)`    | `#3a6511`                            |
 | primary   | `rgba(23,107,235,0.13)`    | `#1e428a`                            |
 | tertiary  | `rgba(254,146,14,0.18)`    | `#a05600`                            |
+| shield    | `rgba(45,215,255,0.15)`    | `#0e5f7e`                            |
 | neutral   | (none)                     | `#2f3b57` (default `--glyph-outline`)|
 
 The dark outline = the category tint darkened ~50–60%. For a new category,
@@ -70,6 +71,11 @@ Raised, outlined square (per posType; same pattern for `.tool` and
   `19-tools-toolbar.js` maps a tool to its posType.
 - Build the icon with `buildToolButton(tool, { flyout: true })` so it reuses the
   `.tool-glyph` / `.tool-icon` machinery and the outline rules.
+- Bottom-toolbar utility buttons use `buildToolbarUtilityButton(...)` and the
+  same `.tool icon-only` block square. Keep Home and Shield as adjacent utility
+  buttons at the front of the bottom toolbar; Shield uses `data-pos-type="shield"`
+  and reflects the raised/lowered `VoxelShield` state with `.active` and
+  `aria-pressed`.
 - Mono/utility icons (select, erase) use `.tool-icon` and render as
   `fill:none; stroke:currentColor` outlines (the rule is shared between
   `.toolbar`, `.flyout`, and `.tool-palette`). Keep them line-art, not filled.

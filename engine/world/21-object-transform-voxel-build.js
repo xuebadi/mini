@@ -32,6 +32,10 @@
     const distantWorldsEl = document.getElementById('render-distant-worlds');
     const cloudSeaEl = document.getElementById('render-cloud-sea');
     const cloudSoftEl = document.getElementById('render-cloud-soft');
+    const starVaultEl = document.getElementById('render-star-vault');
+    const starVaultStrengthEl = document.getElementById('render-star-vault-strength');
+    const cloudRimLightEl = document.getElementById('render-cloud-rim-light');
+    const accentLightsEl = document.getElementById('render-accent-lights');
     const underCloudSpreadEl = document.getElementById('render-undercloud-spread');
     const skyBlueDepthEl = document.getElementById('render-sky-blue-depth');
     const skyBlueSaturationEl = document.getElementById('render-sky-blue-saturation');
@@ -107,6 +111,9 @@
     const cloudSpeedValue = document.getElementById('render-cloud-speed-value');
     const cloudHeightValue = document.getElementById('render-cloud-height-value');
     const cloudShadowValue = document.getElementById('render-cloud-shadow-value');
+    const starVaultStrengthValue = document.getElementById('render-star-vault-strength-value');
+    const cloudRimLightValue = document.getElementById('render-cloud-rim-light-value');
+    const accentLightsValue = document.getElementById('render-accent-lights-value');
     const underCloudSpreadValue = document.getElementById('render-undercloud-spread-value');
     const skyBlueDepthValue = document.getElementById('render-sky-blue-depth-value');
     const skyBlueSaturationValue = document.getElementById('render-sky-blue-saturation-value');
@@ -349,6 +356,10 @@
       if (distantWorldsEl) distantWorldsEl.checked = !!renderDistantWorlds;
       if (cloudSeaEl) cloudSeaEl.checked = !!renderCloudSea;
       if (cloudSoftEl) cloudSoftEl.checked = (renderCloudStyle === 'soft');
+      if (starVaultEl) starVaultEl.checked = !!renderStarVault;
+      if (starVaultStrengthEl) starVaultStrengthEl.value = String(Math.round(renderStarVaultStrength * 100));
+      if (cloudRimLightEl) cloudRimLightEl.value = String(Math.round(renderCloudRimLight * 100));
+      if (accentLightsEl) accentLightsEl.value = String(Math.round(renderAccentLights * 100));
       if (underCloudSpreadEl) underCloudSpreadEl.value = String(Math.round(renderUnderCloudSpread * 100));
       if (skyBlueDepthEl) skyBlueDepthEl.value = String(Math.round(renderSkyBlueDepth * 100));
       if (skyBlueSaturationEl) skyBlueSaturationEl.value = String(Math.round(renderSkyBlueSaturation * 100));
@@ -426,6 +437,9 @@
       cloudSpeedValue.textContent = cloudSpeedEl.value + '%';
       cloudHeightValue.textContent = cloudHeightEl.value;
       cloudShadowValue.textContent = cloudShadowEl.value + '%';
+      if (starVaultStrengthValue && starVaultStrengthEl) starVaultStrengthValue.textContent = starVaultStrengthEl.value + '%';
+      if (cloudRimLightValue && cloudRimLightEl) cloudRimLightValue.textContent = cloudRimLightEl.value + '%';
+      if (accentLightsValue && accentLightsEl) accentLightsValue.textContent = accentLightsEl.value + '%';
       if (underCloudSpreadValue && underCloudSpreadEl) underCloudSpreadValue.textContent = underCloudSpreadEl.value + '%';
       if (skyBlueDepthValue && skyBlueDepthEl) skyBlueDepthValue.textContent = skyBlueDepthEl.value + '%';
       if (skyBlueSaturationValue && skyBlueSaturationEl) skyBlueSaturationValue.textContent = skyBlueSaturationEl.value + '%';
@@ -489,6 +503,10 @@
       localStorage.setItem(RENDER_LS.distantWorlds, renderDistantWorlds ? '1' : '0');
       localStorage.setItem(RENDER_LS.cloudSea, renderCloudSea ? '1' : '0');
       localStorage.setItem(RENDER_LS.cloudStyle, renderCloudStyle);
+      localStorage.setItem(RENDER_LS.starVault, renderStarVault ? '1' : '0');
+      localStorage.setItem(RENDER_LS.starVaultStrength, renderStarVaultStrength.toFixed(2));
+      localStorage.setItem(RENDER_LS.cloudRimLight, renderCloudRimLight.toFixed(2));
+      localStorage.setItem(RENDER_LS.accentLights, renderAccentLights.toFixed(2));
       localStorage.setItem(RENDER_LS.underCloudSpread, renderUnderCloudSpread.toFixed(2));
       localStorage.setItem(RENDER_LS.skyBlueDepth, renderSkyBlueDepth.toFixed(2));
       localStorage.setItem(RENDER_LS.skyBlueSaturation, renderSkyBlueSaturation.toFixed(2));
@@ -541,6 +559,10 @@
       const oldCloudSea = renderCloudSea;
       const oldCloudStyle = renderCloudStyle;
       const oldCloudAmount = renderCloudAmount;
+      const oldStarVault = renderStarVault;
+      const oldStarVaultStrength = renderStarVaultStrength;
+      const oldCloudRimLight = renderCloudRimLight;
+      const oldAccentLights = renderAccentLights;
       setShadowQuality(shadowEl.value);
       setRenderResolutionScale(parseInt(resolutionEl.value, 10) / 100);
       setRenderVisibleDistance(0);
@@ -562,6 +584,10 @@
       renderDistantWorlds = distantWorldsEl ? !!distantWorldsEl.checked : renderDistantWorlds;
       renderCloudSea = cloudSeaEl ? !!cloudSeaEl.checked : renderCloudSea;
       renderCloudStyle = cloudSoftEl && cloudSoftEl.checked ? 'soft' : 'voxel';
+      renderStarVault = starVaultEl ? !!starVaultEl.checked : renderStarVault;
+      renderStarVaultStrength = starVaultStrengthEl ? parseInt(starVaultStrengthEl.value, 10) / 100 : renderStarVaultStrength;
+      renderCloudRimLight = cloudRimLightEl ? parseInt(cloudRimLightEl.value, 10) / 100 : renderCloudRimLight;
+      renderAccentLights = accentLightsEl ? parseInt(accentLightsEl.value, 10) / 100 : renderAccentLights;
       renderUnderCloudSpread = underCloudSpreadEl ? parseInt(underCloudSpreadEl.value, 10) / 100 : renderUnderCloudSpread;
       renderSkyBlueDepth = skyBlueDepthEl ? parseInt(skyBlueDepthEl.value, 10) / 100 : renderSkyBlueDepth;
       renderSkyBlueSaturation = skyBlueSaturationEl ? parseInt(skyBlueSaturationEl.value, 10) / 100 : renderSkyBlueSaturation;
@@ -689,6 +715,15 @@
       if (oldCloudSea !== renderCloudSea && typeof setCloudSeaEnabled === 'function') {
         setCloudSeaEnabled(renderCloudSea);
       }
+      if ((oldStarVault !== renderStarVault || Math.abs(oldStarVaultStrength - renderStarVaultStrength) > 0.001) && typeof applyStarlitAtmosphereSettings === 'function') {
+        applyStarlitAtmosphereSettings();
+      }
+      if (Math.abs(oldCloudRimLight - renderCloudRimLight) > 0.001 && typeof applyCloudRimLightSetting === 'function') {
+        applyCloudRimLightSetting();
+      }
+      if (Math.abs(oldAccentLights - renderAccentLights) > 0.001 && typeof applyAccentLightingSettings === 'function') {
+        applyAccentLightingSettings();
+      }
       if (oldCloudStyle !== renderCloudStyle && typeof setCloudStyle === 'function') {
         setCloudStyle(renderCloudStyle);
       } else if (renderCloudStyle === 'soft'
@@ -753,7 +788,7 @@
     });
     closeBtn.addEventListener('click', () => { closeTinyModal(modal); });
     modal.addEventListener('click', e => { if (e.target === modal) closeTinyModal(modal); });
-    for (const el of [shadowEl, resolutionEl, distanceEl, visibleSizeEl, brightnessEl, lightingEl, ambientFillEl, frontFillEl, sideFillEl, backFillEl, saturationEl, contrastEl, cloudsEl, cloudSpeedEl, cloudHeightEl, cloudShadowEl, planesEnabledEl, distantWorldsEl, cloudSeaEl, cloudSoftEl, underCloudSpreadEl, skyBlueDepthEl, skyBlueSaturationEl, distanceMistEl, backdropEl, backdropVignetteEl, pixelSizeEl, pixelDepthEdgeEl, pixelNormalEdgeEl, shaderAntialiasEl, tiltBlurEl, tiltFocusEl, ghostOpacityEl, floorOpacityEl, objectOpacityEl, voxelGapEl, voxelBevelEl, voxelTerrainEl, surfaceLinkedMaterialsEl, showCrownsEl, terrainVoxelResolutionEl, terrainTintEl, terrainTextureEl, terrainTextureScaleEl, terrainToneEl, materialTintEl, materialTextureEl, materialTextureScaleEl, materialToneEl, materialWearEl, crowdCountEl, crowdScaleEl, crowdSpeedEl, crowdBobEl, crowdSwayEl, crowdLeanEl, crowdZoneRadiusEl, crowdShowZonesEl, crowdPausedEl, crowdEnabledEl, crowdDebugEl, crowdModeEl, crowdCountLiveEl, crowdScaleLiveEl, crowdSpeedLiveEl, crowdZoneRadiusLiveEl, crowdShowZonesLiveEl, crowdShowArrowsLiveEl, crowdPausedLiveEl, crowdEnabledLiveEl]) {
+    for (const el of [shadowEl, resolutionEl, distanceEl, visibleSizeEl, brightnessEl, lightingEl, ambientFillEl, frontFillEl, sideFillEl, backFillEl, saturationEl, contrastEl, cloudsEl, cloudSpeedEl, cloudHeightEl, cloudShadowEl, planesEnabledEl, distantWorldsEl, cloudSeaEl, cloudSoftEl, starVaultEl, starVaultStrengthEl, cloudRimLightEl, accentLightsEl, underCloudSpreadEl, skyBlueDepthEl, skyBlueSaturationEl, distanceMistEl, backdropEl, backdropVignetteEl, pixelSizeEl, pixelDepthEdgeEl, pixelNormalEdgeEl, shaderAntialiasEl, tiltBlurEl, tiltFocusEl, ghostOpacityEl, floorOpacityEl, objectOpacityEl, voxelGapEl, voxelBevelEl, voxelTerrainEl, surfaceLinkedMaterialsEl, showCrownsEl, terrainVoxelResolutionEl, terrainTintEl, terrainTextureEl, terrainTextureScaleEl, terrainToneEl, materialTintEl, materialTextureEl, materialTextureScaleEl, materialToneEl, materialWearEl, crowdCountEl, crowdScaleEl, crowdSpeedEl, crowdBobEl, crowdSwayEl, crowdLeanEl, crowdZoneRadiusEl, crowdShowZonesEl, crowdPausedEl, crowdEnabledEl, crowdDebugEl, crowdModeEl, crowdCountLiveEl, crowdScaleLiveEl, crowdSpeedLiveEl, crowdZoneRadiusLiveEl, crowdShowZonesLiveEl, crowdShowArrowsLiveEl, crowdPausedLiveEl, crowdEnabledLiveEl]) {
       if (!el) continue;
       el.addEventListener('input', applyFromControls);
       el.addEventListener('change', applyFromControls);
@@ -823,6 +858,13 @@
       renderCloudShadow = 0;
       renderPlanesEnabled = false;
       if (typeof setPlanesEnabled === 'function') setPlanesEnabled(false);
+      renderStarVault = true;
+      renderStarVaultStrength = 0.92;
+      renderCloudRimLight = 0.78;
+      renderAccentLights = 0.65;
+      if (typeof applyStarlitAtmosphereSettings === 'function') applyStarlitAtmosphereSettings();
+      if (typeof applyCloudRimLightSetting === 'function') applyCloudRimLightSetting();
+      if (typeof applyAccentLightingSettings === 'function') applyAccentLightingSettings();
       applyCloudSettings();
       if (typeof applyCloudHeight === 'function') applyCloudHeight();
       renderDistanceMist = 0.28;

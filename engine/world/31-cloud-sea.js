@@ -68,6 +68,8 @@
         opacity: { value: opacity },
         fadeInner: { value: fadeInner },
         fadeOuter: { value: fadeOuter },
+        rimColor: { value: new THREE.Color(0xffa06a) },
+        rimStrength: { value: 0 },
       },
       vertexShader: [
         'attribute vec2 aCorner;',
@@ -91,12 +93,16 @@
       ].join('\n'),
       fragmentShader: [
         'uniform sampler2D map; uniform vec3 tint; uniform float opacity;',
+        'uniform vec3 rimColor; uniform float rimStrength;',
         'varying vec2 vUv; varying float vFade;',
         'void main() {',
         '  vec4 t = texture2D(map, vUv);',
         '  float alpha = t.a * opacity * vFade;',
         '  if (alpha < 0.01) discard;',
         '  vec3 col = mix(t.rgb, tint, 0.35 * (1.0 - vFade));',
+        '  float rim = smoothstep(0.08, 0.72, vUv.y) * smoothstep(0.06, 0.58, t.a) * rimStrength;',
+        '  col = mix(col, rimColor, clamp(rim * 0.72, 0.0, 0.78));',
+        '  col += rimColor * rim * 0.12;',
         '  gl_FragColor = vec4(col, alpha);',
         '}',
       ].join('\n'),
@@ -111,6 +117,7 @@
     mesh.renderOrder = -1;
     mesh.raycast = function () {};
     mesh.userData.cloudTint = tint;
+    mesh.userData.softCloudRim = true;
     return mesh;
   }
 
@@ -222,15 +229,27 @@
     if (typeof renderCloudStyle !== 'undefined' && renderCloudStyle === 'soft') buildSkyClouds();
   }
 
+  function setSoftCloudRimStrength(value) {
+    const strength = Math.max(0, Math.min(1.2, value || 0));
+    for (const mesh of [cloudSeaMesh, skyCloudsMesh]) {
+      const mat = mesh && mesh.material;
+      if (mat && mat.uniforms && mat.uniforms.rimStrength) {
+        mat.uniforms.rimStrength.value = strength;
+      }
+    }
+  }
+
   // ===== Per-frame =====
   function tickCloudSea(t, dt) {
     const sky = (scene.fog && scene.fog.color) ? scene.fog.color
               : (scene.background && scene.background.isColor ? scene.background : null);
     if (renderCloudSea && cloudSeaMesh) {
       if (sky) cloudSeaMesh.userData.cloudTint.copy(sky);
+      if (typeof cloudRimLightStrength === 'function') setSoftCloudRimStrength(cloudRimLightStrength());
       cloudSeaGroup.rotation.y += dt * 0.006;
     }
     if (typeof renderCloudStyle !== 'undefined' && renderCloudStyle === 'soft' && skyCloudsMesh) {
+      if (typeof cloudRimLightStrength === 'function') setSoftCloudRimStrength(cloudRimLightStrength());
       const spd = (typeof renderCloudSpeed === 'number') ? renderCloudSpeed : 0.35;
       skyCloudsGroup.rotation.y += dt * 0.02 * (0.3 + spd);
     }

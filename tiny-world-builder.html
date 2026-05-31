@@ -843,6 +843,14 @@
                 <option value="16">16 × 16</option>
               </select>
             </label>
+            <label data-settings-keywords="theme ui dark mode light night auto chrome after hours">
+              UI theme
+              <select id="ui-theme-mode">
+                <option value="auto">Auto</option>
+                <option value="light">Light</option>
+                <option value="dark">Dark</option>
+              </select>
+            </label>
             <label class="gen-check" data-settings-keywords="toolbar groups blocks palette floating panel tools dock">
               <input type="checkbox" id="toolbar-show-groups" checked />
               <span>Show groups <em class="gen-hint">off swaps the grouped toolbar for a floating palette of every block</em></span>
@@ -1091,6 +1099,25 @@
               <input type="checkbox" id="render-cloud-soft" />
               <span>Soft sky clouds <em class="gen-hint">replace blocky clouds with soft sprite puffs</em></span>
             </label>
+            <label class="gen-check" data-settings-keywords="night stars starfield star map skybox sphere equirectangular space background 360">
+              <input type="checkbox" id="render-star-vault" />
+              <span>Star vault <em class="gen-hint">night-only 360 sky map</em></span>
+            </label>
+            <div class="range-row">
+              <span>Star intensity</span>
+              <input id="render-star-vault-strength" type="range" min="0" max="120" step="1" />
+              <output id="render-star-vault-strength-value"></output>
+            </div>
+            <div class="range-row">
+              <span>Cloud rim light</span>
+              <input id="render-cloud-rim-light" type="range" min="0" max="120" step="1" />
+              <output id="render-cloud-rim-light-value"></output>
+            </div>
+            <div class="range-row">
+              <span>Accent lights</span>
+              <input id="render-accent-lights" type="range" min="0" max="120" step="1" />
+              <output id="render-accent-lights-value"></output>
+            </div>
             <div class="range-row">
               <span>Undercloud width</span>
               <input id="render-undercloud-spread" type="range" min="70" max="220" step="1" />
@@ -1418,6 +1445,8 @@
   <script src="engine/world/36-mooring-interaction.js"></script>
   <script src="engine/world/37-island-placement-holos.js"></script>
   <script src="engine/world/38-multiplayer-partykit.js"></script>
+  <script src="engine/world/39-atmosphere-effects.js"></script>
+  <script src="engine/world/40-shield-system.js"></script>
   <script src="engine/world/99-late-boot.js"></script>
 </body>
 </html>

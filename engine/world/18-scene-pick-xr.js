@@ -320,7 +320,8 @@
     if (tool.kind === 'fence') {
       const side = (typeof fenceSideFromHover === 'function') ? fenceSideFromHover(currentHover) : 'n';
       const lvl = (typeof fenceLevelFromSelectedTool === 'function') ? fenceLevelFromSelectedTool() : 1;
-      return Object.assign(base, { kind: 'fence', fenceSide: side, floors: lvl });
+      const appearance = typeof fenceAppearanceFromSelectedTool === 'function' ? fenceAppearanceFromSelectedTool() : null;
+      return Object.assign(base, { kind: 'fence', fenceSide: side, floors: lvl, appearance });
     }
     if (tool.kind === 'bridge') return Object.assign(base, { terrain: 'water', kind: 'bridge', floors: 1 });
     return null;
@@ -356,7 +357,7 @@
         } else {
           mesh = isCastleFence(hx, hz)
             ? makeCastleWallSegment(getCastleWallNeighbors(hx, hz))
-            : makeFence(normalizeFenceSide(cell.fenceSide), level);
+            : makeFence(normalizeFenceSide(cell.fenceSide), level, typeof fenceStyleForCell === 'function' ? fenceStyleForCell(cell) : 'wood');
         }
       } else if (kind === 'house') {
         const floors = cell.floors || 1, bType = cell.buildingType || null;
@@ -429,7 +430,8 @@
       const v = tool.activeVariant;
       const side = (v && v.fenceSide && v.fenceSide !== 'auto') ? v.fenceSide : 'n';
       const level = Math.max(1, Math.min(MAX_FLOORS, (v && v.floors) || 1));
-      mesh = makeFence(normalizeFenceSide(side), level);
+      const style = typeof normalizeFenceStyle === 'function' ? normalizeFenceStyle(v && v.fenceStyle) : 'wood';
+      mesh = makeFence(normalizeFenceSide(side), level, style);
     } else if (kind === 'house') {
       const v = tool.activeVariant;
       const bt = v && v.buildingType;
@@ -1196,4 +1198,3 @@
   if (xrButtons.float) xrButtons.float.addEventListener('click', () => startXRMode('float'));
   if (xrButtons.inside) xrButtons.inside.addEventListener('click', () => startXRMode('inside'));
   refreshXRSupportUI();
-

@@ -630,19 +630,42 @@
     return (normalized === 'n' || normalized === 's' || normalized === 'center-x') ? 'x' : 'z';
   }
 
+  const FENCE_STYLES = new Set(['wood', 'garden']);
+
+  function normalizeFenceStyle(style) {
+    return FENCE_STYLES.has(style) ? style : 'wood';
+  }
+
+  function fenceStyleFromAppearance(appearance) {
+    const normalized = (typeof normalizeAppearance === 'function') ? normalizeAppearance(appearance) : appearance;
+    return normalizeFenceStyle(normalized && normalized.fenceStyle);
+  }
+
+  function fenceStyleForCell(cell) {
+    return fenceStyleFromAppearance(cell && cell.appearance);
+  }
+
+  function fenceAppearanceBatchable(cell) {
+    const appearance = (typeof normalizeAppearance === 'function') ? normalizeAppearance(cell && cell.appearance) : (cell && cell.appearance);
+    if (!appearance) return true;
+    return Object.keys(appearance).every(key => key === 'fenceStyle');
+  }
+
   function fenceBatchSignatureForCell(x, z) {
     const cell = getWorldCell(x, z);
     if (!cell || cell.kind !== 'fence') return null;
     if (cell.terrain === 'path' || isCastleFence(x, z) || isEditableIslandCell(x, z)) return null;
-    if (cell.appearance || cell.rotationY || cell.offsetX || cell.offsetY || cell.offsetZ) return null;
+    if (!fenceAppearanceBatchable(cell) || cell.rotationY || cell.offsetX || cell.offsetY || cell.offsetZ) return null;
     const side = normalizeFenceSide(cell.fenceSide);
     const level = Math.max(1, Math.min(MAX_FLOORS, cell.floors || 1));
+    const style = fenceStyleForCell(cell);
     const axis = fenceAxisForSide(side);
     const tileLevel = tileLevelForCell(cell);
     return {
-      key: [side, level, axis, cell.terrain || 'grass', tileLevel].join('|'),
+      key: [side, level, style, axis, cell.terrain || 'grass', tileLevel].join('|'),
       side,
       level,
+      style,
       axis,
     };
   }
@@ -664,6 +687,7 @@
     return {
       side: sig.side,
       level: sig.level,
+      style: sig.style,
       axis: sig.axis,
       length,
       anchorX,
@@ -671,4 +695,3 @@
       isAnchor: x === anchorX && z === anchorZ,
     };
   }
-

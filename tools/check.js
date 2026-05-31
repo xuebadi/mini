@@ -249,6 +249,21 @@ if (!/optimizeVoxelObjectGroup\(homeBorderGroup, \{ reason: 'home-island-border'
 if (!/function findFenceRenderSpan/.test(html) || !/function makeVoxelFenceSpan/.test(html) || !/batchedSpan: true/.test(html)) {
   fail('voxel fences must collapse same-style contiguous rows into batched spans');
 }
+if (!/39-atmosphere-effects\.js/.test(htmlRaw) || !/function updateStarlitAtmosphere/.test(html) || !/function makeProceduralStarVaultTexture/.test(html) || !/aboveHorizon/.test(html)) {
+  fail('starlit atmosphere must stay wired through the late-loaded procedural sky module with a horizon mask');
+}
+if (!/40-shield-system\.js/.test(htmlRaw) || !/class ShieldRing extends THREE\.Group/.test(html) || !/class BlastPanel extends THREE\.Group/.test(html) || !/class CornerKeystone extends THREE\.Group/.test(html) || !/window\.VoxelShield/.test(html) || !/tickVoxelShield\(dt, t\)/.test(html)) {
+  fail('voxel blast shield must stay wired as the supplied VoxelShield class/API module and frame tick');
+}
+if (!/toolbar-shield-toggle/.test(html) || !/buildToolbarUtilityButton\('toolbar-home'/.test(html) || !/buildToolbarUtilityButton\('toolbar-shield-toggle'/.test(html) || !/window\.VoxelShield\.toggle\(\)/.test(html) || !/toolbar-shield-toggle', 'Raise shield', 'shield'/.test(html)) {
+  fail('bottom toolbar must expose Home and VoxelShield toggle utility buttons next to each other');
+}
+if (!/fenceStyle/.test(html) || !/Garden/.test(html) || !/makeVoxelFenceSpan\(span\.side, span\.level, span\.length, span\.style\)/.test(html)) {
+  fail('garden fences must preserve style through placement/rendering while keeping span batching');
+}
+if (!/lamp-post/.test(html) || !/spotlight/.test(html) || !/placeableLightSource/.test(html) || !/registerPlaceableLightSource/.test(html)) {
+  fail('lamp and spotlight stamps must render as capped placeable light sources');
+}
 if (!/function getEditableIslandPropellerDiscMaterial/.test(html) || !/propellerDiscShader/.test(html) || !/propellerBlurDisc/.test(html)) {
   fail('editable island lift propellers must switch to a shared shader blur disc at high RPM');
 }

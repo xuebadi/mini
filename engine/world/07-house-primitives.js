@@ -1087,10 +1087,11 @@
     return g;
   }
 
-  function makeFence(side = 'n', level = 1) {
+  function makeFence(side = 'n', level = 1, style = 'wood') {
     const g = new THREE.Group();
     level = Math.max(1, Math.min(MAX_FLOORS, level || 1));
     const normalized = FENCE_SIDES.has(side) ? side : 'n';
+    const fenceStyle = typeof normalizeFenceStyle === 'function' ? normalizeFenceStyle(style) : 'wood';
     const alongX = normalized === 'n' || normalized === 's' || normalized === 'center-x';
     const offsetX = normalized === 'w' ? -0.43 : normalized === 'e' ? 0.43 : 0;
     const offsetZ = normalized === 'n' ? -0.43 : normalized === 's' ? 0.43 : 0;
@@ -1101,7 +1102,38 @@
         : [[offsetX, -0.50], [offsetX, 0.50]];
     }
 
-    if (level >= 4) {
+    if (fenceStyle === 'garden' && level < 4) {
+      const fenceScale = level === 1 ? 1 : (level === 2 ? 1.18 : 1.32);
+      const postH = 0.38 * fenceScale;
+      const postMat = M.fenceGarden || M.fence;
+      const railMat = M.fenceGardenD || M.fence;
+      const vineMat = M.fenceVine || M.cropStem || postMat;
+      const fruitMat = M.fenceFruit || M.pumpkin || railMat;
+      const postGeo = getBoxGeometry(0.10, postH, 0.10);
+      for (const [px, pz] of endpointOffsets()) {
+        const post = new THREE.Mesh(postGeo, postMat);
+        post.position.set(px, postH / 2, pz);
+        g.add(post);
+        const cap = new THREE.Mesh(getBoxGeometry(0.14, 0.045, 0.14), railMat);
+        cap.position.set(px, postH + 0.025, pz);
+        g.add(cap);
+      }
+      for (const y of [0.12 * fenceScale, 0.28 * fenceScale, ...(level >= 3 ? [0.42 * fenceScale] : [])]) {
+        const rail = new THREE.Mesh(getBoxGeometry(alongX ? 1.08 : 0.05, 0.05, alongX ? 0.05 : 1.08), railMat);
+        rail.position.set(offsetX, y, offsetZ);
+        g.add(rail);
+      }
+      const vine = new THREE.Mesh(getBoxGeometry(alongX ? 0.82 : 0.035, 0.035, alongX ? 0.035 : 0.82), vineMat);
+      vine.position.set(offsetX, postH * 0.82, offsetZ);
+      g.add(vine);
+      for (const a of [-0.30, 0.18]) {
+        const fruit = new THREE.Mesh(getBoxGeometry(0.055, 0.055, 0.055), fruitMat);
+        fruit.position.set(alongX ? a : offsetX, postH * 0.90, alongX ? offsetZ : a);
+        fruit.castShadow = false;
+        fruit.receiveShadow = false;
+        g.add(fruit);
+      }
+    } else if (level >= 4) {
       const stone = level >= 5 ? M.fenceSteel : M.castleStone;
       const capMat = level >= 5 ? M.skyFrame : M.castleStoneD;
       const wallH = level >= 5 ? 0.58 : 0.46;
@@ -1151,7 +1183,7 @@
       }
     }
 
-    g.userData = { kind: 'fence', level, side: normalized };
+    g.userData = { kind: 'fence', level, side: normalized, fenceStyle };
     castReceive(g);
     return g;
   }
@@ -1533,4 +1565,3 @@
     castReceive(g);
     return g;
   }
-

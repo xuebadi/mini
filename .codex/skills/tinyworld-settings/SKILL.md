@@ -28,6 +28,9 @@ Structure rules:
 
 Organization guidance:
 
+- App/Workspace owns the UI theme selector (`ui-theme-mode`). `Auto` follows
+  time-of-day, `Dark` forces dark chrome, and `Light` still darkens after-hours
+  so white/grey glass controls remain readable against night scenes.
 - Rendering: keep image/render-cost controls grouped by intent. `Quality` covers resolution and shadows; `Lighting` covers lighting and fill controls; `Image effects` covers brightness, saturation, contrast, pixelation, shader AA, and tilt-shift.
 - World: preview/ghost controls are intentionally removed and forced to zero; do not reintroduce distance/window/opacity controls unless Preview rendering is explicitly brought back. Terrain style covers voxel bevel, landscape/planet toggles, voxel/cottage, and terrain voxel resolution. `Voxel gap` and `Show crowns` are also intentionally removed from the UI and forced off for render stability/performance.
 - Environment owns the `Planes` checkbox (`render-planes-enabled`) because it

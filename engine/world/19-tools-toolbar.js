@@ -21,9 +21,16 @@
       ],
     },
     { id: 'tree',   label: 'Tree',   kind: 'tree',  color: '#6fb442', shortcut: '6', group: 'nature' },
-    { id: 'fence',  label: 'Fence',  kind: 'fence', color: '#8a5a3b', shortcut: '7', group: 'build' },
+    { id: 'fence',  label: 'Fence',  kind: 'fence', color: '#8a5a3b', shortcut: '7', group: 'build',
+      variants: [
+        { id: 'wood', label: 'Wood', fenceStyle: 'wood', hint: 'plain timber rails' },
+        { id: 'garden', label: 'Garden', fenceStyle: 'garden', hint: 'dark orchard fence with vine and fruit' },
+      ],
+    },
     { id: 'rock',   label: 'Rock',   kind: 'rock',  color: '#9b9a8f', shortcut: '8', group: 'nature' },
     { id: 'bridge', label: 'Bridge', kind: 'bridge', terrainOverride: 'water', color: '#8b5a32', shortcut: '9', group: 'build' },
+    { id: 'lamp-post', label: 'Lamp', kind: 'lamp-post', color: '#f0b45a', group: 'infra' },
+    { id: 'spotlight', label: 'Spotlight', kind: 'spotlight', color: '#ffd280', group: 'infra' },
     { id: 'mooring', label: 'Connect', mooring: true, color: '#171b20', shortcut: 'm', group: 'infra' },
     { id: 'crop',      label: 'Crop',      kind: 'crop',      terrainOverride: 'dirt', color: '#86c544', shortcut: 'g', group: 'crops' },
     { id: 'corn',      label: 'Corn',      kind: 'corn',      terrainOverride: 'dirt', color: '#f2c849', shortcut: 'n', group: 'crops' },
@@ -43,7 +50,7 @@
     { id: 'terrain', label: 'Terrain', toolIds: ['grass', 'path', 'dirt', 'water', 'stone', 'lava', 'sand', 'snow', 'rock'], iconTool: 'grass' },
     { id: 'plants', label: 'Plants', toolIds: ['tree', 'tuft', 'flower', 'bush'], iconTool: 'tree' },
     { id: 'build', label: 'Build', toolIds: ['house', 'new-island'], iconTool: 'house' },
-    { id: 'infra', label: 'Infra', toolIds: ['fence', 'bridge', 'mooring'], iconTool: 'fence' },
+    { id: 'infra', label: 'Infra', toolIds: ['fence', 'bridge', 'lamp-post', 'spotlight', 'mooring'], iconTool: 'fence' },
     { id: 'farm', label: 'Farm', toolIds: ['crop', 'corn', 'wheat', 'pumpkin', 'carrot', 'sunflower'], iconTool: 'wheat' },
     { id: 'life', label: 'Life', toolIds: ['cow', 'sheep'], iconTool: 'cow' },
   ];
@@ -212,10 +219,12 @@
     if (k === 'bush')      return makeVoxelCropKind('bush');
     if (k === 'cow')       return makeVoxelAnimal('cow');
     if (k === 'sheep')     return makeVoxelAnimal('sheep');
+    if (k === 'lamp-post' || k === 'spotlight') return makeVoxelLightSource(k);
     if (k === 'fence') {
       const v = tool.activeVariant;
       const level = Math.max(1, Math.min(MAX_FLOORS, (v && v.floors) || 1));
-      return makeVoxelFence('n', level);
+      const style = v && v.fenceStyle ? v.fenceStyle : 'wood';
+      return makeVoxelFence('n', level, false, false, 'x', style);
     }
     if (k === 'house') {
       const v = tool.activeVariant;
@@ -514,7 +523,7 @@
       ['vehicles', /(^|[^a-z0-9])(plane|aircraft|airplane|stunt|crop[-_ ]?duster|jet|boat|boats|voxelboats?|ship|ships|vessel|car|cars|truck|trucks|train|trains|vehicle|vehicles|bus|buses|bike|bikes)(?=[^a-z0-9]|$)/],
       ['farm', /(^|[^a-z0-9])(crop|farm|corn|wheat|pumpkin|carrot|sunflower|field|barn)(?=[^a-z0-9]|$)/],
       ['build', /(^|[^a-z0-9])(building|buildings|city|house|tower|cottage|villa|skyscraper|castle|turret|manor|pagoda|temple|gate|machiya|hut|cabin)(?=[^a-z0-9]|$)/],
-      ['infra', /(^|[^a-z0-9])(fence|bridge|road|rail|path|street|wall|boundary|dock|pier)(?=[^a-z0-9]|$)/],
+      ['infra', /(^|[^a-z0-9])(fence|bridge|road|rail|path|street|wall|boundary|dock|pier|lamp|lamps|light|lights|spotlight|spotlights|lantern)(?=[^a-z0-9]|$)/],
       ['plants', /(^|[^a-z0-9])(tree|plant|flower|bush|tuft|grass|garden|bamboo|cherry|shrub|forest|leaf|leaves)(?=[^a-z0-9]|$)/],
       ['life', /(^|[^a-z0-9])(cow|sheep|animal|person|people|human|crowd|character|horse)(?=[^a-z0-9]|$)/],
       ['terrain', /(^|[^a-z0-9])(rock|stone|terrain|mountain|outcrop|sand|snow|water|lava|dirt)(?=[^a-z0-9]|$)/],
@@ -787,7 +796,7 @@
     }
     const ids = [
       'grass', 'path', 'dirt', 'water', 'stone', 'lava', 'sand', 'snow',
-      'house', 'tree', 'rock', 'bridge', 'fence',
+      'house', 'tree', 'rock', 'bridge', 'fence', 'lamp-post', 'spotlight',
       'crop', 'corn', 'wheat', 'pumpkin', 'carrot', 'sunflower',
       'tuft', 'flower', 'bush', 'cow', 'sheep',
     ];
@@ -1176,6 +1185,8 @@
       mooring: '<svg viewBox="0 0 24 24"><circle cx="5.6" cy="17.8" r="2.3"/><circle cx="18.4" cy="6.2" r="2.3"/><path d="M7.8 17.6c4.8-.6 8.8-4.2 10.2-9.2"/><path d="M4.2 15.8 7 18.9"/><path d="M17 4.1 20.1 7"/></svg>',
       farm: '<svg viewBox="0 0 24 24"><path d="M12 21V5"/><path d="M7.2 8.1 12 12.9l4.8-4.8"/><path d="M7.2 13.2 12 18l4.8-4.8"/><path d="M5 20h14"/></svg>',
       life: '<svg viewBox="0 0 24 24"><circle cx="7.5" cy="10" r="2.2"/><circle cx="12" cy="7" r="2.2"/><circle cx="16.5" cy="10" r="2.2"/><path d="M6.6 17.6c0-3.2 2.4-5.4 5.4-5.4s5.4 2.2 5.4 5.4c0 1.5-.9 2.4-2.2 2.4-1.1 0-1.8-.8-3.2-.8s-2.1.8-3.2.8c-1.3 0-2.2-.9-2.2-2.4Z"/></svg>',
+      home: '<svg viewBox="0 0 24 24"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2h-4v-7H9v7H5a2 2 0 0 1-2-2z"/></svg>',
+      shield: '<svg viewBox="0 0 24 24"><path d="M12 2.8 4.5 6.1v5.7c0 4.7 3.1 8.2 7.5 9.4 4.4-1.2 7.5-4.7 7.5-9.4V6.1Z"/><path d="M12 6.2v11.4"/><path d="M8.2 8.2h7.6"/><path d="M7.8 12h8.4"/></svg>',
     };
     return icons[id] || '';
   }
@@ -1319,6 +1330,46 @@
     return btn;
   }
 
+  function buildToolbarUtilityButton(id, label, iconId, onClick, opts = {}) {
+    const btn = document.createElement('button');
+    btn.className = 'tool icon-only toolbar-utility';
+    btn.type = 'button';
+    btn.id = id;
+    btn.dataset.utility = id;
+    if (opts.posType) btn.dataset.posType = opts.posType;
+    btn.title = label;
+    btn.setAttribute('data-tooltip', label);
+    btn.setAttribute('aria-label', label);
+    if (opts.pressed != null) btn.setAttribute('aria-pressed', opts.pressed ? 'true' : 'false');
+    const icon = document.createElement('span');
+    icon.className = 'tool-icon';
+    icon.innerHTML = toolbarIconSvg(iconId);
+    btn.appendChild(icon);
+    const lbl = document.createElement('span');
+    lbl.textContent = label;
+    btn.appendChild(lbl);
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      onClick(e, btn);
+    });
+    return btn;
+  }
+
+  function updateShieldToolbarState() {
+    const btn = document.getElementById('toolbar-shield-toggle');
+    if (!btn) return;
+    const shield = window.VoxelShield && window.VoxelShield.shield;
+    const active = !!shield && (shield.targetProgress > 0.5 || shield.progress > 0.05);
+    const label = active ? 'Lower shield' : 'Raise shield';
+    btn.classList.toggle('active', active);
+    btn.setAttribute('aria-pressed', active ? 'true' : 'false');
+    btn.setAttribute('aria-label', label);
+    btn.setAttribute('data-tooltip', label);
+    btn.title = label;
+  }
+  window.updateShieldToolbarState = updateShieldToolbarState;
+  window.addEventListener('tinyworld:shield-changed', updateShieldToolbarState);
+
   function buildVariantToolButton(tool, variant) {
     const previewTool = Object.assign({}, tool, {
       id: tool.id + '-' + variant.id,
@@ -1349,6 +1400,18 @@
       clearTimeout(toolThumbBuildQueueTimer);
       toolThumbBuildQueueTimer = 0;
     }
+    bar.appendChild(buildToolbarUtilityButton('toolbar-home', 'Home', 'home', () => {
+      if (typeof flyHomeCamera === 'function') flyHomeCamera();
+    }, { posType: 'primary' }));
+    bar.appendChild(buildToolbarUtilityButton('toolbar-shield-toggle', 'Raise shield', 'shield', () => {
+      if (window.VoxelShield && typeof window.VoxelShield.toggle === 'function') window.VoxelShield.toggle();
+      else if (typeof ensureVoxelShield === 'function') ensureVoxelShield().toggle();
+      updateShieldToolbarState();
+    }, { posType: 'shield', pressed: false }));
+    const utilityDivider = document.createElement('div');
+    utilityDivider.className = 'toolbar-divider toolbar-utility-divider';
+    bar.appendChild(utilityDivider);
+
     const select = TOOLS.find(t => t.id === 'select');
     if (select) bar.appendChild(buildToolButton(select));
 
@@ -1392,7 +1455,7 @@
   }
 
   function updateToolActiveStates() {
-    document.querySelectorAll('.tool').forEach(b => {
+    document.querySelectorAll('.tool:not(.toolbar-utility)').forEach(b => {
       const variantId = selectedTool.activeVariant && selectedTool.activeVariant.id;
       const matchesTool = b.dataset.id === selectedTool.id;
       const matchesVariant = !b.dataset.variant || b.dataset.variant === variantId;
@@ -1420,6 +1483,7 @@
         b.removeAttribute('data-pos-type');
       }
     });
+    updateShieldToolbarState();
   }
 
   // Cancel any pending hide so re-opening doesn't immediately stash the
@@ -1519,7 +1583,7 @@
       // menu shows the house variants directly (Cottage / Manor / Tower /
       // Castle / High-rise), so no feature disappeared when the toolbar
       // was grouped.
-      if (group.id === 'build' && tool.id === 'house' && tool.variants) {
+      if (((group.id === 'build' && tool.id === 'house') || (group.id === 'infra' && tool.id === 'fence')) && tool.variants) {
         tool.variants.forEach(v => el.appendChild(buildVariantToolButton(tool, v)));
         return;
       }
@@ -1600,3 +1664,8 @@
     return Math.max(1, Math.min(MAX_FLOORS, level || 1));
   }
 
+  function fenceAppearanceFromSelectedTool() {
+    const variant = selectedTool && selectedTool.activeVariant;
+    const style = typeof normalizeFenceStyle === 'function' ? normalizeFenceStyle(variant && variant.fenceStyle) : 'wood';
+    return style === 'garden' ? { fenceStyle: 'garden' } : null;
+  }

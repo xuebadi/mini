@@ -28,6 +28,12 @@ GPU caches (introduced for low-end GPU + visible-distance scaling):
 - Pixel post shaders must preserve the renderer output encoding. In Three r128 `ShaderMaterial` already injects encoding helpers, so include/apply `encodings_fragment` at the final `gl_FragColor` step but do not duplicate `encodings_pars_fragment`.
 - Backdrop/game-screen vignette should remain a cheap CSS overlay variable, not another WebGL post pass. Keep it separate from scene brightness/lighting so it can frame the background without retuning materials.
 - Sky/background colour controls are direct scene/CSS settings, not post passes: `Sky blue depth` darkens the shader sphere and CSS backdrop, `Sky blue saturation` pushes the same blue hue harder, and `Undercloud width` rebuilds the small under-island cloud ring. `Cloud height` also controls undercloud depth below the island, slightly farther than the upper cloud distance, so one height adjustment moves both cloud layers. Keep the undercloud layer as a handful of instanced cloud-puff groups attached below the floating island; do not make a full volumetric cloud field or reuse the full multi-mesh shadow-casting sky cloud factory there.
+- Night star backgrounds use the single `star-vault-equirect-sphere` mesh and
+  a procedural star-only canvas texture, blended only at dusk/night through
+  `renderStarVaultStrength`. Keep it as a non-depth-writing sky sphere, not an
+  EffectComposer/background pass. Do not load painted sky/land/cloud bitmaps
+  into this sphere: equirect wrapping makes horizon imagery smear under/around
+  the island. Keep the shader horizon mask so stars fade out below the island.
 - Floating-island underside depth should use a small number of cached voxel/box slabs and cached utility cylinders attached to `homeBorderGroup`, not per-cell underside geometry. Treat underside/edge/rocket/utility dressing as decorative scenery: set `castShadow = false` and `receiveShadow = false` after building it so hundreds of tiny underside meshes do not enter the shadow-map pass.
 - Floating-island shell sides must stay visible from underside/grazing angles, including secondary editable islands. Keep island underside materials double-sided, keep proxy side shells on double-sided cached material clones, and keep the persistent recessed side-backing ring behind edge greebles on home and duplicate island bases. Let the scene-level island culling hide/show the shell group; do not rely on per-mesh frustum culling for the shell slabs because it can clip side/back faces while the island itself is visible.
 - Animated waterfall froth/chunks should stay batched as `THREE.InstancedMesh`
@@ -156,9 +162,29 @@ GPU caches (introduced for low-end GPU + visible-distance scaling):
   lighting conservative now that there is no post pass; time-of-day
   hemisphere scaling should normalize against the day anchor (`0.90`), not
   the raw constructor value, or midday blows out.
-- Building windows can switch to `M.windowLit` at dusk/night via per-window deterministic seeds. Keep this set-based (`buildingWindowObjects`) and update on time-of-day changes, not by scanning every cell each frame.
+- Accent lighting for the starlit look is limited to non-shadowing local
+  `SpotLight`/`PointLight` instances that follow the camera target and fade in
+  at dusk/night. Do not enable shadow maps on these lights; the directional sun
+  remains the only shadow caster.
+- Placeable lamp/spotlight stamps may include capped non-shadowing
+  `PointLight`/`SpotLight` sources, but the visible falloff should be cheap:
+  shared additive ground decals, wall/halo sprites, and haze meshes tagged
+  `userData.lightVisual` so `prepareFadeable()` does not replace their shader
+  materials. Keep the spotlight cone/decal source at the fixture and widen/fade
+  it forward onto the ground, not back toward the object.
+- Building windows can switch to `M.windowLit` at dusk/night via per-window deterministic seeds. Keep this set-based (`buildingWindowObjects`) and update on time-of-day changes, not by scanning every cell each frame. Window spill/wall glow/halo helpers should be tagged `userData.windowLightEffect` and skipped by fade-material traversal so their additive shader materials survive ghost/reveal opacity setup.
+- The blast shield is the supplied `VoxelShield` class/API port in
+  `engine/world/40-shield-system.js`, not a replacement design. Preserve
+  `VoxelKit`, `BlastPanel`, `CornerKeystone`, `ShieldRing`, `ShieldDemo`, and
+  `window.VoxelShield`. Keep panel/keystone voxel pieces optimized with
+  `optimizeVoxelObjectGroup(...)`, and cap actual `PointLight`s while retaining
+  emissive rune/glow cubes.
 - Ghost boards should participate in the shadow pass — same sun, same shadows everywhere. If Preview/ghost shadows disappear, first check that `prepareFadeable` has not forced ghost meshes to `castShadow = false`, and that any merged/batched ghost terrain explicitly preserves `receiveShadow`/`castShadow` after replacing source meshes. The factory-level `castReceive` / `groundReceiveOnly` choices should apply uniformly unless there is a deliberate, visible-quality-approved LOD exception.
 - Voxel cloud visual opacity is independent from Cloud shadow. Do not drive visible cloud materials with `alphaTest`; cloud shadow breakup belongs on each puff's `customDepthMaterial` so lowering the shadow slider never hides the clouds themselves.
+- Cloud rim lighting is material/shader tint only: voxel cloud material clones
+  use a small warm emissive, while soft cloud shader quads use a `rimStrength`
+  uniform. Keep rim lighting separate from `renderCloudShadow` so cloud shadow
+  cost/visibility rules do not change.
 - Sky clouds should stay above and around the active build plane, not directly
   over rooftops/buildings in overhead editor views. Keep the high visual minimum
   and no-fly/perimeter exclusion in `23-particles-clouds.js` and

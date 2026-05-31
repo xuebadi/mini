@@ -1116,7 +1116,12 @@
     const tf = terrainLevelForCell(c);
     const bt = c.buildingType || null;
     const fs = c.fenceSide || null;
-    const extras = (c.extras && c.extras.length) ? c.extras.map(e => ({ k: e.kind, s: e.fenceSide || null, f: e.floors || 1 })) : null;
+    const extras = (c.extras && c.extras.length) ? c.extras.map(e => {
+      const extra = { k: e.kind, s: e.fenceSide || null, f: e.floors || 1 };
+      const appearance = normalizeAppearance(e.appearance);
+      if (appearance) extra.appearance = appearance;
+      return extra;
+    }) : null;
     const ry = c.rotationY || 0;
     const ox = c.offsetX || 0;
     const oz = c.offsetZ || 0;
@@ -1136,4 +1141,3 @@
     }
     return null;
   }
-

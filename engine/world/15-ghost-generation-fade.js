@@ -321,6 +321,7 @@
     opacityRoots.add(group);
     group.traverse(o => {
       if (!o.isMesh || !o.material) return;
+      if (o.userData && (o.userData.windowLightEffect || o.userData.lightVisual)) return;
       // Ghost-board terrain neither casts nor receives shadows: the large flat
       // tile plates self-shadow into parallel-band acne under the voxel-tuned
       // shadow bias (sun.shadow.bias/normalBias in 02-cameras-lighting.js are
@@ -560,7 +561,7 @@
     else if (cell.kind === 'carrot')    mesh = makeVoxelCropKind('carrot', level);
     else if (cell.kind === 'sunflower') mesh = makeVoxelCropKind('sunflower', level);
     else if (cell.kind === 'chimney' || cell.kind === 'ripple' || cell.kind === 'shrub' || cell.kind === 'stone' || cell.kind === 'pebble' || cell.kind === 'bridge-rail') mesh = makeVoxelMicroKind(cell.kind, level, x + 1000, z + 1000);
-    else if (cell.kind === 'fence')     mesh = makeVoxelFence(normalizeFenceSide(cell.fenceSide), level);
+    else if (cell.kind === 'fence')     mesh = makeVoxelFence(normalizeFenceSide(cell.fenceSide), level, false, false, 'x', typeof fenceStyleForCell === 'function' ? fenceStyleForCell(cell) : 'wood');
     else if (cell.kind === 'house') {
       if (cell.buildingType === 'manor') mesh = makeVoxelManor(level);
       else if (cell.buildingType === 'tower') mesh = makeVoxelStoneTower(Math.max(level, 2));
@@ -1282,4 +1283,3 @@
     // and far ones may need to drop to cheap versions (progressive LOD).
     maybeReevaluateGhostDetails();
   }
-

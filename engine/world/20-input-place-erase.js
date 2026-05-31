@@ -267,32 +267,40 @@
     if (selectedTool.kind === 'fence') {
       const side = fenceSideFromHover(currentHover);
       const baseLevel = fenceLevelFromSelectedTool();
+      const fenceAppearance = typeof fenceAppearanceFromSelectedTool === 'function' ? fenceAppearanceFromSelectedTool() : null;
+      const fenceStyle = typeof fenceStyleFromAppearance === 'function' ? fenceStyleFromAppearance(fenceAppearance) : 'wood';
+      const cellFenceStyle = typeof fenceStyleForCell === 'function' ? fenceStyleForCell(cell) : 'wood';
       // Same-side fence on a fence cell → level it up in place.
-      if (cell.kind === 'fence' && normalizeFenceSide(cell.fenceSide) === side) {
+      if (cell.kind === 'fence' && normalizeFenceSide(cell.fenceSide) === side && cellFenceStyle === fenceStyle) {
         if (opts.drawing) {
           if ((cell.floors || 1) >= baseLevel) return;
-          setCell(x, z, { terrain: cell.terrain, terrainFloors: terrainLevelForCell(cell), kind: 'fence', floors: baseLevel, fenceSide: side });
+          setCell(x, z, { terrain: cell.terrain, terrainFloors: terrainLevelForCell(cell), kind: 'fence', floors: baseLevel, fenceSide: side, appearance: fenceAppearance });
           return;
         }
         const newLevel = Math.min(Math.max((cell.floors || 1) + 1, baseLevel), MAX_FLOORS);
         if (newLevel === (cell.floors || 1)) return;
-        setCell(x, z, { terrain: cell.terrain, terrainFloors: terrainLevelForCell(cell), kind: 'fence', floors: newLevel, fenceSide: side });
+        setCell(x, z, { terrain: cell.terrain, terrainFloors: terrainLevelForCell(cell), kind: 'fence', floors: newLevel, fenceSide: side, appearance: fenceAppearance });
+        return;
+      }
+      // Same side but a different fence style → restyle the fence in place.
+      if (cell.kind === 'fence' && normalizeFenceSide(cell.fenceSide) === side) {
+        setCell(x, z, { terrain: cell.terrain, terrainFloors: terrainLevelForCell(cell), kind: 'fence', floors: baseLevel, fenceSide: side, appearance: fenceAppearance });
         return;
       }
       // Different-side fence on a fence cell → add the new side as an
       // extra so multiple fence sides co-exist on the same tile.
       if (cell.kind === 'fence') {
-        addCellExtra(x, z, { kind: 'fence', fenceSide: side, floors: baseLevel }, { drawing: opts.drawing });
+        addCellExtra(x, z, { kind: 'fence', fenceSide: side, floors: baseLevel, appearance: fenceAppearance }, { drawing: opts.drawing });
         return;
       }
       // Different main occupant → fence co-exists alongside it.
       if (cell.kind && cell.kind !== 'fence') {
-        addCellExtra(x, z, { kind: 'fence', fenceSide: side, floors: baseLevel }, { drawing: opts.drawing });
+        addCellExtra(x, z, { kind: 'fence', fenceSide: side, floors: baseLevel, appearance: fenceAppearance }, { drawing: opts.drawing });
         return;
       }
       // Empty cell → fence becomes the main kind.
       const gt2 = consumeGhostTransform();
-      setCell(x, z, { terrain: cell.terrain, terrainFloors: terrainLevelForCell(cell), kind: 'fence', floors: baseLevel, fenceSide: side, rotationY: gt2.rotationY, offsetX: gt2.offsetX, offsetZ: gt2.offsetZ });
+      setCell(x, z, { terrain: cell.terrain, terrainFloors: terrainLevelForCell(cell), kind: 'fence', floors: baseLevel, fenceSide: side, rotationY: gt2.rotationY, offsetX: gt2.offsetX, offsetZ: gt2.offsetZ, appearance: fenceAppearance });
       return;
     }
     if (selectedTool.kind) {
@@ -324,7 +332,7 @@
       if (demote) {
         const carriedExtras = (cell.extras || []).slice();
         carriedExtras.push(cell.kind === 'fence'
-          ? { kind: 'fence', fenceSide: cell.fenceSide || 'n', floors: cell.floors || 1 }
+          ? { kind: 'fence', fenceSide: cell.fenceSide || 'n', floors: cell.floors || 1, appearance: normalizeAppearance(cell.appearance) }
           : { kind: 'tuft', floors: cell.floors || 1 });
         const gtd = consumeGhostTransform();
         setCell(x, z, { terrain: newTerrain, terrainFloors: terrainLevelForCell(cell), kind: incomingPrimary, floors: 1, extras: carriedExtras, rotationY: gtd.rotationY, offsetX: gtd.offsetX, offsetZ: gtd.offsetZ });

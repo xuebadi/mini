@@ -146,6 +146,7 @@
     saturation: 'tinyworld:render:saturation',
     contrast: 'tinyworld:render:contrast',
     brightness: 'tinyworld:render:brightness',
+    uiTheme: 'tinyworld:uiTheme',
     shadow: 'tinyworld:render:shadow',
     lighting: 'tinyworld:render:lighting',
     ambientFill: 'tinyworld:render:ambientFill',
@@ -162,6 +163,10 @@
     distantWorlds: 'tinyworld:render:distantWorlds',
     cloudSea: 'tinyworld:render:cloudSea',
     cloudStyle: 'tinyworld:render:cloudStyle',
+    starVault: 'tinyworld:render:starVault',
+    starVaultStrength: 'tinyworld:render:starVaultStrength',
+    cloudRimLight: 'tinyworld:render:cloudRimLight',
+    accentLights: 'tinyworld:render:accentLights',
     underCloudSpread: 'tinyworld:render:underCloudSpread',
     skyBlueDepth: 'tinyworld:render:skyBlueDepth',
     skyBlueSaturation: 'tinyworld:render:skyBlueSaturation',
@@ -224,6 +229,7 @@
     saturation: '1',
     contrast: '1',
     brightness: '1',
+    uiTheme: 'auto',
     shadow: 'balanced',
     lighting: '1.12',
     ambientFill: '0.50',
@@ -240,6 +246,10 @@
     distantWorlds: '1',
     cloudSea: '0',
     cloudStyle: 'voxel',
+    starVault: '1',
+    starVaultStrength: '0.92',
+    cloudRimLight: '0.78',
+    accentLights: '0.65',
     underCloudSpread: '1.35',
     skyBlueDepth: '0.58',
     skyBlueSaturation: '1',
@@ -340,6 +350,7 @@
   const BASE_DPR_CAP = window.matchMedia && window.matchMedia('(max-width: 800px)').matches ? 1.5 : 2.0;
   let renderResolutionScale = storedNumber(RENDER_LS.resolution, 0.5, 0.25, 1.5);
   let renderBrightness = storedNumber(RENDER_LS.brightness, 1.0, 0.75, 1.3);
+  let uiThemeMode = ['auto', 'light', 'dark'].includes(localStorage.getItem(RENDER_LS.uiTheme)) ? localStorage.getItem(RENDER_LS.uiTheme) : 'auto';
   let renderSaturation = storedNumber(RENDER_LS.saturation, 1.0, 0.8, 1.3);
   let renderContrast = storedNumber(RENDER_LS.contrast, 1.0, 0.85, 1.25);
   let renderShadowQuality = localStorage.getItem(RENDER_LS.shadow) || 'balanced';
@@ -432,6 +443,10 @@
   let renderCloudSea = localStorage.getItem(RENDER_LS.cloudSea) === '1';
   // Cloud style for the clouds around/above the islands: 'voxel' or 'soft'.
   let renderCloudStyle = localStorage.getItem(RENDER_LS.cloudStyle) === 'soft' ? 'soft' : 'voxel';
+  let renderStarVault = localStorage.getItem(RENDER_LS.starVault) !== '0';
+  let renderStarVaultStrength = storedNumber(RENDER_LS.starVaultStrength, 0.92, 0, 1.2);
+  let renderCloudRimLight = storedNumber(RENDER_LS.cloudRimLight, 0.78, 0, 1.2);
+  let renderAccentLights = storedNumber(RENDER_LS.accentLights, 0.65, 0, 1.2);
   let renderUnderCloudSpread = storedNumber(RENDER_LS.underCloudSpread, 1.35, 0.7, 2.2);
   let renderSkyBlueDepth = storedNumber(RENDER_LS.skyBlueDepth, 0.58, 0, 1);
   let renderSkyBlueSaturation = storedNumber(RENDER_LS.skyBlueSaturation, 1, 0.25, 2.2);

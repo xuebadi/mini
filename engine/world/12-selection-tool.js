@@ -495,6 +495,7 @@
       kind: e.kind || e.k || null,
       fenceSide: e.fenceSide || e.s || null,
       floors: e.floors || e.f || 1,
+      appearance: normalizeAppearance(e.appearance || e.a),
     })) : [];
   }
 
@@ -873,4 +874,3 @@
     if (cell.appearance || cell.waterFlow && cell.waterFlow !== 'auto') return false;
     return true;
   }
-

@@ -20,6 +20,21 @@ Checks:
 - The opacity torch is smooth and does not reveal square board seams.
 - Tilt-shift overlays have `pointer-events: none`, stay below UI controls, and remain visible during pan/orbit/zoom movement.
 - Cloud shadow at 0% / low values should reduce ground shadow strength without hiding visible cloud puffs.
+- At night/dusk, the star vault should appear behind the world without covering
+  objects or UI, cloud rim lighting should warm cloud edges, and accent lights
+  should brighten nearby foreground objects without adding shadow-map cost.
+- Lamp/spotlight stamps should show a blurred warm haze plus a ground spill at
+  night. The spotlight spill must be narrow at the fixture and wider/fainter in
+  front of it; window spill decals should not render through buildings or lose
+  their additive material during fade/reveal.
+- Blast shield QA: open `?shield=1`, confirm `window.VoxelShield` exposes the
+  supplied class/API names, has 4 keystones and 32 panels, blue rune faces point
+  outward, `open()` / `close()` / `toggle()` / `setProgress()` work, and the
+  bottom toolbar Home and Shield buttons sit side by side with Shield reflecting
+  raised/lowered state.
+- Garden Fence should be selectable from the Infra group, render with dark
+  posts/vine/fruit accents, persist through export/import, and batch contiguous
+  same-style runs as one span anchor.
 - Building details should be believable: manor portico columns stay entry-scale, windows have frames/crossbars, and tall buildings do not stretch entry features unrealistically.
 - Toolbar flyouts should sit clear of the toolbar (about 10px), avoid vertical clipping, and reduce empty thumbnail air via camera/frustum framing rather than negative CSS margins inside scrollable flyout containers.
 - The Stamps panel should open as a compact floating canvas panel, stay open while placing items, drag by its header, avoid AI/create/enhance controls, and keep darker thumbnail previews readable.

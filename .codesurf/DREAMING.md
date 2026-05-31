@@ -14,10 +14,10 @@ Tiny World Builder is a vanilla ES6, no-bundler 3D world editor built on Three.j
 
 **Architecture**
 - Primary file: `tiny-world-builder.html` — HTML shell, boot config, and ordered `<script src>` tags only
-- Engine modules: `engine/world/00-prelude.js` through `engine/world/99-late-boot.js` — 39 modules total (00–37 + 99), numbered by load order
+- Engine modules: `engine/world/00-prelude.js` through `engine/world/99-late-boot.js` — 39 modules total (00–37 + 99-late-boot.js), numbered by load order
   - Newest modules: `34-flight-sim.js`, `35-tool-palette.js`, `36-mooring-interaction.js`, `37-island-placement-holos.js`
 - Skills: 20 `.codex/skills/tinyworld-*` SKILL.md files; all routing entries in AGENTS.md are current
-- `tinyworld-ghost-world-gen` and `threejs-primitive-reconstructor` present on disk but absent from AGENTS.md routing table
+- `tinyworld-ghost-world-gen` and `threejs-primitive-reconstructor` present on disk but absent from AGENTS.md routing table (stable gap — unresolved across multiple dreaming cycles)
 - Three.js pinned to r128; bumping is risky (shadow and material color-space changes in newer releases)
 - All modules share one global scope (classic `<script>` tags, not ES modules) — load order matters; duplicate top-level identifiers throw `SyntaxError` and silently kill the declaring module
 
@@ -58,7 +58,7 @@ Tiny World Builder is a vanilla ES6, no-bundler 3D world editor built on Three.j
 - Islands render terrain per-cell, matching home island parity (`ensureEditableIslandCellTiles`)
 - 8-slot placement workflow with hologram snapping; hover/placement wired through `20-input-place-erase.js`
 - Mooring cable routing avoids engine hazards (`MOORING_HAZARD_CLEARANCE`, `avoidMooringHazards`)
-- Island side-backing clone now inherits the voxel seam shader from `M.boardSide` (`03-geometry-materials.js`); grid is fine-scale horizontal/vertical lines — not oversized blocks. Skill `tinyworld-island-and-planes` updated to document this.
+- Island side-backing clone now inherits the voxel seam shader from `M.boardSide` (`03-geometry-materials.js`); grid is fine-scale horizontal/vertical lines — not oversized blocks
 
 **AI Generation** (`26-ai-generation.js`)
 - Primitive approximation bias removed; primitives are "components, not a ceiling"
@@ -79,14 +79,19 @@ Tiny World Builder is a vanilla ES6, no-bundler 3D world editor built on Three.j
 - Engine types: propeller (tinted), rocket (heavy variant), standard
 - Selected engines reveal the agent panel (`28-generate-panel-agent.js`)
 
+**Lamp / local lights** (`engine/world/` — atmosphere module)
+- Three r128 PointLight/SpotLight type predicate now used for the local-light toggle (old predicate was too narrow and missed dynamically placed lamps)
+- Atmosphere updater's time/settings bucket cache is invalidated whenever placeable light roots are registered or removed; placement at night turns the real light on immediately
+
 **Storage / asset utilities** (`00-prelude.js`)
 - `twToast`, `twSafeSetItem`, `twDownloadJSON`, `twPickJSONFile`
 - Asset library export/import: `exportAssetLibrary`, `importAssetLibrary`
 - Custom voxel-build stamps: `referencedVoxelBuildStamps`, `registerEmbeddedVoxelBuildStamps`
 
 **Known fixes (2026-05-31)**
-- Startup race: texture load callbacks could call `renderScene()` before `worldGroup` exists, producing `ReferenceError: worldGroup is not defined`. Guard added; early texture callbacks no-op until scene graph is initialized.
-- Island seam scale: side-backing clone was rendering plain oversized slabs. Fixed by explicitly copying the seam shader hook from `M.boardSide` into cloned island-shell materials (`03-geometry-materials.js`, `04-textures.js`).
+- Startup race: texture load callbacks could call `renderScene()` before `worldGroup` exists, producing `ReferenceError: worldGroup is not defined`. Guard added; early texture callbacks no-op until scene graph is initialized (`04-textures.js`, `initCloudSystem`)
+- Island seam scale: side-backing clone was rendering plain oversized slabs. Fixed by explicitly copying the seam shader hook from `M.boardSide` into cloned island-shell materials (`03-geometry-materials.js`, `04-textures.js`)
+- Lamp light predicate: local lights placed at night now activate immediately; atmosphere updater cache invalidated on registration/removal
 
 ---
 
@@ -109,11 +114,11 @@ Tiny World Builder is a vanilla ES6, no-bundler 3D world editor built on Three.j
 | API, webhook, SSE, MCP, plugin | `tinyworld-integrations` |
 | localStorage, defaults, audio, camera | `tinyworld-runtime-state` |
 | Home island, sponsor banner, planes | `tinyworld-island-and-planes` |
-| Tool icons (PNG bake), ghost billboard, mode indicator | `tinyworld-tool-icons-and-modes` |
+| Tool icons (SVG glyphs), mode indicator | `tinyworld-tool-icons-and-modes` |
 | Block button aesthetic (raised square, dark outline) | `tinyworld-block-button-style` |
 | Flyable plane via stunt-plane stamp | `tinyworld-flight-sim` |
 
-Skills on disk but absent from AGENTS.md routing table (stable gap — unresolved across multiple sessions):
+Skills on disk but absent from AGENTS.md routing table (unresolved across multiple dreaming cycles):
 - `tinyworld-ghost-world-gen`
 - `threejs-primitive-reconstructor`
 
@@ -121,12 +126,12 @@ Skills on disk but absent from AGENTS.md routing table (stable gap — unresolve
 
 ## Open Threads
 
-- `tinyworld-ghost-world-gen` and `threejs-primitive-reconstructor` skills exist in `.codex/skills/` but are not in the AGENTS.md routing table — has persisted across multiple dreaming cycles with no action; either wire them or explicitly remove
-- `fork-improvements-report.md` at repo root (added 2026-05-30) — fork findings and recommended lifts; review status unknown
-- OpenClaw cron jobs (VibeClaw Article Generator, Wallpaper Generator, Skills Scout, Tom Doerr Tweet Tracker) producing repeated assistant-turn failures — platform-level instability in OpenClaw cron execution
-- OpenClaw `mc-gateway` session has persistent assistant turn failures; lead-agent heartbeat (Ava, board `c3f78d0c`) remains healthy
-- Tom Doerr tweet tracker blocked by X.com login wall; Nitter fallback also unavailable
-- `split-god-file.js` workflow in `.claude/workflows/` — purpose/status not confirmed in recent sessions
+- **Blast door concept** (side task, no implementation yet): low-poly dark reinforced metal with battle damage; doors "roll" from island sides in a physically impossible way to form barriers around engines and land edges. User said they would mock up a visual. No code yet — waiting on mockup before implementation begins.
+- `tinyworld-ghost-world-gen` and `threejs-primitive-reconstructor` skills exist in `.codex/skills/` but are not in the AGENTS.md routing table — either wire them or explicitly remove.
+- `fork-improvements-report.md` at repo root (added 2026-05-30) — eight improvement areas (module naming/loading, state management, Three.js upgrade path, asset pipeline, testing, build system, documentation, architecture); review/action status unknown.
+- OpenClaw cron jobs (VibeClaw Article Generator, Wallpaper Generator, Skills Scout, Tom Doerr Tweet Tracker) all producing repeated assistant-turn failures — platform-level instability in OpenClaw cron execution; no action taken in tinyworld repo.
+- Tom Doerr tweet tracker additionally blocked by X.com login wall; Nitter fallback unavailable.
+- `split-god-file.js` workflow in `.claude/workflows/` — purpose/status not confirmed in recent sessions.
 
 ---
 
@@ -134,5 +139,9 @@ Skills on disk but absent from AGENTS.md routing table (stable gap — unresolve
 
 - No emoji anywhere — user strictly prohibits emoji in UI, code, and output
 - Do not rebuild existing components; reuse as-is
-- Verify UI/interaction behavior via 3D math (positions, bbox, ray math) — not browser screenshots or synthetic clicks
-- PNG icons are baked via `npm run icons`; SVG glyphs are the canonical source; never reintroduce PNG baked-icon system to main
+- Verify UI/interaction behavior via 3D math (positions/bbox/ray-math), not browser screenshots or synthetic clicks
+- tinyworld main uses SVG glyphs for tool icons — never reintroduce the PNG baked-icon system
+
+---
+
+_This file is auto-generated by the CodeSurf dreaming process. Do not edit manually — changes will be overwritten on the next dreaming cycle. For permanent instructions, edit AGENTS.md or .claude/CLAUDE.md._
