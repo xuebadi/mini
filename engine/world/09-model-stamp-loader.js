@@ -918,18 +918,36 @@
     return voxelBuildMaterialCache.get(key);
   }
 
+  function voxelFallbackColorForMaterialName(name) {
+    const key = String(name || '').trim().toLowerCase();
+    const direct = normalizeHexColor(key);
+    if (direct) return direct;
+    if (!key) return '#ffffff';
+    const palette = [
+      '#C7A858', '#B86B3D', '#8DB8C5', '#B9E6C0', '#E78224',
+      '#3F64B7', '#6A3FB7', '#5C9A4B', '#D7CC9E', '#A04030',
+      '#7E8A91', '#B88B52',
+    ];
+    let hash = 0;
+    for (let i = 0; i < key.length; i++) hash = ((hash << 5) - hash + key.charCodeAt(i)) | 0;
+    return palette[Math.abs(hash) % palette.length];
+  }
+
   function voxelPartMaterial(name) {
     const key = String(name || '').trim();
-    return voxelBuildMaterial(VOXEL_PART_COLORS[key] || key || '#ffffff', proceduralTextureKindForMaterialName(key));
+    return voxelBuildMaterial(
+      VOXEL_PART_COLORS[key] || voxelFallbackColorForMaterialName(key),
+      proceduralTextureKindForMaterialName(key)
+    );
   }
 
   function voxelAppearanceRoleForMaterial(name) {
     const key = String(name || '').toLowerCase();
     if (!key) return null;
     if (/(roofedge|roof_edge|roof-dark|roofdark)/.test(key)) return 'topDark';
-    if (/roof|green|pink|crop|leaf|leaves|foliage|blossom/.test(key)) return 'top';
-    if (/(wooddark|stonedark|dirtdark|pathdark|waterdark|shadow)/.test(key)) return 'bodyDark';
-    if (/wood|stone|cream|white|red|wall|body|trunk|dirt|path|water/.test(key)) return 'body';
+    if (/roof|green|pink|crop|leaf|leaves|foliage|blossom|fabric|canvas|cloth|sail|balloon|glass/.test(key)) return 'top';
+    if (/(wooddark|stonedark|dirtdark|pathdark|waterdark|brassdark|shadow|charcoal|black|rope|cable|tether|cord|line)/.test(key)) return 'bodyDark';
+    if (/wood|stone|cream|white|red|wall|body|trunk|dirt|path|water|metal|steel|silver|brass|copper|bronze|frame|strut|rail|propeller|engine|leather/.test(key)) return 'body';
     return null;
   }
 
@@ -970,6 +988,28 @@
     if (!Array.isArray(parts) || !parts.length) return null;
     const b = { minX: Infinity, maxX: -Infinity, minY: Infinity, maxY: -Infinity, minZ: Infinity, maxZ: -Infinity };
     for (const part of parts) {
+      if (part && part.kind === 'cable' && Array.isArray(part.from) && Array.isArray(part.to)) {
+        const radius = Math.max(0.005, Math.abs(Number(part.radius) || 0.035));
+        const sag = Number(part.sag) || 0;
+        const points = [
+          part.from,
+          [
+            (part.from[0] + part.to[0]) * 0.5,
+            (part.from[1] + part.to[1]) * 0.5 - sag,
+            (part.from[2] + part.to[2]) * 0.5,
+          ],
+          part.to,
+        ];
+        for (const p of points) {
+          b.minX = Math.min(b.minX, p[0] - radius);
+          b.maxX = Math.max(b.maxX, p[0] + radius);
+          b.minY = Math.min(b.minY, p[1] - radius);
+          b.maxY = Math.max(b.maxY, p[1] + radius);
+          b.minZ = Math.min(b.minZ, p[2] - radius);
+          b.maxZ = Math.max(b.maxZ, p[2] + radius);
+        }
+        continue;
+      }
       const sx = (part.size[0] || 0) * (part.scale[0] || 1);
       const sy = (part.size[1] || 0) * (part.scale[1] || 1);
       const sz = (part.size[2] || 0) * (part.scale[2] || 1);
@@ -1040,7 +1080,19 @@
         allowedCenter[1] + (part.pos[1] - sourceCenter[1]) * scale,
         allowedCenter[2] + (part.pos[2] - sourceCenter[2]) * scale,
       ];
-      return Object.assign({}, part, { size, pos });
+      const next = Object.assign({}, part, { size, pos });
+      if (part.kind === 'cable') {
+        const fitPoint = p => [
+          allowedCenter[0] + (p[0] - sourceCenter[0]) * scale,
+          allowedCenter[1] + (p[1] - sourceCenter[1]) * scale,
+          allowedCenter[2] + (p[2] - sourceCenter[2]) * scale,
+        ];
+        next.from = fitPoint(part.from);
+        next.to = fitPoint(part.to);
+        next.radius = Math.max(0.006, (part.radius || 0.035) * scale);
+        next.sag = (part.sag || 0) * scale;
+      }
+      return next;
     });
   }
 
@@ -1079,6 +1131,67 @@
     }
   }
 
+  function customPartLocalPoint(raw, centerX, floorY, centerZ, unit, platformSink) {
+    return new THREE.Vector3(
+      (raw[0] - centerX) * unit,
+      (raw[1] - floorY) * unit - platformSink,
+      (raw[2] - centerZ) * unit
+    );
+  }
+
+  function expandCustomPartRenderBounds(bounds, point, radius) {
+    bounds.minX = Math.min(bounds.minX, point.x - radius);
+    bounds.maxX = Math.max(bounds.maxX, point.x + radius);
+    bounds.minY = Math.min(bounds.minY, point.y - radius);
+    bounds.maxY = Math.max(bounds.maxY, point.y + radius);
+    bounds.minZ = Math.min(bounds.minZ, point.z - radius);
+    bounds.maxZ = Math.max(bounds.maxZ, point.z + radius);
+  }
+
+  function addCustomPartCable(parent, part, centerX, floorY, centerZ, unit, platformSink, mat, trimBounds) {
+    const start = customPartLocalPoint(part.from, centerX, floorY, centerZ, unit, platformSink);
+    const end = customPartLocalPoint(part.to, centerX, floorY, centerZ, unit, platformSink);
+    if (start.distanceTo(end) < 0.01) return false;
+    const dist = start.distanceTo(end);
+    const radius = Math.max(0.006, Math.min(0.06, (Number(part.radius) || 0.035) * unit));
+    const sag = (Number(part.sag) || 0) * unit;
+    const side = new THREE.Vector3(-(end.z - start.z), 0, end.x - start.x);
+    if (side.lengthSq() > 0.0001) side.normalize().multiplyScalar(Math.min(0.05, dist * 0.03));
+    const p1 = start.clone().lerp(end, 0.25).add(side).add(new THREE.Vector3(0, -sag * 0.36, 0));
+    const p2 = start.clone().lerp(end, 0.58).addScaledVector(side, -0.35).add(new THREE.Vector3(0, -sag, 0));
+    const p3 = start.clone().lerp(end, 0.83).addScaledVector(side, -0.15).add(new THREE.Vector3(0, -sag * 0.45, 0));
+    const points = [start, p1, p2, p3, end];
+    const curve = new THREE.CatmullRomCurve3(points, false, 'catmullrom', 0.32);
+    const mesh = new THREE.Mesh(new THREE.TubeGeometry(curve, part.segments || 24, radius, 5, false), mat);
+    mesh.castShadow = true;
+    mesh.receiveShadow = false;
+    mesh.userData.noBatch = true;
+    parent.add(mesh);
+    const clampMat = voxelTrimMaterial(mat, '#1f1a14');
+    const clamp = Math.max(radius * 3.2, 0.018);
+    vbox(parent, clamp * 1.45, clamp * 0.9, clamp * 1.45, start.x, start.y, start.z, clampMat, { noGap: true, noBevel: true });
+    vbox(parent, clamp * 1.45, clamp * 0.9, clamp * 1.45, end.x, end.y, end.z, clampMat, { noGap: true, noBevel: true });
+    for (const point of points) expandCustomPartRenderBounds(trimBounds, point, radius + clamp);
+    return true;
+  }
+
+  function addCustomPartEllipsoid(parent, part, w, h, d, x, y, z, mat) {
+    const widthSegments = Math.max(6, Math.min(24, Math.round(part.segments || 12)));
+    const heightSegments = Math.max(4, Math.min(16, Math.round(part.verticalSegments || 8)));
+    const phiStart = Number.isFinite(part.phiStart) ? part.phiStart : 0;
+    const phiLength = Number.isFinite(part.phiLength) ? part.phiLength : Math.PI * 2;
+    const thetaStart = Number.isFinite(part.thetaStart) ? part.thetaStart : 0;
+    const thetaLength = Number.isFinite(part.thetaLength) ? part.thetaLength : Math.PI;
+    let geo = new THREE.SphereGeometry(0.5, widthSegments, heightSegments, phiStart, phiLength, thetaStart, thetaLength);
+    if (typeof geo.toNonIndexed === 'function') geo = geo.toNonIndexed();
+    if (geo.computeVertexNormals) geo.computeVertexNormals();
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.scale.set(w, h, d);
+    mesh.position.set(x, y, z);
+    parent.add(mesh);
+    return mesh;
+  }
+
   function makeCustomPartsStamp(stamp, opts = {}) {
     const parts = normalizeVoxelCustomParts(stamp.customParts || stamp.parts);
     if (!parts.length) return null;
@@ -1098,6 +1211,11 @@
     for (const part of parts) {
       const role = voxelAppearanceRoleForMaterial(part.material);
       const mat = voxelAppearanceMaterial(voxelPartMaterial(part.material), role, opts.appearance);
+      if (part.kind === 'cable' && Array.isArray(part.from) && Array.isArray(part.to)) {
+        trimBase = trimBase || mat;
+        addCustomPartCable(g, part, centerX, floorY, centerZ, unit, platformSink, mat, trimBounds);
+        continue;
+      }
       const w = part.size[0] * part.scale[0] * unit;
       const h = part.size[1] * part.scale[1] * unit;
       const d = part.size[2] * part.scale[2] * unit;
@@ -1117,6 +1235,8 @@
         const mesh = new THREE.Mesh(new THREE.ConeGeometry(Math.max(w, d) / 2, h, part.segments || 4), mat);
         mesh.position.set(x, y, z);
         g.add(mesh);
+      } else if (part.kind === 'sphere' || part.kind === 'ellipsoid') {
+        addCustomPartEllipsoid(g, part, w, h, d, x, y, z, mat);
       } else {
         vbox(g, w, h, d, x, y, z, mat);
       }
@@ -1485,9 +1605,9 @@
       const d = Math.max(0.36, depth * (1 - t * 0.78));
       const y = topY - i * yStep - layerH * 0.5;
       const mat = i % 3 === 0 ? trimMat : roofMat;
-      vbox(parent, w, layerH, d, 0, y, 0, mat, { noGap: true });
+      vbox(parent, w, layerH, d, 0, y, 0, mat, { noGap: true, skipTop: true });
     }
-    vbox(parent, Math.max(0.30, width * 0.10), layerH * 1.1, Math.max(0.30, depth * 0.10), 0, topY - totalDrop - layerH * 0.55, 0, trimMat, { noGap: true });
+    vbox(parent, Math.max(0.30, width * 0.10), layerH * 1.1, Math.max(0.30, depth * 0.10), 0, topY - totalDrop - layerH * 0.55, 0, trimMat, { noGap: true, skipTop: true });
   }
 
   function makeBlankIsland() {
@@ -2999,4 +3119,3 @@
     beacon.receiveShadow = false;
     return g;
   }
-

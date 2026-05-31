@@ -37,6 +37,27 @@ Use this together with:
 ## Material and palette rules
 
 - Prefer 2–4 materials per object: body, dark trim, highlight, accent.
+- Bespoke generated voxel/custom-part models should use semantic material
+  families rather than collapsing to the seed material. A greenhouse needs
+  glass + frame + planting/base materials; an airship needs hull + brass/copper
+  machinery + fabric/canvas balloon panels + cable/rope rigging + glass
+  bridge/window accents.
+- Use the custom-part `cable` primitive for actual connections: balloon ropes,
+  crane lines, tethers, rigging, moorings, bridge suspension lines, and other
+  angled cords. Do not fake these as vertical stone/wood columns when endpoints
+  are known.
+- Use custom-part `sphere`/`ellipsoid` primitives for rounded balloon
+  envelopes, domes, tanks, and soft canopies. Panel bands or ribs can be boxes
+  only when they read as raised seams; colored balloon fabric panels should use
+  curved ellipsoid slices (`phiStart`/`phiLength`) rather than square side
+  plates.
+- Default custom-part stamps should be board-scale on first creation. Compact
+  bridges, decks, docks, and props should be about one tile wide and can use a
+  small negative Y offset to sit into the terrain/water; only deliberate hero
+  objects should claim 1.5+ tiles.
+- Native TinyWorld objects can be used as parts of a scene, but they should not
+  stand in for a requested model when `customParts` can express the model
+  directly.
 - Never mutate shared `M.*` material colors for one instance; clone or create a new material. The one allowed global exception is `applySeasonFoliage()`, which centrally retints shared foliage/grass materials for season changes.
 - Three.js r128 `MeshLambertMaterial` does not accept `flatShading`; keep faceted model-stamp fallbacks through non-indexed/flat-normal geometry instead of unsupported material flags.
 - Cottage-style defaults are now part of the built-in material language: use deterministic canvas textures (`texCottageGrass`, `texCottageWood`, `texCottageGlass`, `texCottageStone`, `texCottageDirt`) for grass, board-side/foundation stone, windows, wood, and dirt before adding new ad-hoc texture generators.

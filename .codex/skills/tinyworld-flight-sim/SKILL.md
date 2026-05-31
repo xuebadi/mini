@@ -49,7 +49,7 @@ stamp at `enterFlight`. Ground is a flat sim plane at spawn height.
   `enterFlight(x,z)`: swaps the global `camera` to a `flightCam` (FOV 60), captures
   keys, and uses the placed stamp group as the flown mesh (`flightJet`); finds a
   propeller child by name to spin (cosmetic, optional).
-- Controls: W = climb / S = dive (pitch), A/D roll, Q/E yaw, Shift/Ctrl OR
+- Controls: W = nose down, S or X = nose up (pitch), A/D roll, Q/E yaw, Shift/Ctrl OR
   ArrowUp/ArrowDown = throttle, ArrowLeft/ArrowRight = rudder, B brake.
 - `Escape` → `exitFlight()`: restores the previous camera, calls `updateCamera()`,
   re-renders the cell to re-park the stamp.

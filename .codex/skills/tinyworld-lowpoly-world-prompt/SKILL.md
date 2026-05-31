@@ -33,7 +33,8 @@ Prompt principles:
 Primitive assembly prompting:
 
 - Tell models they cannot invent new object kinds, meshes, labels, or custom geometry in JSON.
-- Ask them to translate requested objects into available primitives: terrain, raised terrainFloors, houses/building variants, fences/fenceSide, rocks, bridges, crops, tufts, and trees.
+- Ask them to translate broad environments into available primitives: terrain, raised terrainFloors, houses/building variants, fences/fenceSide, rocks, bridges, crops, tufts, and trees.
+- Treat native primitives as scene components, not the creativity ceiling. If the user asks for a distinct object with no native kind, author it as a `customParts` voxel-build hero cell instead of reducing it to rocks, houses, or terrain.
 - Include concrete decompositions for non-native requests:
   - skate park = path/dirt plaza + raised terrain ramps + rocks as obstacles + fences as rails/edges + tufts/trees as landscaping.
   - market = path plaza + cottage/manor stalls + fences as queue rails + crops/pumpkins as goods.
@@ -49,6 +50,28 @@ Voxel stamp prompting:
 - Include the allowed material list, selected/source object intent, source
   parts when available, image reference when present, `allowedBounds`, and a
   quality target that calls out connected layered detail.
+- For bespoke requests such as glass greenhouse, dome, vehicle, robot, or
+  airship, require semantic colored parts and at least several material
+  families. Native houses/fences/rocks are allowed only when they are actual
+  components or surroundings, not substitutes for the requested model.
+- Use `customParts` `kind: "cable"` for ropes, balloon basket lines, tethers,
+  rigging, and mooring-style connections. Cable parts need `from`/`to`
+  endpoints, radius, sag, and the usual compatibility `size`/`pos`/`scale`.
+- Use `sphere`/`ellipsoid` custom parts for rounded envelopes, domes, tanks,
+  and canopies. A hot-air balloon should have a rounded ellipsoid/sphere
+  envelope with colored fabric panel bands, not a box body. Use
+  `phiStart`/`phiLength` ellipsoid slices for curved balloon panels instead of
+  flat rectangular plates.
+- Keep first-pass generated custom models to sane board scale. Use
+  `customFootprint` around 1.1-1.3 for compact props, bridges, decks, and
+  docks; reserve 1.5-1.8 for clear hero objects such as balloons, airships,
+  domes, and greenhouses. For bridges/decks that need to sit into water or
+  terrain, prefer a small negative `transform.offsetY` instead of making the
+  geometry oversized.
+- Explicitly tell models not to default `customParts` to stone/rock unless the
+  requested object is stone. Prefer TinyWorld material names such as `wood`,
+  `brass`, `copper`, `metal`, `steel`, `glass`, `glassGreen`, `fabric`,
+  `canvas`, `rope`, `cable`, and accent colors.
 - Use raw `{x,y,z,color}` voxels after a seed exists and the user asks to
   reinterpret/upscale/refine density; keep returned voxels bounded and omit
   hidden interior fill.

@@ -1180,6 +1180,7 @@
 
   function updateSceneVisibilityForCamera() {
     resetRenderCullStats();
+    if (typeof worldGroup === 'undefined' || !worldGroup || typeof cellMeshes === 'undefined') return;
     camera.updateMatrixWorld(true);
     worldGroup.updateMatrixWorld(true);
     xrWorldRoot.updateMatrixWorld(true);
@@ -1192,7 +1193,7 @@
     let wipeStrength = topContentTransitionStrength(homeTopOpacity);
     let wipePhase = 1 - homeTopOpacity;
     const homeVisible = renderCullBoardVisible(0, 0);
-    if (homeBorderGroup) setRenderCullVisible(homeBorderGroup, homeVisible, true);
+    if (typeof homeBorderGroup !== 'undefined' && homeBorderGroup) setRenderCullVisible(homeBorderGroup, homeVisible, true);
 
     for (const key in cellMeshes) {
       const entry = cellMeshes[key];
@@ -1200,7 +1201,7 @@
       const x = Number.isFinite(entry.x) ? entry.x : parseInt(key.split(',')[0], 10);
       const z = Number.isFinite(entry.z) ? entry.z : parseInt(key.split(',')[1], 10);
       if (!Number.isFinite(x) || !Number.isFinite(z)) continue;
-      const island = editableIslandForWorldCell(x, z);
+      const island = typeof editableIslandForWorldCell === 'function' ? editableIslandForWorldCell(x, z) : null;
       let topVisible = homeTopVisible;
       let topOpacity = homeTopOpacity;
       if (island && island.group) {
@@ -1424,4 +1425,3 @@
       toggleStatsOverlay();
     }
   });
-

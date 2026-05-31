@@ -251,6 +251,13 @@
   const VOXEL_BUILD_CUSTOM_LS = 'tinyworld:voxel-build-stamps.v1';
   const VOXEL_BUILD_STAMPS = makeVoxelBuildStampLibrary();
   const VOXEL_PART_COLORS = {
+    black: '#2C2F32',
+    charcoal: '#1D252B',
+    gray: '#8D8A7E',
+    grey: '#8D8A7E',
+    silver: '#C9D0D3',
+    steel: '#7E8A91',
+    metal: '#8A8F8F',
     grass: '#8FAE5D',
     grass2: '#6E8848',
     dirt: '#8B6F4A',
@@ -264,23 +271,98 @@
     wood: '#7B5A35',
     woodDark: '#473320',
     woodLight: '#B88B52',
+    leather: '#8A542E',
+    rope: '#5A422A',
+    ropeLight: '#8F6A3B',
+    cable: '#24282C',
     cream: '#ECE4D2',
     white: '#F6F1E2',
+    glass: '#AEEAF2',
+    glassBlue: '#8DB8C5',
+    glassGreen: '#B9E6C0',
     roof: '#3F494D',
     roofEdge: '#536166',
+    slate: '#536166',
     gold: '#C7A858',
+    brass: '#C7A858',
+    brassDark: '#8D6A24',
+    copper: '#B86B3D',
+    bronze: '#8E5A2B',
     red: '#A04030',
+    orange: '#E78224',
+    yellow: '#E8C84C',
+    blue: '#3F64B7',
+    teal: '#3B9C9C',
+    purple: '#6A3FB7',
     pink: '#DDB8BE',
     green: '#8FAE5D',
+    fabric: '#C9553C',
+    canvas: '#D7CC9E',
+    fabricRed: '#A04030',
+    fabricOrange: '#E78224',
+    fabricYellow: '#E8C84C',
+    fabricBlue: '#3F64B7',
+    fabricPurple: '#6A3FB7',
+    fabricGreen: '#5C9A4B',
     crop: '#E6A440',
   };
+
+  function voxelCustomPartVector(value, fallback = null) {
+    const source = Array.isArray(value) ? value.map(Number) : fallback;
+    if (!Array.isArray(source) || source.length !== 3 || !source.every(Number.isFinite)) return null;
+    return source.map(v => Math.max(-12, Math.min(36, v)));
+  }
+
+  function voxelCustomPartDistance(a, b) {
+    if (!Array.isArray(a) || !Array.isArray(b)) return 0;
+    return Math.hypot((a[0] || 0) - (b[0] || 0), (a[1] || 0) - (b[1] || 0), (a[2] || 0) - (b[2] || 0));
+  }
+
+  function voxelCustomPartAngle(value, fallback, min, max) {
+    const n = Number(value);
+    const base = Number.isFinite(n) ? n : fallback;
+    return Math.max(min, Math.min(max, base));
+  }
 
   function normalizeVoxelCustomParts(parts) {
     if (!Array.isArray(parts)) return [];
     const out = [];
     for (let i = 0; i < parts.length && out.length < 220; i++) {
       const part = parts[i] || {};
-      const kind = ['box', 'cylinder', 'cone'].includes(part.kind) ? part.kind : 'box';
+      const rawKind = String(part.kind || '').toLowerCase();
+      const kind = ['box', 'cylinder', 'cone', 'sphere', 'ellipsoid', 'cable'].includes(rawKind) ? rawKind : 'box';
+      const fallbackMaterial = kind === 'cable' ? 'rope' : 'stone';
+      const material = String(part.material || fallbackMaterial).replace(/[^a-zA-Z0-9_-]/g, '') || fallbackMaterial;
+      if (kind === 'cable') {
+        const from = voxelCustomPartVector(part.from);
+        const to = voxelCustomPartVector(part.to);
+        if (!from || !to || voxelCustomPartDistance(from, to) < 0.02) continue;
+        const mid = [
+          (from[0] + to[0]) * 0.5,
+          (from[1] + to[1]) * 0.5,
+          (from[2] + to[2]) * 0.5,
+        ];
+        const size = voxelCustomPartVector(part.size, [0.08, Math.max(0.08, voxelCustomPartDistance(from, to)), 0.08]);
+        const pos = voxelCustomPartVector(part.pos, mid);
+        const scale = voxelCustomPartVector(part.scale, [1, 1, 1]);
+        if (!size || !pos || !scale) continue;
+        const radius = Math.max(0.006, Math.min(0.3, Math.abs(Number(part.radius) || Math.min(size[0], size[2]) * 0.5 || 0.035)));
+        const sag = Math.max(-8, Math.min(8, Number(part.sag) || 0));
+        out.push({
+          id: String(part.id || 'part-' + i).slice(0, 80),
+          kind,
+          material,
+          size: size.map(v => Math.max(0.01, Math.min(8, Math.abs(v)))),
+          pos,
+          scale: scale.map(v => Math.max(0.05, Math.min(8, Math.abs(v)))),
+          segments: Math.max(6, Math.min(64, Math.round(part.segments || 24))),
+          from,
+          to,
+          radius,
+          sag,
+        });
+        continue;
+      }
       const size = Array.isArray(part.size) ? part.size.map(Number) : [0.25, 0.25, 0.25];
       const pos = Array.isArray(part.pos) ? part.pos.map(Number) : [0, 0, 0];
       const scale = Array.isArray(part.scale) ? part.scale.map(Number) : [1, 1, 1];
@@ -288,7 +370,6 @@
       if (![...size, ...pos, ...scale].every(Number.isFinite)) continue;
       const cleanSize = size.map(v => Math.max(0.01, Math.min(8, Math.abs(v))));
       const cleanScale = scale.map(v => Math.max(0.05, Math.min(8, Math.abs(v))));
-      const material = String(part.material || 'stone').replace(/[^a-zA-Z0-9_-]/g, '') || 'stone';
       out.push({
         id: String(part.id || 'part-' + i).slice(0, 80),
         kind,
@@ -296,7 +377,12 @@
         size: cleanSize,
         pos: pos.map(v => Math.max(-12, Math.min(36, v))),
         scale: cleanScale,
-        segments: Math.max(4, Math.min(16, Math.round(part.segments || (kind === 'cone' ? 4 : 8)))),
+        segments: Math.max(4, Math.min(24, Math.round(part.segments || (kind === 'cone' ? 4 : (kind === 'sphere' || kind === 'ellipsoid' ? 12 : 8))))),
+        verticalSegments: Math.max(3, Math.min(16, Math.round(part.verticalSegments || 8))),
+        phiStart: voxelCustomPartAngle(part.phiStart, 0, 0, Math.PI * 2),
+        phiLength: voxelCustomPartAngle(part.phiLength, Math.PI * 2, 0.05, Math.PI * 2),
+        thetaStart: voxelCustomPartAngle(part.thetaStart, 0, 0, Math.PI),
+        thetaLength: voxelCustomPartAngle(part.thetaLength, Math.PI, 0.05, Math.PI),
       });
     }
     return out;
@@ -305,7 +391,7 @@
   function isVoxelCustomPartList(parts) {
     return Array.isArray(parts) && parts.some(part =>
       part && typeof part === 'object' &&
-      (Array.isArray(part.size) || Array.isArray(part.pos) || ['box', 'cylinder', 'cone'].includes(part.kind))
+      (Array.isArray(part.size) || Array.isArray(part.pos) || Array.isArray(part.from) || Array.isArray(part.to) || ['box', 'cylinder', 'cone', 'sphere', 'ellipsoid', 'cable'].includes(part.kind))
     );
   }
 
@@ -404,4 +490,3 @@
   function getVoxelBuildStamp(id) {
     return VOXEL_BUILD_STAMPS.find(s => s.id === id) || null;
   }
-

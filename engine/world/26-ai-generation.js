@@ -128,9 +128,10 @@
 
   const PRIMITIVE_ASSEMBLY_PROMPT = [
     'Scene composition rules:',
-    '- Compose the scene from the available Tiny World primitives (terrain cells, raised terrainFloors, houses/buildingType variants, trees, fences/fenceSide, rocks, bridges, crop kinds, tufts). For a thing with no native primitive, build the most ambitious, readable approximation from these parts — never refuse or flatten an idea to a cliche.',
-    '- This is a real 3D voxel builder, not a fixed clip-art set: any landmark object you lay down can afterwards be turned into a bespoke custom voxel model (a windmill, statue, spaceship, fountain, etc.) by selecting it and asking the object AI. So place clear, selectable hero/landmark objects worth customizing, and lean into novel concepts rather than only stock houses and trees.',
-    '- Translate real-world objects into readable low-poly tile assemblies. Example: skate park = path/dirt plaza + raised terrain ramps + rocks as boulders/ramps + fences as rails/edges + tufts/trees as landscaping.',
+    '- Compose the scene from the available Tiny World primitives when they are semantically right for the request: terrain cells, raised terrainFloors, houses/buildingType variants, trees, fences/fenceSide, rocks, bridges, crop kinds, and tufts.',
+    '- Native primitives are scene components, not a ceiling. If the user asks for a distinct object with no native kind, author it directly as customParts instead of reducing it to rocks, houses, or terrain.',
+    '- This is a real low-poly voxel builder, not a fixed clip-art set. Create bespoke hero/landmark models such as windmills, statues, spaceships, fountains, vehicles, robots, lighthouses, ships, glass greenhouses, domes, airships, market stalls, and signs with customParts.',
+    '- Translate broad environments into readable low-poly tile assemblies. Example: skate park = path/dirt plaza + raised terrain ramps + rocks as boulders/ramps + fences as rails/edges + tufts/trees as landscaping.',
     '- Use terrain as the base primitive: grass=open space, path=paved/concrete, dirt=earth/fields, water=canals/ponds. Use terrainFloors for platforms, terraces, steps, banks, ramps, plinths, hills, mountains, and cliffs.',
     '- Use fences as line primitives: rails, walls, borders, pens, queue barriers, garden edging, pier rails, road gates, and castle-wall components. Set fenceSide deliberately.',
     '- Use rocks as sparse sculptural props only: boulders, monuments, rubble, stepping stones, and focal landmarks. Do not use rock props to represent broad hills or mountains.',
@@ -140,11 +141,30 @@
     '- Prefer 3–5 clear assembled features over scattering many single unrelated cells. Make the construction legible from the default isometric camera.',
   ].join('\n');
 
+  function customPartMaterialPrompt() {
+    const fallback = [
+      'wood', 'woodDark', 'woodLight', 'stone', 'stoneDark', 'metal', 'steel',
+      'silver', 'brass', 'brassDark', 'copper', 'bronze', 'glass', 'glassBlue',
+      'glassGreen', 'fabric', 'canvas', 'fabricRed', 'fabricOrange',
+      'fabricYellow', 'fabricBlue', 'fabricPurple', 'fabricGreen', 'leather',
+      'red', 'orange', 'yellow', 'blue', 'teal', 'purple', 'green', 'white',
+      'cream', 'black', 'charcoal',
+    ];
+    const names = (typeof VOXEL_PART_COLORS !== 'undefined' && VOXEL_PART_COLORS)
+      ? Object.keys(VOXEL_PART_COLORS).sort()
+      : fallback;
+    return [
+      'customParts material palette: use exact material names from this list when possible: ' + names.join(', ') + '.',
+      'Use semantic local color: brass/copper/bronze/metal/steel/silver for machinery and frames; glass/glassBlue/glassGreen for windows, greenhouses, and domes; fabric/canvas/fabricRed/fabricOrange/fabricYellow/fabricBlue/fabricPurple/fabricGreen for balloons, awnings, sails, and patchwork; wood/woodDark/woodLight/leather for hulls, decks, crates, ropes, ladders, and trim.',
+      'Do not default customParts to stone or rock unless the requested object is actually stone. Use at least 3 distinct material families for complex bespoke objects.',
+    ].join('\n');
+  }
+
   function buildSystemPrompt(gridSize) {
     const size = coerceGridSize(gridSize, GRID);
     const maxCoord = size - 1;
     return [
-      'You are a creative level designer and builder for the Tiny World Builder, a ' + size + 'x' + size + ' isometric voxel scene. You build ambitious scenes from primitives, and individual objects can become bespoke custom 3D voxel models afterwards.',
+      'You are a creative level designer and low-poly voxel model builder for the Tiny World Builder, a ' + size + 'x' + size + ' isometric voxel scene. You build ambitious scenes from native primitives and can create bespoke custom 3D voxel models directly in JSON.',
       'Output a JSON object that strictly matches the provided JSON Schema. Do not include prose, markdown fences, or explanations — only the JSON object.',
       'Required home board edge length: include "gridSize": ' + size + ' in the JSON object.',
       'Grid coordinates: x in 0..' + maxCoord + ' (left-right), z in 0..' + maxCoord + ' (front-back). Default cell is grass with no object.',
@@ -164,7 +184,12 @@
       'Use floors/intensity deliberately: terrain stacks into height, repeated objects gain size/detail, and fences vary from wood to wire/stone/steel wall styles.',
       'Avoid noise and full-grid filling. Aim for a coherent, readable scene — vary heights, leave breathing room, group related elements.',
       PRIMITIVE_ASSEMBLY_PROMPT,
-      'Custom 3D objects: for a hero/landmark thing with no native kind (windmill, statue, fountain, vehicle, robot, lighthouse, ship, market stall, sign), you CAN author it directly by setting "customParts" on that cell — an array of low-poly primitives ({kind:box|cylinder|cone, material color name, size [x,y,z], pos [x,y,z] in voxel units centered on the tile, optional scale}). That cell then renders as your unique object. Build it from connected parts, keep it roughly within the tile footprint, and use a neutral/global low-poly style — do NOT default to Japanese (pagoda/torii/sakura/machiya) or any single regional theme unless the user explicitly asks. Use customParts sparingly for a few standout objects; keep ordinary scenery as native primitives.',
+      'Custom 3D objects: for a hero/landmark thing with no native kind, author it directly by setting kind:"voxel-build", floors:1, buildingType:null, fenceSide:null, a short "customName", optional "customFootprint", and "customParts" on that cell — an array of low-poly primitives ({kind:box|cylinder|cone|sphere|ellipsoid|cable, material color name, size [x,y,z], pos [x,y,z] in voxel units centered on the tile, optional scale}). Use sphere/ellipsoid for rounded envelopes, domes, tanks, and canopies. Sphere/ellipsoid parts may use phiStart/phiLength/thetaStart/thetaLength for curved slices. Use cable parts with from/to endpoints, radius, sag, and segments for ropes, tethers, rigging, or mooring-style connections. That cell then renders as your unique object. Build it from connected semantic parts, keep normal props around a 1.1-1.3 tile footprint, and use 1.5-1.8 only for deliberately larger hero objects. Use native houses, fences, rocks, bridges, trees, or crops only when those things are genuinely needed as components or surroundings.',
+      'For custom bridges, platforms, decks, and docks, prefer compact customFootprint around 1.1-1.2 and use transform.offsetY around -0.08 when the deck should sit into the terrain/water rather than float high above it.',
+      'Custom object examples: glass greenhouse = glassGreen/glass panels + metal/steel frame ribs + dirt/green planting beds; dome = glass/glassBlue ellipsoid/sphere shell parts + metal ribs + base ring; hot-air balloon = large rounded ellipsoid fabric envelope + curved ellipsoid colored panel slices using phiStart/phiLength, not square side plates + smaller wood basket + cable rigging from basket corners to envelope; steampunk airship = wood hull + brass/copper propellers + fabric patchwork ellipsoid balloon + cable rigging/ladders/railings + glass bridge.',
+      customPartMaterialPrompt(),
+      'Do NOT approximate requested bespoke objects as a pile of rocks, generic stone, or stock buildings. If the request names a specific model/object and the native tools do not already have it, make the customParts model.',
+      'Use a neutral/global low-poly style — do NOT default to Japanese (pagoda/torii/sakura/machiya) or any single regional theme unless the user explicitly asks. Use customParts for a few standout objects; keep ordinary scenery as native primitives.',
       '',
       'JSON Schema:',
       JSON.stringify(WORLD_SCHEMA, null, 2),
@@ -833,4 +858,3 @@
   }
   // Expose for tests / command palette.
   window.__generateProceduralWorld = generateProceduralWorld;
-

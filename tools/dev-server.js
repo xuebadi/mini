@@ -271,7 +271,23 @@ function sendJson(res, status, body) {
   send(res, status, JSON.stringify(body), { 'Content-Type': 'application/json; charset=utf-8' });
 }
 
+const DEFAULT_VOXEL_PART_MATERIALS = [
+  'wood', 'woodDark', 'woodLight', 'leather', 'rope', 'ropeLight', 'cable', 'stone', 'stoneDark',
+  'metal', 'steel', 'silver', 'brass', 'brassDark', 'copper', 'bronze',
+  'glass', 'glassBlue', 'glassGreen', 'fabric', 'canvas', 'fabricRed',
+  'fabricOrange', 'fabricYellow', 'fabricBlue', 'fabricPurple',
+  'fabricGreen', 'roof', 'roofEdge', 'white', 'cream', 'red', 'orange',
+  'yellow', 'blue', 'teal', 'purple', 'green', 'black', 'charcoal',
+];
+
 function voxelPartsSchema(allowedMaterials) {
+  const materials = allowedMaterials.length ? allowedMaterials : DEFAULT_VOXEL_PART_MATERIALS;
+  const vec3 = {
+    type: 'array',
+    minItems: 3,
+    maxItems: 3,
+    items: { type: 'number' },
+  };
   return {
     type: 'object',
     additionalProperties: false,
@@ -285,26 +301,21 @@ function voxelPartsSchema(allowedMaterials) {
           additionalProperties: false,
           properties: {
             id: { type: 'string' },
-            kind: { type: 'string', enum: ['box', 'cylinder', 'cone'] },
-            material: { type: 'string', enum: allowedMaterials.length ? allowedMaterials : ['stone'] },
-            size: {
-              type: 'array',
-              minItems: 3,
-              maxItems: 3,
-              items: { type: 'number' },
-            },
-            pos: {
-              type: 'array',
-              minItems: 3,
-              maxItems: 3,
-              items: { type: 'number' },
-            },
-            scale: {
-              type: 'array',
-              minItems: 3,
-              maxItems: 3,
-              items: { type: 'number' },
-            },
+            kind: { type: 'string', enum: ['box', 'cylinder', 'cone', 'sphere', 'ellipsoid', 'cable'] },
+            material: { type: 'string', enum: materials },
+            size: vec3,
+            pos: vec3,
+            scale: vec3,
+            from: vec3,
+            to: vec3,
+            radius: { type: 'number', minimum: 0.006, maximum: 0.3 },
+            sag: { type: 'number', minimum: -8, maximum: 8 },
+            segments: { type: 'integer', minimum: 4, maximum: 64 },
+            verticalSegments: { type: 'integer', minimum: 3, maximum: 24 },
+            phiStart: { type: 'number', minimum: 0, maximum: 6.28319 },
+            phiLength: { type: 'number', minimum: 0.05, maximum: 6.28319 },
+            thetaStart: { type: 'number', minimum: 0, maximum: 3.14159 },
+            thetaLength: { type: 'number', minimum: 0.05, maximum: 3.14159 },
           },
           required: ['id', 'kind', 'material', 'size', 'pos', 'scale'],
         },
@@ -386,7 +397,9 @@ async function handleReinterpretStamp(req, res) {
   try {
     const input = await readJsonBody(req);
     const model = String(input.model || 'gpt-5.5').trim();
-    const allowedMaterials = Array.isArray(input.allowedMaterials) ? input.allowedMaterials : [];
+    const allowedMaterials = Array.isArray(input.allowedMaterials) && input.allowedMaterials.length
+      ? input.allowedMaterials
+      : DEFAULT_VOXEL_PART_MATERIALS;
     const reasoningEffort = choose(input.reasoningEffort, ['none', 'low', 'medium', 'high', 'xhigh'], 'low');
     const reasoningSummary = choose(input.reasoningSummary, ['off', 'auto', 'concise', 'detailed'], 'off');
     const textVerbosity = choose(input.textVerbosity, ['low', 'medium', 'high'], 'low');
@@ -396,11 +409,19 @@ async function handleReinterpretStamp(req, res) {
       'Return ONLY valid JSON, no markdown.',
       'The JSON shape must be: {"customParts":[...], "notes":"short optional note"}.',
       'Each customParts item must be:',
-      '{"id": string, "kind": "box"|"cylinder"|"cone", "material": one of allowedMaterials, "size": [x,y,z], "pos": [x,y,z], "scale": [1,1,1]}.',
+      '{"id": string, "kind": "box"|"cylinder"|"cone"|"sphere"|"ellipsoid"|"cable", "material": one of allowedMaterials, "size": [x,y,z], "pos": [x,y,z], "scale": [1,1,1]}.',
+      'For ropes, tethers, rigging, or mooring-style connections use kind:"cable" with from [x,y,z], to [x,y,z], radius, sag, and segments. Cable parts should still include size/pos/scale for schema compatibility.',
+      'For hot-air balloon envelopes, domes, rounded tanks, and canopies use sphere/ellipsoid, not a box. A hot-air balloon needs a large ellipsoid/sphere envelope plus curved ellipsoid panel slices/bands and a smaller basket.',
+      'For colored balloon panels, use ellipsoid slices with phiStart/phiLength (and a slightly larger size if layered over a base envelope). Do not use flat rectangular side plates for the envelope colors.',
       'Use semantic reinterpretation: do not merely stretch source parts.',
+      'If creativeRebuild is true or the instruction asks for a new/different object, build THAT requested object freely. Use selectedObject/sourceParts only for placement scale and bounds.',
+      'Respect renderFootprint and allowedBounds. Do not make the initial model oversized; increase perceived resolution with smaller connected parts, not by enlarging the whole object.',
+      'Native TinyWorld components are allowed only when semantically needed; do not substitute rocks or houses for glass, metal, fabric, or wood geometry.',
       'Increase detail with small trim blocks, windows, roof ribs, railings, bevel-like layered bands, doors, caps, and silhouette-defining parts.',
+      'For hot-air balloons, airships, tents, cranes, docks, and bridges, replace fake rope columns with cable parts that physically connect endpoints. For balloons, the envelope must be rounded with ellipsoid/sphere parts rather than a cuboid.',
       'When source parts are empty, create a new original stamp from instruction and imageInstruction, using semantic construction rather than placeholder masses.',
       'Quality contract: produce a readable asset from the default isometric camera with distinct base, body, top, trim, and detail parts where those concepts apply.',
+      'Use varied local colors and at least 3 distinct material families for complex bespoke objects. Do not default to stone/rock unless the requested object is actually stone.',
       'Use a richer part count for complex assets, but keep parts purposeful and connected; avoid noisy random cubes.',
       'Keep total customParts under 180 and dimensions within a compact stamp footprint.',
       'Preserve selectedObject.label, selectedObject.stamp, and the sourceCustomParts category exactly unless instruction explicitly asks for a different object.',
@@ -418,6 +439,7 @@ async function handleReinterpretStamp(req, res) {
       allowedBounds: input.allowedBounds || null,
       renderFootprint: input.renderFootprint || null,
       desiredScale: input.desiredScale || [1, 1, 1],
+      creativeRebuild: Boolean(input.creativeRebuild),
       style: input.style || 'low-poly voxel diorama',
       qualityTarget: 'semantic editable customParts first; layered detail; no broad one-block substitute; no detached decoration',
       imageInstruction: input.imageDataUrl ? 'Use the attached image as visual reference for the stamp.' : 'Use selectedObject/sourceParts as reference.',
@@ -535,7 +557,8 @@ async function handleEnhanceVoxelBuild(req, res) {
           type: 'input_text',
           text: [
             'You enhance selected voxel stamps for Tiny World Builder.',
-            'Return JSON only. Preserve the selected object category, footprint, scale, and readable chunky voxel look.',
+            'Return JSON only. Preserve the selected object category, footprint, scale, and readable chunky voxel look only when the user is asking to enhance the existing kind.',
+            'If creativeRebuild is true or the instruction asks for a new/different object, build THAT requested object freely from scratch. The user instruction wins over selectedKind/sourceCell/source voxels.',
             'Follow selectedKind, sourceCell, style, and requirements in the payload over generic style assumptions.',
             'The source voxels are already upscaled onto a high-resolution coordinate grid. Keep that resolution.',
             'Every returned voxel must stay inside allowedBounds when allowedBounds is present.',
@@ -546,6 +569,7 @@ async function handleEnhanceVoxelBuild(req, res) {
             'Do not introduce Japanese garden, shrine, temple, pagoda, torii, sakura, roof, window, door, or lantern details unless the selected object or user instruction explicitly asks for them.',
             'For buildings, keep roof, walls, windows, door, base, trim, and details readable without changing the building into a different object type.',
             'Use many small voxels and visible silhouette breaks. Target at least the requested targetVoxelCount where possible.',
+            'Use varied local colors and accents. Do not default to gray stone/rock unless the requested object is actually stone.',
             'Do not return prose or markdown.',
             '',
             'Selected object payload:',
@@ -556,6 +580,7 @@ async function handleEnhanceVoxelBuild(req, res) {
               selectedLabel: stamp.selectedLabel || stamp.name || 'selected object',
               seedId: stamp.seedId || null,
               style: stamp.style || 'Tiny World low-poly voxel diorama, readable chunky blocks',
+              creativeRebuild: Boolean(stamp.creativeRebuild),
               sourceCell: stamp.sourceCell || null,
               sourceCoord: stamp.sourceCoord || null,
               desiredScale: stamp.desiredScale || 1,

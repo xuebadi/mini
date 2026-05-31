@@ -1224,7 +1224,24 @@
 
   function compactPartsForAi(parts) {
     const buckets = new Map();
+    const cableParts = [];
     normalizeVoxelCustomParts(parts).forEach(part => {
+      if (part.kind === 'cable') {
+        cableParts.push({
+          id: part.id,
+          kind: part.kind,
+          material: part.material,
+          from: part.from,
+          to: part.to,
+          radius: part.radius,
+          sag: part.sag || 0,
+          segments: part.segments || 24,
+          size: part.size,
+          pos: part.pos,
+          scale: part.scale,
+        });
+        return;
+      }
       const baseId = String(part.id || 'part').replace(/-v-\d+-\d+-\d+$/, '').replace(/-\d+$/, '');
       const key = `${baseId}|${part.kind}|${part.material}`;
       const bucket = buckets.get(key) || {
@@ -1244,7 +1261,7 @@
       }
       buckets.set(key, bucket);
     });
-    return Array.from(buckets.values()).slice(0, 120).map(bucket => ({
+    const compact = Array.from(buckets.values()).slice(0, Math.max(0, 120 - cableParts.length)).map(bucket => ({
       id: bucket.id,
       kind: bucket.kind,
       material: bucket.material,
@@ -1253,6 +1270,7 @@
       pos: bucket.max.map((value, axis) => Number(((value + bucket.min[axis]) * 0.5).toFixed(3))),
       sampleSize: bucket.sampleSize,
     }));
+    return cableParts.slice(0, 40).concat(compact);
   }
 
   function shouldEnhanceSelectedObjectPrompt(text) {
@@ -1271,10 +1289,32 @@
     return b;
   }
 
+  function wantsCreativeVoxelModel(userInstruction) {
+    const text = String(userInstruction || '').trim();
+    if (!text) return false;
+    const transform = /\b(turn|convert|transform|change|reinterpret|redesign|remake)\b[\s\S]{0,90}\b(into|to|as)\b/i;
+    const create = /\b(make|build|create|generate|design)\b/i;
+    const bespokeObject = /\b(airship|hot.?air|hot-air|balloon|zeppelin|spaceship|space\s*ship|rocket|robot|vehicle|car|truck|train|plane|airplane|aircraft|boat|ship|submarine|windmill|watermill|lighthouse|fountain|statue|monument|greenhouse|glasshouse|dome|observatory|market\s*stall|stall|sign|portal|gatehouse|factory|workshop|crane|engine|propeller|bridge|tower)\b/i;
+    return transform.test(text) || (create.test(text) && bespokeObject.test(text));
+  }
+
   function allowedVoxelBuildBounds(stamp, profile) {
     const b = voxelBuildBounds(stamp && stamp.voxels);
     if (!b) return null;
     const kind = profile && profile.selectedKind;
+    if (profile && profile.creativeRebuild) {
+      const spanX = Math.max(1, b.maxX - b.minX + 1);
+      const spanZ = Math.max(1, b.maxZ - b.minZ + 1);
+      const margin = Math.max(5, Math.ceil(Math.max(spanX, spanZ) * 0.8));
+      return {
+        minX: b.minX - margin,
+        maxX: b.maxX + margin,
+        minY: 0,
+        maxY: Math.max(b.maxY + 12, 22),
+        minZ: b.minZ - margin,
+        maxZ: b.maxZ + margin,
+      };
+    }
     const margin = kind === 'tree' ? 3 : kind === 'rock' ? 1 : 2;
     return {
       minX: b.minX - margin,
@@ -1297,6 +1337,7 @@
 
   function enhancedFootprintForStamp(stamp, profile) {
     const kind = profile && profile.selectedKind;
+    if (profile && profile.creativeRebuild) return profile.renderFootprint || 2.2;
     if (kind === 'rock') return 0.86;
     if (kind === 'tree' || kind === 'bush' || kind === 'flower') return 1.0;
     if (kind === 'house' || kind === 'voxel-build') return 0.96;
@@ -1319,7 +1360,7 @@
             required: ['id', 'kind', 'material', 'size', 'pos', 'scale'],
             properties: {
               id: { type: 'string' },
-              kind: { type: 'string', enum: ['box', 'cylinder', 'cone'] },
+              kind: { type: 'string', enum: ['box', 'cylinder', 'cone', 'sphere', 'ellipsoid', 'cable'] },
               material: { type: 'string', enum: allowedMaterials },
               size: {
                 type: 'array',
@@ -1339,6 +1380,26 @@
                 maxItems: 3,
                 items: { type: 'number' },
               },
+              from: {
+                type: 'array',
+                minItems: 3,
+                maxItems: 3,
+                items: { type: 'number' },
+              },
+              to: {
+                type: 'array',
+                minItems: 3,
+                maxItems: 3,
+                items: { type: 'number' },
+              },
+              radius: { type: 'number', minimum: 0.006, maximum: 0.3 },
+              sag: { type: 'number', minimum: -8, maximum: 8 },
+              segments: { type: 'integer', minimum: 4, maximum: 64 },
+              verticalSegments: { type: 'integer', minimum: 3, maximum: 24 },
+              phiStart: { type: 'number', minimum: 0, maximum: 6.28319 },
+              phiLength: { type: 'number', minimum: 0.05, maximum: 6.28319 },
+              thetaStart: { type: 'number', minimum: 0, maximum: 3.14159 },
+              thetaLength: { type: 'number', minimum: 0.05, maximum: 3.14159 },
             },
           },
         },
@@ -1358,23 +1419,39 @@
   function selectedVoxelEnhanceProfile(stamp, userInstruction) {
     const sourceCell = stamp && stamp.sourceCell;
     const kind = sourceCell && sourceCell.kind ? sourceCell.kind : 'voxel-build';
-    const text = String(userInstruction || '').toLowerCase();
+    const text = (String(userInstruction || '') + ' ' + String((stamp && (stamp.name || stamp.id)) || '')).toLowerCase();
     const explicitJapanese = /\b(japanese|japan|pagoda|shrine|temple|torii|sakura|zen)\b/i.test(text);
+    const creativeRebuild = wantsCreativeVoxelModel(userInstruction);
     const base = {
       selectedKind: kind,
       selectedLabel: stamp && stamp.name ? stamp.name : 'selected object',
-      style: 'Tiny World low-poly voxel diorama, readable chunky blocks, preserve the selected object category',
+      creativeRebuild,
+      renderFootprint: creativeRebuild && /\b(airship|hot.?air|hot-air|balloon|zeppelin|spaceship|space\s*ship|ship|boat|submarine|train|greenhouse|glasshouse|dome|factory|workshop)\b/i.test(text) ? 2.2 : (/\b(bridge|walkway|deck|platform)\b/i.test(text) ? 1.2 : 1.8),
+      style: creativeRebuild
+        ? 'Tiny World creative low-poly voxel model, colorful semantic parts, strong silhouette, build the requested object from scratch'
+        : 'Tiny World low-poly voxel diorama, readable chunky blocks, preserve the selected object category',
       requirements: [
-        'Use the source voxels and selected object intent as the contract for what this is.',
-        'Preserve the selected object category, footprint, scale, and silhouette language unless the user explicitly asks to change them.',
+        creativeRebuild
+          ? 'The user instruction overrides the selected source kind. Use the source only as a scale/placement seed and build the requested object freely.'
+          : 'Use the source voxels and selected object intent as the contract for what this is.',
+        creativeRebuild
+          ? 'Create semantic low-poly components for the requested object: body, frame, top/canopy, openings/windows, trim, supports, machinery, and accent details as appropriate.'
+          : 'Preserve the selected object category, footprint, scale, and silhouette language unless the user explicitly asks to change them.',
         'Do not introduce a Japanese garden, shrine, temple, pagoda, or sakura influence unless the selected object or user instruction explicitly asks for it.',
         'Use many small voxels and visible silhouette breaks instead of a few broad slabs.',
         'Keep every returned voxel inside allowedBounds and centered on the selected tile.',
         'Do not create floating orbit rings, detached columns, detached symbols, or unsupported chunks.',
         'Avoid filling the bounding box solid. Omit hidden interior voxels when they do not affect the visible silhouette.',
+        'Use varied local colors and accents. Do not default to gray stone/rock unless the requested object is actually stone.',
       ],
     };
-    if (kind === 'rock') {
+    if (creativeRebuild) {
+      base.seedId = 'creative-custom-model';
+      base.requirements.push(
+        'Native TinyWorld pieces are allowed only when they are semantically part of the object or surrounding scene; do not use rocks/houses as substitutes for a glass, metal, fabric, or wood model.',
+        'For glass greenhouses or domes, use colored glass panes plus metal/steel/brass frame ribs. For vehicles or airships, use hull, engines/propellers, windows, rails, ladders, cables, and fabric/canvas parts where relevant.',
+      );
+    } else if (kind === 'rock') {
       base.seedId = 'rock-outcrop-build';
       base.style = 'Natural low-poly voxel rock outcrop, irregular stone chunks, moss and highlights only where useful';
       base.requirements.push(
@@ -1418,9 +1495,31 @@
     return base;
   }
 
-  async function enhanceSelectedBuildingPartsObject(target, userInstruction) {
-    const seed = builderStylePartsForSelectedObject(target);
-    if (!seed) return null;
+  function selectedCustomPartsStyle(seed, instruction, creativeRebuild) {
+    if (creativeRebuild) return 'Tiny World creative low-poly custom object, colorful semantic materials, strong silhouette, build the requested object from scratch';
+    if (seed && seed.stamp === 'manor') return 'Tiny World Georgian manor house, red brick walls, slate roof, white trim, portico columns, sash windows, large readable manor render with small detail parts';
+    if (seed && seed.stamp === 'tower') return 'Tiny World stone tower, readable vertical render with small crenellation, window, roof cap, and door parts';
+    if (seed && seed.stamp === 'pagoda') return 'Tiny World pagoda building, tiered roof, readable render with small trim parts';
+    const text = (String(instruction || '') + ' ' + String((seed && (seed.label || seed.name || seed.id)) || '')).toLowerCase();
+    if (/\b(hot.?air|hot-air|balloon|airship|zeppelin)\b/.test(text)) return 'Tiny World low-poly hot-air balloon or airship, colorful fabric panels, basket or hull, frame, cable rigging, mooring-style connections, readable toy scale';
+    if (/\b(bridge|walkway|deck|platform|pier|dock)\b/.test(text)) return 'Tiny World compact low-poly bridge or walkway, stone/wood deck, side rails, anchors, supports, fitted to one tile unless explicitly larger';
+    if (seed && seed.isCustomPartsSource) return 'Tiny World low-poly custom voxel object, preserve the selected object identity while increasing semantic part detail';
+    return 'Tiny World low-poly house, readable roof, walls, windows, door, trim, larger render with small detail parts';
+  }
+
+  function selectedCustomPartsFootprint(seed, instruction, creativeRebuild) {
+    const text = (String(instruction || '') + ' ' + String((seed && (seed.label || seed.name || seed.id)) || '')).toLowerCase();
+    if (creativeRebuild) {
+      if (/\b(bridge|walkway|deck|platform|pier|dock)\b/.test(text)) return 1.2;
+      if (/\b(airship|hot.?air|hot-air|balloon|zeppelin|spaceship|space\s*ship|ship|boat|submarine|train|greenhouse|glasshouse|dome|factory|workshop)\b/i.test(text)) return 1.8;
+      return 1.45;
+    }
+    if (seed && Number.isFinite(seed.footprint)) return Math.max(0.6, Math.min(3.2, seed.footprint));
+    return selectedBuildingRenderFootprint(seed && seed.stamp);
+  }
+
+  async function enhanceSelectedCustomPartsObject(target, userInstruction, seed) {
+    if (!seed || !Array.isArray(seed.customParts) || !seed.customParts.length) return null;
     const ai = getAIProviderState();
     const provider = ai.provider || 'openai';
     const def = AI_DEFAULTS[provider] || AI_DEFAULTS.openai;
@@ -1429,15 +1528,25 @@
     const sourceParts = compactPartsForAi(seed.customParts);
     const sourceBounds = customPartsBounds(seed.customParts);
     const model = textModelForGeneration(provider, ai.model);
-    const instruction = String(userInstruction || '').trim() || 'Enhance this selected building as a richer low-poly voxel model.';
-    const buildingStyle = seed.stamp === 'manor'
-      ? 'Tiny World Georgian manor house, red brick walls, slate roof, white trim, portico columns, sash windows, large readable manor render with small detail parts'
-      : seed.stamp === 'tower'
-        ? 'Tiny World stone tower, readable vertical render with small crenellation, window, roof cap, and door parts'
-        : seed.stamp === 'pagoda'
-          ? 'Tiny World pagoda building, tiered roof, readable render with small trim parts'
-          : 'Tiny World low-poly house, readable roof, walls, windows, door, trim, larger render with small detail parts';
-    const renderFootprint = selectedBuildingRenderFootprint(seed.stamp);
+    const instruction = String(userInstruction || '').trim() || (seed.isCustomPartsSource ? 'Enhance this selected custom object as a richer low-poly voxel model.' : 'Enhance this selected building as a richer low-poly voxel model.');
+    const creativeRebuild = wantsCreativeVoxelModel(instruction);
+    const buildingStyle = selectedCustomPartsStyle(seed, instruction, creativeRebuild);
+    const renderFootprint = selectedCustomPartsFootprint(seed, instruction, creativeRebuild);
+    const allowedBounds = sourceBounds ? (creativeRebuild ? {
+      minX: sourceBounds.minX - 2.5,
+      maxX: sourceBounds.maxX + 2.5,
+      minY: 0,
+      maxY: Math.max(sourceBounds.maxY + 3.5, 5.5),
+      minZ: sourceBounds.minZ - 2.5,
+      maxZ: sourceBounds.maxZ + 2.5,
+    } : {
+      minX: sourceBounds.minX - 0.15,
+      maxX: sourceBounds.maxX + 0.15,
+      minY: 0,
+      maxY: sourceBounds.maxY + 0.75,
+      minZ: sourceBounds.minZ - 0.15,
+      maxZ: sourceBounds.maxZ + 0.15,
+    }) : null;
     const payload = {
       model,
       reasoningEffort: 'low',
@@ -1445,9 +1554,10 @@
       textVerbosity: 'low',
       maxOutputTokens: 12000,
       allowedMaterials,
+      creativeRebuild,
       selectedObject: {
         id: target.cell.kind + '-' + target.x + '-' + target.z,
-        stamp: seed.stamp,
+        stamp: seed.stamp || seed.id || 'custom-parts',
         label: seed.label,
         position: [target.x, 0, target.z],
         rotation: target.cell.rotationY || 0,
@@ -1460,14 +1570,7 @@
       sourceParts,
       sourceCustomParts: seed.customParts,
       sourceBounds,
-      allowedBounds: sourceBounds ? {
-        minX: sourceBounds.minX - 0.15,
-        maxX: sourceBounds.maxX + 0.15,
-        minY: 0,
-        maxY: sourceBounds.maxY + 0.75,
-        minZ: sourceBounds.minZ - 0.15,
-        maxZ: sourceBounds.maxZ + 0.15,
-      } : null,
+      allowedBounds,
       imageDataUrl: null,
     };
     postAiDebugLog({
@@ -1497,13 +1600,25 @@
         'You generate geometry for a Three.js voxel stamp builder. You CAN create brand-new 3D objects from scratch, not just re-arrange existing parts.',
         'Return ONLY valid JSON, no markdown.',
         'The JSON shape must be {"customParts":[...], "notes":"short optional note"}.',
-        'Use customParts with box/cylinder/cone, material, size [x,y,z], pos [x,y,z], scale [1,1,1].',
-        'If the user asks for a new or different object, build THAT object freely — invent its shape, parts, and silhouette (you may change type entirely). If they only ask to enhance, preserve the selected building type.',
-        'Keep the result roughly within the original tile footprint.',
+        'Use customParts with box/cylinder/cone/sphere/ellipsoid/cable, material, size [x,y,z], pos [x,y,z], scale [1,1,1].',
+        'For ropes, tethers, rigging, balloon basket lines, or mooring-style connections use kind:"cable" with from [x,y,z], to [x,y,z], radius, sag, and segments. Cable parts must still include size/pos/scale for schema compatibility.',
+        'For hot-air balloon envelopes, domes, rounded tanks, and canopies use sphere/ellipsoid, not a box. A hot-air balloon must have a rounded envelope with colored curved fabric panel bands plus a smaller basket and cable connections.',
+        'For colored balloon panels, use ellipsoid slices with phiStart/phiLength (and a slightly larger size if layered over a base envelope). Do not use flat rectangular side plates for the envelope colors.',
+        'Available material names: ' + allowedMaterials.join(', ') + '.',
+        creativeRebuild
+          ? 'The user is asking for a new bespoke low-poly model. Build THAT requested object freely — invent its shape, parts, silhouette, colors, and materials. Do not preserve the selected source type.'
+          : 'If the user asks for a new or different object, build THAT object freely — invent its shape, parts, and silhouette (you may change type entirely). If they only ask to enhance, preserve the selected object identity.',
+        creativeRebuild
+          ? 'Use the selected object only as a placement/scale seed. Native TinyWorld components are allowed only when semantically needed; do not substitute rocks or houses for glass, metal, fabric, or wood geometry.'
+          : 'Keep the result roughly within the original tile footprint.',
+        'Respect renderFootprint and allowedBounds. Increase resolution with smaller connected parts, not by enlarging the whole object.',
         'Do not introduce Japanese, pagoda, temple, shrine, torii, sakura, or garden styling unless the selected object or user instruction explicitly asks for it.',
         'Do not add detached floating rings, detached columns, orbiting blocks, or broad terrain patches.',
         'Keep all returned parts inside allowedBounds when provided.',
-        'Enhance roof, walls, windows, door, posts, trim, steps, and base as connected parts.',
+        creativeRebuild
+          ? 'Create semantic connected parts such as hull/body, rounded envelope, frame, ribs, glass panes, engines/propellers, rails, ladders, doors, windows, supports, fabric/canvas panels, trim, and accents as relevant to the requested object.'
+          : 'Enhance the selected object with connected semantic parts. For buildings use roof, walls, windows, door, posts, trim, steps, and base. For balloons/airships use fabric panels, basket/hull, frame, cable rigging, anchors, and trim.',
+        'Use varied local colors and at least 3 distinct material families for complex bespoke objects. Do not default to stone/rock unless the requested object is actually stone.',
         'Do not simply stretch parts. Rebuild semantically with richer low-poly detail.',
         '',
         'Schema:',
@@ -1520,13 +1635,21 @@
     }
     const customParts = fitCustomPartsToBounds(result.customParts || result.parts || result.response?.customParts, payload.allowedBounds);
     if (!customParts.length) throw new Error('AI returned no customParts');
+    const stampKey = seed.stamp || seed.id || 'custom-parts';
     return normalizeVoxelBuildStamp({
-      id: 'enhanced-' + seed.stamp + '-' + Date.now().toString(36),
+      id: 'enhanced-' + stampKey + '-' + Date.now().toString(36),
       name: seed.label + ' enhanced',
       customParts,
       footprint: renderFootprint,
       custom: true,
     }, seed.label + ' enhanced');
+  }
+
+  async function enhanceSelectedBuildingPartsObject(target, userInstruction) {
+    const seed = builderStylePartsForSelectedObject(target);
+    if (!seed) return null;
+    seed.isBuildingSource = true;
+    return enhanceSelectedCustomPartsObject(target, userInstruction, seed);
   }
 
   async function enhanceSelectedBoardObject(userInstruction) {
@@ -1569,6 +1692,52 @@
     }
     const seed = seedVoxelBuildForSelectedObject(target);
     if (!seed) throw new Error('That selected object cannot be converted yet.');
+    if (Array.isArray(seed.customParts) && seed.customParts.length) {
+      const partsSeed = Object.assign({}, seed, {
+        label: selectedBoardObjectLabel(target),
+        stamp: seed.id || 'voxel-build',
+        isCustomPartsSource: true,
+      });
+      const stamp = await enhanceSelectedCustomPartsObject(target, userInstruction || '', partsSeed);
+      if (!stamp) throw new Error('No enhanced custom object returned');
+      VOXEL_BUILD_STAMPS.push(stamp);
+      saveCustomVoxelBuildStamps();
+      selectedVoxelBuildId = stamp.id;
+      const appearance = Object.assign({}, normalizeAppearance(target.cell.appearance) || {});
+      appearance.voxelBuildId = stamp.id;
+      updateSelectedBoardObject(target, {
+        kind: 'voxel-build',
+        floors: 1,
+        buildingType: null,
+        fenceSide: null,
+        appearance,
+      });
+      const afterCell = cloneCellIntent(getWorldCell(target.x, target.z));
+      postAiDebugLog({
+        kind: 'selected-custom-parts-after',
+        instruction: userInstruction || '',
+        target: { x: target.x, z: target.z, label: selectedBoardObjectLabel(target) },
+        beforeCell,
+        seed: {
+          id: seed.id,
+          name: seed.name,
+          footprint: seed.footprint,
+          customPartCount: seed.customParts.length,
+          bounds: customPartsBounds(seed.customParts),
+        },
+        enhancedStamp: {
+          id: stamp.id,
+          name: stamp.name,
+          footprint: stamp.footprint,
+          customPartCount: stamp.customParts.length,
+          bounds: customPartsBounds(stamp.customParts),
+        },
+        afterCell,
+      });
+      renderStampBuilderCards();
+      selectTool({ id: 'voxel-build:' + stamp.id, label: stamp.name, kind: 'voxel-build', voxelBuildId: stamp.id, isVoxelBuild: true });
+      return stamp;
+    }
     const highResolutionSeed = upscaleVoxelBuildStampResolution(seed, 2, false) || seed;
     const stamp = await enhanceVoxelBuildStamp(highResolutionSeed, userInstruction || '');
     if (!stamp) throw new Error('No enhanced build returned');
@@ -1694,6 +1863,7 @@
       selectedLabel: profile.selectedLabel,
       seedId: profile.seedId || stamp.id || null,
       style: profile.style,
+      creativeRebuild: !!profile.creativeRebuild,
       instruction: String(userInstruction || '').trim() || 'Enhance this voxel object while keeping its role recognisable.',
       sourceCell: stamp.sourceCell || null,
       sourceCoord: stamp.sourceCoord || null,
@@ -1702,7 +1872,9 @@
       renderFootprint: enhancedFootprintForStamp(stamp, profile),
       desiredScale: (stamp.sourceCell && stamp.sourceCell.appearance && stamp.sourceCell.appearance.objectScale) || 1,
       sourceVoxelCount: stamp.voxels.length,
-      targetVoxelCount: Math.min(1800, Math.max(180, Math.round(stamp.voxels.length * 1.25))),
+      targetVoxelCount: profile.creativeRebuild
+        ? Math.min(1800, Math.max(420, Math.round(stamp.voxels.length * 2.2)))
+        : Math.min(1800, Math.max(180, Math.round(stamp.voxels.length * 1.25))),
       requirements: profile.requirements,
       voxels: stamp.voxels,
     };
@@ -1736,10 +1908,12 @@
       'You build and enhance voxel objects for Tiny World Builder. You CAN create brand-new 3D objects, not just rearrange existing parts.',
       'Input voxels are integer x/y/z cubes with hex colors — a starting seed you may keep, extend, or completely replace.',
       'If the user instruction asks for a different or new object (e.g. "make it a windmill", "turn this into a spaceship/robot/lighthouse"), CREATE that new object from scratch: invent its shape, silhouette, and colors freely — you are NOT limited to the seed\'s original category.',
+      'When creativeRebuild is true in the payload, the user instruction wins over selectedKind, sourceCell, and source voxels. Use the source only for placement scale and bounds.',
       'If the instruction only asks to enhance/refine/detail, keep the selected object category recognisable, preserve its rough footprint, and add higher-resolution voxel detail.',
       'Use many small voxels on the supplied coordinate grid. Do not collapse the object into a few broad blocks or fill a solid rectangular mass.',
       'Keep all returned voxels inside allowedBounds when it is present. Do not create detached floating decoration.',
       'Build a readable, characterful low-poly object that matches what the user asked for.',
+      'Use varied local colors and accents. Do not default to gray stone/rock unless the requested object is actually stone.',
       'Do not return prose. Do not include markdown.',
       '',
       'Schema:',
@@ -1965,4 +2139,3 @@
       panel.style.top = pos.top + 'px';
     });
   })();
-

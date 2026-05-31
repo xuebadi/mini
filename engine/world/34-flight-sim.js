@@ -110,7 +110,7 @@
     const k = flightKeys;
 
     // ----- input -----
-    const keyPitchIn = (k['KeyW'] ? 1 : 0) - (k['KeyS'] ? 1 : 0); // W = nose up / climb
+    const keyPitchIn = ((k['KeyS'] || k['KeyX']) ? 1 : 0) - (k['KeyW'] ? 1 : 0); // W = nose down, S/X = nose up
     const keyRollIn = (k['KeyD'] ? 1 : 0) - (k['KeyA'] ? 1 : 0);
     const keyYawIn = ((k['KeyE'] || k['ArrowRight']) ? 1 : 0) - ((k['KeyQ'] || k['ArrowLeft']) ? 1 : 0);
     flightCtl.pitch = flightSmoothSigned(flightCtl.pitch, flightShapeInput(keyPitchIn, 0.04), dt, 70, 48);
@@ -385,7 +385,7 @@
     if (on && !flightHudEl) {
       flightHudEl = document.createElement('div');
       flightHudEl.className = 'flight-hud';
-      flightHudEl.innerHTML = 'FLYING &middot; W/S pitch &middot; A/D roll &middot; Q/E yaw &middot; Shift/Ctrl throttle &middot; B brake &middot; <b>Esc</b> exit';
+      flightHudEl.innerHTML = 'FLYING &middot; W down / S or X up &middot; A/D roll &middot; Q/E yaw &middot; Shift/Ctrl throttle &middot; B brake &middot; <b>Esc</b> exit';
       document.body.appendChild(flightHudEl);
     }
     if (flightHudEl) flightHudEl.style.display = on ? 'block' : 'none';
@@ -418,7 +418,7 @@
 
   // -------- key capture while flying --------
   const FLIGHT_KEYCODES = {
-    KeyW: 1, KeyS: 1, KeyA: 1, KeyD: 1, KeyQ: 1, KeyE: 1, KeyB: 1,
+    KeyW: 1, KeyS: 1, KeyX: 1, KeyA: 1, KeyD: 1, KeyQ: 1, KeyE: 1, KeyB: 1,
     ShiftLeft: 1, ShiftRight: 1, ControlLeft: 1, ControlRight: 1,
     ArrowUp: 1, ArrowDown: 1, ArrowLeft: 1, ArrowRight: 1,
   };
@@ -446,5 +446,4 @@
   // track last pointer position so the Select-mode Fly menu can anchor to it
   window.__flightPointer = { x: 0, y: 0 };
   window.addEventListener('pointermove', e => { window.__flightPointer.x = e.clientX; window.__flightPointer.y = e.clientY; }, true);
-
 

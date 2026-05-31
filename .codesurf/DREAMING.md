@@ -1,81 +1,89 @@
 # CodeSurf Workspace Memory — tinyworld
 
-Generated: 2026-05-30
+Generated: 2026-05-31
 
 ---
 
 ## Overview
 
-Tiny World Builder is a single-file (vanilla ES6, no bundler) 3D world editor built on Three.js r128. The app shipped as `tiny-world-builder.html` but has been progressively refactored: the main logic now lives in ~34 numbered engine modules under `engine/world/`, assembled at build time. Total codebase is approximately 38k lines. The project is deployed via Vercel and Netlify from a `dist/` directory produced by `publish.sh`.
+Tiny World Builder is a vanilla ES6, no-bundler 3D world editor built on Three.js r128. The app shell lives in `tiny-world-builder.html` (~1.4k lines); business logic is split across 39 numbered modules under `engine/world/` (00–37 + 99-late-boot.js), plus `engine/landscape/`. Total JS is approximately 40k+ lines. Deployed via Vercel and Netlify from `dist/` produced by `publish.sh`.
 
 ---
 
 ## Durable Facts
 
 **Architecture**
-- Primary file: `tiny-world-builder.html` (~1.4k lines, mostly HTML shell and wiring after the refactor)
-- Engine modules: `engine/world/00-prelude.js` through `engine/world/99-late-boot.js` (34 modules, numbered by load order)
-- Skills: 18 `.codex/skills/tinyworld-*` SKILL.md files covering every major subsystem; `tinyworld-tool-icons-and-modes` is the newest (added 2026-05-30)
-- Extra skills: `tinyworld-ghost-world-gen` and `threejs-primitive-reconstructor` exist in `.codex/skills/` but are not yet listed in AGENTS.md routing table — open thread
-- Three.js pinned to r128; bumping is risky (shadow/material color-space changes)
+- Primary file: `tiny-world-builder.html` — HTML shell, boot config, and ordered `<script src>` tags only
+- Engine modules: `engine/world/00-prelude.js` through `engine/world/99-late-boot.js` — 39 modules total (00–37 + 99), numbered by load order
+  - Newest modules: `34-flight-sim.js`, `35-tool-palette.js`, `36-mooring-interaction.js`, `37-island-placement-holos.js`
+- Skills: 20 `.codex/skills/tinyworld-*` SKILL.md files; `tinyworld-flight-sim` and `tinyworld-block-button-style` added to AGENTS.md routing table as of latest session
+- `tinyworld-ghost-world-gen` and `threejs-primitive-reconstructor` still present on disk but absent from AGENTS.md routing table
+- Three.js pinned to r128; bumping is risky (shadow and material color-space changes in newer releases)
+- All modules share one global scope (classic `<script>` tags, not ES modules) — load order matters; duplicate top-level identifiers throw `SyntaxError` and silently kill the declaring module
 
 **Data layer contract (never break these)**
 - `world[x][z]` — intent: `{ terrain, terrainFloors, kind, floors }`
 - `cellMeshes['x,z']` — render: `{ tile: Group, object: Group|null }`
-- All mutations must go through `setCell(x, z, opts)` — direct writes to `world[x][z]` desync intent from rendering
+- All mutations go through `setCell(x, z, opts)` — direct writes to `world[x][z]` desync intent from rendering
 - Materials in `M.*` are shared; never mutate in place, clone first
 - `userData.landing` guards drop-in animations; never remove these checks
 
 **Build / test**
 - `npm test` — static checks
 - `npm run build` — generates `dist/`
-- `npm run icons` — re-bakes PNG tool icons (must run after adding new tool kinds)
-- `publish.sh` — copies `styles/`, `icons/`, and `data/` into `dist/`
+- `npm run icons` — re-bakes PNG tool icons (run after adding new tool kinds)
+- `publish.sh` — copies `styles/`, `icons/`, `data/` into `dist/`
 
 **Persistence**
-- Runtime state in localStorage; `twSafeSetItem` wraps all writes (surfacing quota errors)
+- Runtime state in localStorage; `twSafeSetItem` wraps all writes (surfaces quota errors)
 - World save/load via `29-persistence-api.js`; custom voxel stamps embedded in world save payload
 - Defaults pipeline: `tinyworld-defaults.json` + `/api/save-defaults`
 - URL param `?world=<same-origin-url>` loads a remote world at boot
 
 **House style**
-- Semicolons used throughout (follow existing file)
+- Semicolons used throughout — follow existing file
 - 2-space indent, trailing commas, single quotes
 - Section headers: `// -------- name --------`
 - No npm packages, no bundler — single-file constraint is intentional
 
 ---
 
-## Active Subsystems and Recent Additions
+## Active Subsystems
 
-**Editable Islands (latest major feature — landed 2026-05-30)**
-- Islands now render terrain per-cell, matching home island parity (`ensureEditableIslandCellTiles`)
-- 8-slot placement workflow: hologram snapping, nearest-slot selection, hover/placement wired through `20-input-place-erase.js`
-- Radial menu (`33-radial-menu.js`) recognizes island selections and restricts to move/rotate; rebuilds ring on selection type change
-- Mooring cable routing now avoids engine hazards (`MOORING_HAZARD_CLEARANCE`, `avoidMooringHazards`)
+**Flight sim** (`34-flight-sim.js`, skill: `tinyworld-flight-sim`)
+- Flyable plane via existing `stunt-plane` model-stamp (`models/stunt_plane.glb`) placed through the Stamps system — not a bespoke tool
+- Plain click on placed stamp opens Enter/Fly menu; flight uses rear chase-cam + ported ships physics (sim-space → scene similarity transform); Escape exits
 
-**Crowd / vehicle pathfinding (2026-05-30)**
-- BFS grid pathfinder added to `11-vehicle-crowd.js` with segment/check/simplify utilities
+**Editable Islands** (`14-editable-islands-moorings.js`, `36-mooring-interaction.js`, `37-island-placement-holos.js`)
+- Islands render terrain per-cell, matching home island parity (`ensureEditableIslandCellTiles`)
+- 8-slot placement workflow with hologram snapping; hover/placement wired through `20-input-place-erase.js`
+- Mooring cable routing avoids engine hazards (`MOORING_HAZARD_CLEARANCE`, `avoidMooringHazards`)
+
+**AI Generation** (`26-ai-generation.js` — updated 2026-05-31)
+- Primitive approximation bias removed; primitives are now "components, not a ceiling"
+- Material vocabulary expanded
+- Bespoke/custom part requests go through `customParts` as first-class low-poly models; seed type no longer over-preserved on custom requests
+
+**Crowd / vehicle pathfinding** (`11-vehicle-crowd.js`)
+- BFS grid pathfinder with segment/check/simplify utilities
 - Path-biased wander routes: crowds favor road cells, avoid obstacles
 - Spawn logic prefers path cells; walkable terrain set expanded
 
+**Radial menu** (`33-radial-menu.js`)
+- Context-sensitive ring rebuilt on selection type change
+- Island selections restricted to move/rotate only
+
 **Engine model system**
 - Shared lift-engine system (`buildHomeIslandEngines`) — home and island engines unified
-- Engine types: propeller (tinted), rocket (heavy variant), and standard
-- Selected engines now reveal the agent panel (`28-generate-panel-agent.js`)
+- Engine types: propeller (tinted), rocket (heavy variant), standard
+- Selected engines reveal the agent panel (`28-generate-panel-agent.js`)
 
-**Storage / asset utilities (2026-05-30)**
-- `twToast`, `twSafeSetItem`, `twDownloadJSON`, `twPickJSONFile` added to `00-prelude.js`
+**Storage / asset utilities** (`00-prelude.js`)
+- `twToast`, `twSafeSetItem`, `twDownloadJSON`, `twPickJSONFile`
 - Asset library export/import: `exportAssetLibrary`, `importAssetLibrary`
 - Custom voxel-build stamps: `referencedVoxelBuildStamps`, `registerEmbeddedVoxelBuildStamps`
 
-**Layers panel** — `32-layers-panel.js` (clouds kept off build plane)
-
-**Radial menu** — `33-radial-menu.js`, context-sensitive ring rebuilt on selection type change
-
-**Ghost preview** — tile plates no longer cast or receive shadows
-
-**Publish** — `publish.sh` now copies `data/` to `dist/data` for same-origin world JSON
+**Bug fix (2026-05-31)** — Startup race: texture load callbacks could call `renderScene()` before `worldGroup` exists, producing `ReferenceError: worldGroup is not defined`. Guard added; early texture callbacks no-op until scene graph is initialized.
 
 ---
 
@@ -99,8 +107,10 @@ Tiny World Builder is a single-file (vanilla ES6, no bundler) 3D world editor bu
 | localStorage, defaults, audio, camera | `tinyworld-runtime-state` |
 | Home island, sponsor banner, planes | `tinyworld-island-and-planes` |
 | Tool icons (PNG bake), ghost billboard, mode indicator | `tinyworld-tool-icons-and-modes` |
+| Block button aesthetic (raised square, dark outline) | `tinyworld-block-button-style` |
+| Flyable plane via stunt-plane stamp | `tinyworld-flight-sim` |
 
-Skills not yet in AGENTS.md routing table (may need wiring):
+Skills on disk but absent from AGENTS.md routing table (open thread — may need wiring):
 - `tinyworld-ghost-world-gen`
 - `threejs-primitive-reconstructor`
 
@@ -108,10 +118,10 @@ Skills not yet in AGENTS.md routing table (may need wiring):
 
 ## Open Threads
 
-- Two skills (`tinyworld-ghost-world-gen`, `threejs-primitive-reconstructor`) exist on disk but are absent from the AGENTS.md skill routing table
-- `fork-improvements-report.md` added 2026-05-30 — documents fork findings and recommended lifts; review pending
-- OpenClaw cron runs (VibeClaw Article Generator, Wallpaper Generator, Skills Scout) are failing repeatedly — platform-level instability in OpenClaw cron execution
-- OpenClaw `mc-gateway` session has repeated assistant turn failures; lead-agent heartbeat (Ava, board `c3f78d0c`) remains healthy
+- `tinyworld-ghost-world-gen` and `threejs-primitive-reconstructor` skills exist in `.codex/skills/` but are not in the AGENTS.md routing table
+- `fork-improvements-report.md` present at repo root (added 2026-05-30) — fork findings and recommended lifts; review status unknown
+- OpenClaw cron jobs (VibeClaw Article Generator, Wallpaper Generator, Skills Scout, Tom Doerr Tweet Tracker) all producing repeated assistant-turn failures — platform-level instability in OpenClaw cron execution
+- OpenClaw `mc-gateway` session has persistent assistant turn failures; lead-agent heartbeat (Ava, board `c3f78d0c`) remains healthy
 - Tom Doerr tweet tracker blocked by X.com login wall; Nitter fallback also unavailable
 - `split-god-file.js` workflow in `.claude/workflows/` — purpose/status not confirmed in recent sessions
 
@@ -122,3 +132,4 @@ Skills not yet in AGENTS.md routing table (may need wiring):
 - No emoji anywhere — user strictly prohibits emoji in UI, code, and output
 - Do not rebuild existing components; reuse as-is
 - Verify UI/interaction behavior via 3D math (positions, bbox, ray math) — not browser screenshots or synthetic clicks
+- PNG icons are baked via `npm run icons`; SVG glyphs are the canonical source; never reintroduce PNG baked-icon system to main

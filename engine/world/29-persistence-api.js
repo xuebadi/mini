@@ -136,6 +136,41 @@
   // each into a registered voxel-build stamp and rewrite the cell to reference
   // it, BEFORE normalization/validation (which only know native fields). Runs
   // only for fresh AI output; saved worlds already carry voxelBuildId + no parts.
+  function customPartCellFootprint(cell, name) {
+    const explicit = Number(cell && (cell.customFootprint || cell.footprint || cell.renderFootprint));
+    if (Number.isFinite(explicit)) return Math.max(0.6, Math.min(3.2, explicit));
+    const sig = String(name || '').toLowerCase();
+    if (/\b(bridge|walkway|footbridge|deck|platform|pier|dock|stairs|step)\b/.test(sig)) return 1.12;
+    if (/\b(hot.?air|balloon|airship|zeppelin|spaceship|space\s*ship|ship|boat|submarine|train|greenhouse|glasshouse|dome|observatory|factory|workshop)\b/.test(sig)) return 1.65;
+    if (/\b(tower|lighthouse|windmill|watermill|crane|statue|monument|portal|gatehouse)\b/.test(sig)) return 1.35;
+    return 1.18;
+  }
+
+  function customPartCellDefaultOffsetY(cell, name) {
+    const transform = cell && cell.transform;
+    if (Array.isArray(transform) && transform.length >= 4 && Number.isFinite(Number(transform[3]))) return 0;
+    if (transform && typeof transform === 'object' && Number.isFinite(Number(transform.offsetY))) return 0;
+    const sig = String(name || '').toLowerCase();
+    if (/\b(bridge|walkway|footbridge|deck|platform|pier|dock)\b/.test(sig)) return -0.08;
+    return 0;
+  }
+
+  function applyCustomPartCellDefaultTransform(cell, offsetY) {
+    if (!cell || !offsetY) return;
+    if (Array.isArray(cell.transform)) {
+      cell.transform = [
+        Number(cell.transform[0]) || 0,
+        Number(cell.transform[1]) || 0,
+        Number(cell.transform[2]) || 0,
+        offsetY,
+      ];
+      return;
+    }
+    const transform = cell.transform && typeof cell.transform === 'object' ? Object.assign({}, cell.transform) : {};
+    transform.offsetY = offsetY;
+    cell.transform = transform;
+  }
+
   function materializeCustomPartCells(data) {
     if (!data || !Array.isArray(data.cells)) return;
     if (typeof normalizeVoxelBuildStamp !== 'function') return;
@@ -144,10 +179,15 @@
       const parts = c.customParts;
       if (!Array.isArray(parts) || !parts.length) { if (c) { delete c.customParts; delete c.customName; } continue; }
       const name = (typeof c.customName === 'string' && c.customName.trim()) ? c.customName.trim() : 'Custom Object';
+      const footprint = customPartCellFootprint(c, name);
+      const offsetY = customPartCellDefaultOffsetY(c, name);
       delete c.customParts;
       delete c.customName;
+      delete c.customFootprint;
+      delete c.footprint;
+      delete c.renderFootprint;
       let stamp = null;
-      try { stamp = normalizeVoxelBuildStamp({ name, customParts: parts, custom: true, footprint: 2.0 }, 'Custom Object'); } catch (_) {}
+      try { stamp = normalizeVoxelBuildStamp({ name, customParts: parts, custom: true, footprint }, 'Custom Object'); } catch (_) {}
       if (!stamp) continue;
       if (typeof VOXEL_BUILD_STAMPS !== 'undefined' && typeof getVoxelBuildStamp === 'function' && !getVoxelBuildStamp(stamp.id)) {
         VOXEL_BUILD_STAMPS.push(stamp);
@@ -159,6 +199,7 @@
       const ap = (c.appearance && typeof c.appearance === 'object') ? Object.assign({}, c.appearance) : {};
       ap.voxelBuildId = stamp.id;
       c.appearance = ap;
+      applyCustomPartCellDefaultTransform(c, offsetY);
     }
     if (typeof saveCustomVoxelBuildStamps === 'function') { try { saveCustomVoxelBuildStamps(); } catch (_) {} }
   }
@@ -996,4 +1037,3 @@
     if (ok) resetCameraDefaults();
     return ok;
   }
-

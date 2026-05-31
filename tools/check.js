@@ -236,7 +236,8 @@ if (!/const EDITABLE_ISLAND_PROP_LOCAL_Z = -2\.84/.test(html) || !/const EDITABL
 if (!/showLegacyOuterCap = opts\.showOuterPropellerCap === true/.test(html) || !/showHubBlocks = opts\.showPropellerHubBlocks === true/.test(html) || !/legacyPropellerHubBlock/.test(html)) {
   fail('editable island lift propellers must hide old cap and hub blocks by default while keeping them opt-in');
 }
-if (!/uTint: \{ value: new THREE\.Color\(0x2d3235\) \}/.test(html) || !/uWarm: \{ value: new THREE\.Color\(0x5f4935\) \}/.test(html)) {
+const propellerDiscBody = sourceFunctionBody(html, 'getEditableIslandPropellerDiscMaterial');
+if (!/uTint: \{ value: new THREE\.Color\(0x(?:2d3235|131517)\) \}/.test(propellerDiscBody) || !/uWarm: \{ value: new THREE\.Color\(0x(?:5f4935|4a3526)\) \}/.test(propellerDiscBody)) {
   fail('editable island lift propeller blur disc must stay dark enough to read at speed');
 }
 if (!/function getIslandRocketPlumeMaterial/.test(html) || !/rocketPlumeShader/.test(html) || !/rocketPlumeSheet/.test(html)) {

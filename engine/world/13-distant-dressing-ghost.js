@@ -140,10 +140,11 @@
     const wallH = DIRT_H + 0.035;
     const y = -DIRT_H * 0.5 - 0.018;
     const mat = islandShellMaterial(M.boardSide);
-    const north = vbox(parent, span, wallH, thickness, 0, y, -half + inset, mat, { noGap: true, noShadow: true });
-    const south = vbox(parent, span, wallH, thickness, 0, y,  half - inset, mat, { noGap: true, noShadow: true });
-    const west  = vbox(parent, thickness, wallH, span, -half + inset, y, 0, mat, { noGap: true, noShadow: true });
-    const east  = vbox(parent, thickness, wallH, span,  half - inset, y, 0, mat, { noGap: true, noShadow: true });
+    const shellOpts = { noGap: true, noShadow: true, skipTop: true, skipBottom: true };
+    const north = vbox(parent, span, wallH, thickness, 0, y, -half + inset, mat, shellOpts);
+    const south = vbox(parent, span, wallH, thickness, 0, y,  half - inset, mat, shellOpts);
+    const west  = vbox(parent, thickness, wallH, span, -half + inset, y, 0, mat, shellOpts);
+    const east  = vbox(parent, thickness, wallH, span,  half - inset, y, 0, mat, shellOpts);
     for (const mesh of [north, south, west, east]) {
       mesh.name = 'island-side-backing';
       mesh.userData.islandSideBacking = true;
@@ -373,7 +374,7 @@
       const c = homeBorderGroup.children.pop();
       disposeGroup(c);
     }
-    vbox(homeBorderGroup, GRID * TILE, 0.10, GRID * TILE, 0, -DIRT_H - 0.055, 0, M.islandUnderD, { noGap: true });
+    vbox(homeBorderGroup, GRID * TILE, 0.10, GRID * TILE, 0, -DIRT_H - 0.055, 0, M.islandUnderD, { noGap: true, skipTop: true });
     voxelInvertedSteppedRoof(homeBorderGroup, GRID * TILE, GRID * TILE, -DIRT_H - 0.020, M.islandUnder, M.islandUnderD);
     addIslandSideBacking(homeBorderGroup);
     addIslandUtilityUnderside(homeBorderGroup);
@@ -440,4 +441,3 @@
     p.z += boardZ * GRID;
     return p;
   }
-

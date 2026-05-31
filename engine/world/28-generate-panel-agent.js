@@ -677,7 +677,8 @@
         '- "settlement" share should be expressed via house clusters connected by path.\n' +
         '- Use water cells for water share, dirt cells for farmland, grass for the rest.\n' +
         '- Raise hills/mountains using terrainFloors (1=plains, 2-3=hills, 4-8=mountains).\n' +
-        '- Do not express hills or mountains by filling the map with rock objects. Use rock only as occasional landmark/boulder cells.'
+        '- Do not express hills or mountains by filling the map with rock objects. Use rock only as occasional landmark/boulder cells.\n' +
+        '- If the user intent names a bespoke object or model with no native kind, create a customParts object for it. Use sphere/ellipsoid customParts for rounded envelopes, domes, and canopies, and cable customParts for ropes, tethers, rigging, and mooring-style connections. Keep compact objects around customFootprint 1.1-1.3; use 1.5-1.8 only for deliberate hero pieces. Use existing houses, fences, rocks, bridges, trees, and terrain only when they are real scene components, not as substitutes for the requested object.'
       );
 
       if (modelEl.value.trim() !== model) {
@@ -2497,4 +2498,3 @@
       if (window.__tinyworldSelection) window.__tinyworldSelection.clear();
     });
   })();
-

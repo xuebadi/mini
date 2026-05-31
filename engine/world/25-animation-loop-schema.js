@@ -789,6 +789,12 @@
             "type": "string",
             "description": "Optional short name for a bespoke custom object authored via customParts."
           },
+          "customFootprint": {
+            "type": "number",
+            "minimum": 0.6,
+            "maximum": 3.2,
+            "description": "Optional initial render footprint in tile units for customParts. Use about 1.1 for compact bridges/props, 1.2 for normal single-cell objects, and 1.5-1.8 only for deliberate hero objects."
+          },
           "customParts": {
             "$ref": "#/$defs/customParts"
           }
@@ -796,8 +802,8 @@
       },
       "customParts": {
         "type": "array",
-        "description": "Optional bespoke custom 3D object authored inline as low-poly primitive parts. When present this cell becomes a unique voxel object (it overrides kind). Use ONLY for hero/landmark things with no native kind: windmill, statue, fountain, vehicle, robot, lighthouse, ship, sign, etc. Keep parts connected and roughly within the tile.",
-        "maxItems": 80,
+        "description": "Optional bespoke custom 3D object authored inline as low-poly primitive parts. When present this cell becomes a unique voxel object (it overrides kind). Use for hero/landmark things with no native kind: windmill, statue, fountain, vehicle, robot, lighthouse, ship, glass greenhouse, dome, airship, sign, etc. Keep parts connected and roughly within a compact 1-cell footprint unless the object is explicitly a larger hero. Use native houses/fences/rocks/trees/terrain only when those components are actually needed.",
+        "maxItems": 180,
         "items": {
           "$ref": "#/$defs/customPart"
         }
@@ -806,13 +812,23 @@
         "type": "object",
         "additionalProperties": false,
         "required": ["kind", "material", "size", "pos"],
-        "description": "One low-poly primitive of a custom object. Coordinates are voxel units centered on the tile (x left-right, y up, z front-back).",
+        "description": "One low-poly primitive of a custom object. Coordinates are voxel units centered on the tile (x left-right, y up, z front-back). Use sphere/ellipsoid for rounded envelopes, domes, canopies, and tanks. Sphere/ellipsoid parts may use phiStart/phiLength/thetaStart/thetaLength for curved slices, such as balloon fabric panels. Use cable for ropes, tethers, rigging, and mooring-style connections; cable parts must include from/to endpoints and should still include size/pos for compatibility.",
         "properties": {
-          "kind": { "type": "string", "enum": ["box", "cylinder", "cone"] },
-          "material": { "type": "string", "description": "Color/material name, e.g. wood, stone, roof, leaf, water, metal, white, red, gold, dirt." },
+          "kind": { "type": "string", "enum": ["box", "cylinder", "cone", "sphere", "ellipsoid", "cable"] },
+          "material": { "type": "string", "description": "Color/material name. Prefer exact TinyWorld names such as wood, woodDark, woodLight, leather, rope, ropeLight, cable, stone, stoneDark, metal, steel, silver, brass, brassDark, copper, bronze, glass, glassBlue, glassGreen, fabric, canvas, fabricRed, fabricOrange, fabricYellow, fabricBlue, fabricPurple, fabricGreen, roof, roofEdge, white, cream, red, orange, yellow, blue, teal, purple, green, black, charcoal. Do not default to stone unless the part is stone." },
           "size": { "type": "array", "minItems": 3, "maxItems": 3, "items": { "type": "number" } },
           "pos": { "type": "array", "minItems": 3, "maxItems": 3, "items": { "type": "number" } },
-          "scale": { "type": "array", "minItems": 3, "maxItems": 3, "items": { "type": "number" } }
+          "scale": { "type": "array", "minItems": 3, "maxItems": 3, "items": { "type": "number" } },
+          "from": { "type": "array", "minItems": 3, "maxItems": 3, "items": { "type": "number" } },
+          "to": { "type": "array", "minItems": 3, "maxItems": 3, "items": { "type": "number" } },
+          "radius": { "type": "number", "minimum": 0.006, "maximum": 0.3 },
+          "sag": { "type": "number", "minimum": -8, "maximum": 8 },
+          "segments": { "type": "integer", "minimum": 4, "maximum": 64 },
+          "verticalSegments": { "type": "integer", "minimum": 3, "maximum": 24 },
+          "phiStart": { "type": "number", "minimum": 0, "maximum": 6.28319 },
+          "phiLength": { "type": "number", "minimum": 0.05, "maximum": 6.28319 },
+          "thetaStart": { "type": "number", "minimum": 0, "maximum": 3.14159 },
+          "thetaLength": { "type": "number", "minimum": 0.05, "maximum": 3.14159 }
         }
       },
       "cellTuple": {
@@ -876,4 +892,3 @@
       }
     }
   };
-
