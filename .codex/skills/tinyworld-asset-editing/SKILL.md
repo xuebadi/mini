@@ -71,6 +71,11 @@ Selection properties:
   mutating selection internals, and should refresh from `tinyworld:selection-changed`,
   `tinyworld:world-changed`, and `tinyworld:grid-changed` events.
 - Model stamps should expose All material / All mat scale controls, but Body/Top material controls should be limited to selected asset kinds with known Tiny World material buckets; mixed selections must not write part-material fields onto model stamps.
+- Generated `voxel-build` / customParts objects are editable through the same
+  Layers / Properties appearance rows as built-ins: All material, Body material,
+  Top material, Body/Top colour, and matching material-scale resets. Keep
+  `model-stamp` excluded from Body/Top material rows, but do not exclude
+  `voxel-build`.
 
 Stamps panel:
 
@@ -106,3 +111,6 @@ tab, which **relocates the shared `#agent-selection-properties` node** (rendered
 by module 28) into `#layers-props-host`; switching back to Layers / closing the
 panel restores that node to the agent panel (`selPropsHome`). Keep the tree dense
 (small summary padding, 14px branch indent, 1px gaps).
+The old agent-panel Preview/Properties selection dialog has been retired: module
+28 renders the shared properties node as a hidden staging element, while radial
+More/Style/Move and multi-cell selection should open `window.openLayersPropertiesPanel()`.

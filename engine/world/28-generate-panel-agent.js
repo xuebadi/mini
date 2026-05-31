@@ -1192,6 +1192,12 @@
     function saveSelectionPropActiveTab() {
       try { localStorage.setItem(SELECTION_PROP_ACTIVE_TAB_LS, selectionPropActiveTab); } catch (_) {}
     }
+    function notifySelectionPropertiesRendered() {
+      try { window.dispatchEvent(new CustomEvent('tinyworld:selection-properties-rendered')); } catch (_) {}
+    }
+    function openSelectionPropertiesInLayers() {
+      if (typeof window.openLayersPropertiesPanel === 'function') window.openLayersPropertiesPanel();
+    }
 
     // Preview rotator state (reused Three.js r128)
     let previewRenderer = null;
@@ -1651,6 +1657,7 @@
       });
       previewProps.appendChild(section);
       previewProps.hidden = false;
+      notifySelectionPropertiesRendered();
     }
 
     function applySelectionProperty(rowKey, value) {
@@ -1825,6 +1832,7 @@
       previewProps.innerHTML = '';
       if (!entries.length) {
         previewProps.hidden = true;
+        notifySelectionPropertiesRendered();
         return;
       }
       const primary = entries[0][0];
@@ -2207,6 +2215,7 @@
         previewProps.appendChild(sectionWrap);
       });
       previewProps.hidden = false;
+      notifySelectionPropertiesRendered();
     }
 
     function renderSelection() {
@@ -2215,10 +2224,8 @@
       const engineTarget = selectedEngineUiTarget();
       if (!summary) {
         if (engineTarget) {
-          markAgentActivity();
-          panel.classList.remove('hidden'); // reveal the panel so engine controls are visible
-          panel.classList.add('has-selection');
-          previewBox.hidden = false;
+          panel.classList.remove('has-selection');
+          previewBox.hidden = true;
           syncAgentTargetChip(null, { cellCount: 1, kinds: { engine: 1 }, terrains: {} });
           previewCount.textContent = 'Selected: ' + (engineTarget.engine.type || 'lift') + ' engine L' + (engineTarget.engine.level || 1);
           previewList.innerHTML = '';
@@ -2239,10 +2246,8 @@
           renderEditableIslandEngineProperties(engineTarget);
           updateSelectionPreview(null);
           updateTransformGizmo(null);
-          if (document.documentElement.classList.contains('ai-disabled')) setSelectionTab('properties');
-          else setSelectionTab('properties');
-          if (panelTitle) panelTitle.textContent = 'Engine';
-          setPanelCollapsed(false, { pin: true });
+          if (panelTitle) panelTitle.textContent = 'Agent conversation';
+          openSelectionPropertiesInLayers();
           return;
         }
         panel.classList.remove('has-selection');
@@ -2252,14 +2257,14 @@
         if (previewProps) {
           previewProps.innerHTML = '';
           previewProps.hidden = true;
+          notifySelectionPropertiesRendered();
         }
         updateTransformGizmo(null);
         if (panelTitle) panelTitle.textContent = 'Agent conversation';
         return;
       }
-      markAgentActivity();
-      panel.classList.add('has-selection');
-      previewBox.hidden = false;
+      panel.classList.remove('has-selection');
+      previewBox.hidden = true;
       const selectedObject = selectedBoardObjectTarget();
       syncAgentTargetChip(selectedObject, summary);
       previewCount.textContent = selectedObject
@@ -2279,15 +2284,13 @@
         previewList.appendChild(li);
       }
       renderSelectionProperties(summary, entries);
-      if (document.documentElement.classList.contains('ai-disabled')) setSelectionTab('properties');
-      updateSelectionPreview(selectedObject);
+      if (document.documentElement.classList.contains('ai-disabled')) openSelectionPropertiesInLayers();
+      updateSelectionPreview(null);
       updateTransformGizmo(selectedObject);
-      if (panelTitle) panelTitle.textContent = 'Selection';
-      // Only auto-open the properties panel for a multi-cell selection. A plain
-      // single-click raises the radial menu (gizmo above) but leaves the panel
-      // closed so it doesn't pop up on every pick — open it explicitly via the
-      // radial More/Style/Move actions when editing a single object.
-      if (summary.cellCount > 1) setPanelCollapsed(false, { pin: true });
+      if (panelTitle) panelTitle.textContent = 'Agent conversation';
+      // Properties now live in Layers / Properties. A single pick keeps the
+      // canvas-first flow; multi-cell edits open the durable property surface.
+      if (summary.cellCount > 1) openSelectionPropertiesInLayers();
     }
     window.addEventListener('tinyworld:selection-changed', renderSelection);
     window.addEventListener('tinyworld:history-changed', () => {

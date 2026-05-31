@@ -36,10 +36,10 @@ The ships model is tuned for a kilometre-scale world (cruise ~77 m/s). Physics
 runs untouched in **sim space**; the flown object (the placed stamp group) position
 is mapped into the scene via a single **similarity transform**:
 `scenePos = sceneOrigin + yawQuat * ((simPos - simOrigin) * FLIGHT_SIM_TO_SCENE)`
-(`FLIGHT_SIM_TO_SCENE = 0.05`). `sceneOrigin`/yaw are captured from the parked
+(`FLIGHT_SIM_TO_SCENE = 0.09`). `sceneOrigin`/yaw are captured from the parked
 stamp at `enterFlight`. Ground is a flat sim plane at spawn height.
-- **Camera is the exception**: the chase cam is framed in **scene units** (~6–10
-  units behind, ~2.6 up — the plane is ~1.35 units wide), NOT run through the 0.05
+- **Camera is the exception**: the chase cam is framed in **scene units** (~3–5.5
+  units behind, ~1.45 up — the plane is ~1.35 units wide), NOT run through the sim-scale
   transform. Running the camera offset through the sim scale parks it inside the
   tail (the original bug). Controls: arrows Up/Down = throttle, Left/Right = rudder.
 
@@ -47,8 +47,9 @@ stamp at `enterFlight`. Ground is a flat sim plane at spawn height.
 - Place the **Stunt Plane** from Stamps (it is a model-stamp).
 - Plain-click the placed plane → `showFlightMenu` → "Enter / Fly" →
   `enterFlight(x,z)`: swaps the global `camera` to a `flightCam` (FOV 60), captures
-  keys, and uses the placed stamp group as the flown mesh (`flightJet`); finds a
-  propeller child by name to spin (cosmetic, optional).
+  keys, and uses the placed stamp group as the flown mesh (`flightJet`); wraps
+  named propeller nodes in a hub pivot and adds the Dusty-style translucent
+  strobe disc whose opacity flickers with throttle.
 - Controls: W = nose down, S or X = nose up (pitch), A/D roll, Q/E yaw, Shift/Ctrl OR
   ArrowUp/ArrowDown = throttle, ArrowLeft/ArrowRight = rudder, B brake.
 - `Escape` → `exitFlight()`: restores the previous camera, calls `updateCamera()`,
@@ -61,13 +62,14 @@ stamp at `enterFlight`. Ground is a flat sim plane at spawn height.
   top-level `const`/`let`/`function` name silently kills the whole module.
 - The tool picker is a **search palette** (`#palette-search` → `#palette-results`),
   not a fixed toolbar; the stunt plane is found under Stamps, not a tool button.
-- Flight is **arcade + unconstrained for a tiny world**: `enterFlight` launches the
-  plane already cruising (initial forward speed + throttle 0.6, `flightLeftGround`
-  true) so there is no runway/taxi phase. Once airborne there is NO ground/island
-  collision — you can climb, dive, and fly under the islands freely. Tuning lives
-  in `FCFG` (MAX_THRUST 45, LIFT_K 0.08, DRAG_PARASITE 0.025, DRAG_INDUCED 0.03)
-  and `FLIGHT_SIM_TO_SCENE` (0.09); these are balanced for a ~30–45 m/s controllable
-  cruise on an 8–48 unit board, NOT the ships km-scale defaults.
+- Flight is arcade-scale for a tiny world: `enterFlight` launches the plane
+  already cruising just above the board (initial forward speed + throttle 0.6)
+  so there is no runway taxi phase. Collision and landing are checked in scene space against the
+  TinyWorld board surface plus object bounds, then converted back to sim-space Y.
+  Shallow, upright touchdowns become `ROLLING` / `LANDED`; hard terrain strikes
+  or object hits stop the plane and show a collision/hard-landing status. Tuning
+  lives in `FCFG`, `FLIGHT_SIM_TO_SCENE` (0.09), and the `FLIGHT_SCENE_*`
+  collision constants.
 
 ## Verify (real app, real pointer pipeline — not synthetic shortcuts)
 `npm run dev`, then via agent-browser `eval`:

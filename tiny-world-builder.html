@@ -1260,25 +1260,14 @@
       <button type="button" class="agent-panel-clear" id="agent-panel-clear" aria-label="Clear conversation">⌫</button>
       <button type="button" class="agent-panel-toggle" id="agent-panel-toggle" aria-label="Close conversation">×</button>
     </div>
-    <div class="agent-selection-preview" id="agent-selection-preview" hidden>
-      <div class="selection-tabbar" role="tablist" aria-label="Selection view">
-        <button type="button" class="selection-tab active" data-tab="preview" role="tab" aria-selected="true">Preview</button>
-        <button type="button" class="selection-tab" data-tab="properties" role="tab" aria-selected="false">Properties</button>
+    <div class="agent-selection-preview selection-staging" id="agent-selection-preview" hidden aria-hidden="true">
+      <div class="selection-preview-pane" hidden>
+        <canvas id="selection-preview-canvas" width="256" height="256" aria-label="Selected object preview"></canvas>
+        <div class="selection-preview-actions" id="selection-preview-actions"></div>
       </div>
-      <div class="selection-tab-content active" data-content="preview">
-        <div class="selection-preview-pane">
-          <canvas id="selection-preview-canvas" width="256" height="256" aria-label="Selected object preview"></canvas>
-          <div class="selection-preview-actions" id="selection-preview-actions"></div>
-        </div>
-      </div>
-      <div class="selection-tab-content" data-content="properties">
-        <div class="selection-details-pane">
-          <div class="agent-selection-count" id="agent-selection-count">0 tiles selected</div>
-          <ul class="agent-selection-list" id="agent-selection-list"></ul>
-          <div class="agent-selection-properties" id="agent-selection-properties" hidden></div>
-          <div class="agent-selection-hint">Type above and the prompt will target this selection.</div>
-        </div>
-      </div>
+      <div class="agent-selection-count" id="agent-selection-count" hidden>0 tiles selected</div>
+      <ul class="agent-selection-list" id="agent-selection-list" hidden></ul>
+      <div class="agent-selection-properties" id="agent-selection-properties" hidden></div>
     </div>
     <div class="agent-messages" id="agent-messages"></div>
   </div>

@@ -42,6 +42,11 @@ Use this together with:
   glass + frame + planting/base materials; an airship needs hull + brass/copper
   machinery + fabric/canvas balloon panels + cable/rope rigging + glass
   bridge/window accents.
+- Generated custom-part renderers must keep those semantic families editable
+  after creation. `voxelAppearanceMaterial()` should apply global
+  `materialTexture` even when a part has no inferred body/top role, and body/top
+  colours or textures should override only parts whose material/color maps to
+  the matching role.
 - Use the custom-part `cable` primitive for actual connections: balloon ropes,
   crane lines, tethers, rigging, moorings, bridge suspension lines, and other
   angled cords. Do not fake these as vertical stone/wood columns when endpoints

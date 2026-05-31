@@ -12,6 +12,13 @@
   // inside the tiny world.
 
   const FLIGHT_SIM_TO_SCENE = 0.09;        // sim metres -> tiny-world units
+  const FLIGHT_SCENE_GEAR_CLEARANCE = 0.19;
+  const FLIGHT_SCENE_BELLY_CLEARANCE = 0.09;
+  const FLIGHT_SCENE_LAUNCH_CLEARANCE = 1.45;
+  const FLIGHT_SCENE_COLLISION_RADIUS = 0.58;
+  const FLIGHT_LAND_MAX_DESCENT = 8.5;
+  const FLIGHT_LAND_MAX_SPEED = 62;
+  const FLIGHT_LAND_MIN_UP = 0.45;
   // The stunt_plane GLB's nose is +Z (the crop-duster aligns +Z with travel),
   // but the ships physics forward is -Z. Rotate the rendered model 180 about Y
   // so its visual nose matches the physics nose / direction of motion.
@@ -72,9 +79,11 @@
   let flightPrevCamera = null;
   let flightCell = null;            // { x, z } of the parked plane
   let flightJet = null;             // the cell object group being flown
-  let flightProp = null;            // optional propeller child to spin
-  let flightSimGroundY = 0;         // flat sim-space takeoff ground height
-  let flightLeftGround = false;     // once true, no ground clamp (fly anywhere)
+  let flightProps = [];             // propeller pivots to spin
+  let flightSimGroundY = 0;         // sim-space reference height for ground effect
+  let flightLanded = false;
+  let flightImpactCooldown = 0;
+  let flightHudStatus = 'FLYING';
   const flightSceneOrigin = new THREE.Vector3();
   const flightYawQuat = new THREE.Quaternion();
   const flightKeys = {};
@@ -86,7 +95,105 @@
     out.applyQuaternion(flightYawQuat).add(flightSceneOrigin);
     return out;
   }
+  function flightSceneYToSimY(sceneY) {
+    return flightPlane.__simOrigin.y + ((sceneY - flightSceneOrigin.y) / FLIGHT_SIM_TO_SCENE);
+  }
   flightPlane.__simOrigin = new THREE.Vector3();
+
+  // -------- scene collision / landing --------
+  const _flcolScenePos = new THREE.Vector3();
+  const _flcolCellPos = new THREE.Vector3();
+  const _flcolBox = new THREE.Box3();
+  const _flcolUp = new THREE.Vector3();
+
+  function flightSurfaceAtScene(scenePos) {
+    if (typeof cellMeshes === 'undefined' || typeof getWorldCell !== 'function') return null;
+    let hit = null;
+    for (const key in cellMeshes) {
+      const parts = key.split(',');
+      const x = parseInt(parts[0], 10);
+      const z = parseInt(parts[1], 10);
+      if (!Number.isFinite(x) || !Number.isFinite(z)) continue;
+      const cell = getWorldCell(x, z);
+      if (!cell) continue;
+      const p = (typeof cellDisplayPointForCell === 'function') ? cellDisplayPointForCell(x, z) : tilePos(x, z);
+      _flcolCellPos.copy(p);
+      const dx = scenePos.x - _flcolCellPos.x;
+      const dz = scenePos.z - _flcolCellPos.z;
+      if (Math.abs(dx) > FLIGHT_SCENE_COLLISION_RADIUS || Math.abs(dz) > FLIGHT_SCENE_COLLISION_RADIUS) continue;
+      const terrainY = (_flcolCellPos.y || 0) + TOP_H + terrainVisualRiseForCell(cell);
+      if (!hit || terrainY > hit.surfaceY) hit = { surfaceY: terrainY, terrainY, objectY: -Infinity, objectKind: null, x, z };
+      const entry = cellMeshes[key];
+      const obj = entry && entry.object;
+      if (!obj || obj === flightJet || !obj.visible) continue;
+      obj.updateMatrixWorld(true);
+      _flcolBox.setFromObject(obj);
+      if (_flcolBox.isEmpty()) continue;
+      if (scenePos.x < _flcolBox.min.x - 0.08 || scenePos.x > _flcolBox.max.x + 0.08) continue;
+      if (scenePos.z < _flcolBox.min.z - 0.08 || scenePos.z > _flcolBox.max.z + 0.08) continue;
+      if (_flcolBox.max.y > (hit ? hit.surfaceY : -Infinity)) {
+        hit = { surfaceY: _flcolBox.max.y, terrainY, objectY: _flcolBox.max.y, objectKind: cell.kind || 'object', x, z };
+      }
+    }
+    return hit;
+  }
+
+  function flightSetHudStatus(status) {
+    flightHudStatus = status || 'FLYING';
+    if (flightHudEl) showFlightHud(true);
+  }
+
+  function flightHandleSceneCollision(dt) {
+    const p = flightPlane;
+    if (flightImpactCooldown > 0) flightImpactCooldown = Math.max(0, flightImpactCooldown - dt);
+    flightSimToScene(_flcolScenePos, p.pos);
+    const hit = flightSurfaceAtScene(_flcolScenePos);
+    if (!hit) {
+      p.onGround = false;
+      return;
+    }
+    const clearance = FLIGHT_SCENE_BELLY_CLEARANCE + (FLIGHT_SCENE_GEAR_CLEARANCE - FLIGHT_SCENE_BELLY_CLEARANCE) * (p.gear || 1);
+    const wheelSceneY = _flcolScenePos.y - clearance;
+    if (wheelSceneY > hit.surfaceY + 0.018) {
+      p.onGround = false;
+      return;
+    }
+
+    const speed = p.vel.length();
+    const descent = Math.max(0, -p.vel.y);
+    const upY = _flcolUp.set(0, 1, 0).applyQuaternion(p.quat).y;
+    const hardImpact = !!hit.objectKind || descent > FLIGHT_LAND_MAX_DESCENT || speed > FLIGHT_LAND_MAX_SPEED || upY < FLIGHT_LAND_MIN_UP;
+    p.pos.y = flightSceneYToSimY(hit.surfaceY + clearance);
+
+    if (hardImpact) {
+      p.vel.multiplyScalar(0.08);
+      p.vel.y = Math.max(0, p.vel.y);
+      p.throttleTarget = 0;
+      p.throttle = Math.min(p.throttle, 0.16);
+      p.onGround = true;
+      flightLanded = false;
+      flightSetHudStatus(hit.objectKind ? 'COLLISION' : 'HARD LANDING');
+      if (flightImpactCooldown <= 0) {
+        flightImpactCooldown = 1.2;
+        twToast(hit.objectKind ? 'Plane collision.' : 'Hard landing.', 'err');
+      }
+      return;
+    }
+
+    const wasAirborne = !p.onGround;
+    p.vel.y = Math.max(0, p.vel.y * 0.1);
+    p.onGround = true;
+    const fric = p.brake ? 4.8 : (p.throttleTarget < 0.08 ? 1.1 : 0.34);
+    p.vel.x -= p.vel.x * Math.min(1, fric * dt);
+    p.vel.z -= p.vel.z * Math.min(1, fric * dt);
+    const rollingSpeed = Math.hypot(p.vel.x, p.vel.z);
+    if (wasAirborne && flightImpactCooldown <= 0) {
+      flightImpactCooldown = 0.6;
+      twToast('Plane landed.', 'ok');
+    }
+    flightLanded = rollingSpeed < 6 && p.throttleTarget < 0.08;
+    flightSetHudStatus(flightLanded ? 'LANDED' : 'ROLLING');
+  }
 
   // -------- physics (trimmed port of updatePhysics) --------
   const _flfFwd = new THREE.Vector3();
@@ -220,31 +327,16 @@
     p.vel.addScaledVector(accel, dt);
     p.pos.addScaledVector(p.vel, dt);
 
-    // ----- ground interaction -----
-    // Clamp to the flat takeoff ground only until the plane has clearly left it.
-    // Once airborne, flight is UNCONSTRAINED: climb high, dive low, fly under the
-    // islands — there is no ground or island collision in the air.
-    if (!flightLeftGround) {
-      const wheelAlt = (p.pos.y - flightSimGroundY) - FCFG.GEAR_HEIGHT * p.gear;
-      if (wheelAlt <= 0.02) {
-        p.pos.y = flightSimGroundY + FCFG.GEAR_HEIGHT * p.gear;
-        if (p.vel.y < 0) p.vel.y = 0;
-        p.onGround = true;
-        const fric = p.brake ? 2.4 : 0.5;
-        p.vel.x -= p.vel.x * Math.min(1, fric * dt);
-        p.vel.z -= p.vel.z * Math.min(1, fric * dt);
-      } else {
-        p.onGround = false;
-        if ((p.pos.y - flightSimGroundY) > FCFG.GEAR_HEIGHT + 2.5) flightLeftGround = true;
-      }
-    } else {
-      p.onGround = false;
-    }
+    // ----- TinyWorld scene collision / landing -----
+    // Physics still runs in sim-space, but surface tests happen against the
+    // actual rendered board/object envelope so the plane can land and cannot
+    // pass through terrain, buildings, or generated objects.
+    flightHandleSceneCollision(dt);
   }
 
   // -------- chase camera (trimmed port of updateCamera) --------
   // Chase cam is framed in SCENE units (the plane is ~1.35 units wide), NOT in
-  // sim units — do not run these through flightSimToScene's 0.05 scale.
+    // sim units — do not run these through flightSimToScene's sim-scale.
   const _flCamSceneQuat = new THREE.Quaternion();   // smoothed scene follow orientation
   let _flCamInit = false;
   const _flcamPlanePos = new THREE.Vector3();        // plane position in scene space
@@ -264,16 +356,133 @@
     _flCamSceneQuat.slerp(_flcamPlaneQuat, catchup);
     const fwd = _flcamFwd.set(0, 0, -1).applyQuaternion(_flCamSceneQuat).normalize();
     const speedKts = p.vel.length() * 1.94;
-    // Scene-unit framing: ~6 units behind, more at speed; ~2.6 up.
-    const backDist = 6.0 + flightClamp01((speedKts - 40) / 200) * 4.5;
-    const height = 2.6;
+    // Scene-unit framing: close chase view; the plane is roughly 1.35 units wide.
+    const backDist = 3.35 + flightClamp01((speedKts - 40) / 200) * 2.2;
+    const height = 1.45;
     _flcamDesired.copy(_flcamPlanePos).addScaledVector(fwd, -backDist).add(_flcamUp.set(0, height, 0));
     const followK = 8.5, t = 1 - Math.exp(-followK * dt);
     flightCam.position.lerp(_flcamDesired, t);
     flightCam.up.set(0, 1, 0);
     // look slightly above + ahead of the plane so it sits low-centre in frame
-    _flcamLook.copy(_flcamPlanePos).addScaledVector(fwd, 2.0).add(_flcamUp.set(0, 0.6, 0));
+    _flcamLook.copy(_flcamPlanePos).addScaledVector(fwd, 1.15).add(_flcamUp.set(0, 0.36, 0));
     flightCam.lookAt(_flcamLook);
+  }
+
+  // -------- Dusty-style propeller spin / strobe disc --------
+  const _flpropBox = new THREE.Box3();
+  const _flpropCenterWorld = new THREE.Vector3();
+  const _flpropSizeWorld = new THREE.Vector3();
+
+  function flightClonePropMaterial(mat) {
+    return mat && typeof mat.clone === 'function' ? mat.clone() : mat;
+  }
+
+  function flightAddPropDisc(pivot, sweepR) {
+    if (!pivot || !(sweepR > 0.08)) return;
+    if (pivot.userData.__disc) return;
+    const discGeo = new THREE.CircleGeometry(sweepR * 1.04, 40);
+    const discMat = new THREE.MeshBasicMaterial({
+      color: 0xffffff,
+      transparent: true,
+      opacity: 0,
+      side: THREE.DoubleSide,
+      depthWrite: false,
+    });
+    const disc = new THREE.Mesh(discGeo, discMat);
+    disc.name = 'tw_flight_prop_strobe_disc';
+    disc.position.z = -0.02;
+    disc.renderOrder = 2;
+    pivot.add(disc);
+    pivot.userData.__disc = disc;
+    pivot.userData.__sweepR = sweepR;
+  }
+
+  function flightWrapNamedProp(node) {
+    if (!node || !node.parent || node.userData.__twFlightPropWrapped) return null;
+    node.updateMatrixWorld(true);
+    const parent = node.parent;
+    parent.updateMatrixWorld(true);
+    _flpropBox.setFromObject(node);
+    if (_flpropBox.isEmpty()) return null;
+    _flpropBox.getCenter(_flpropCenterWorld);
+    _flpropBox.getSize(_flpropSizeWorld);
+    const centerLocal = parent.worldToLocal(_flpropCenterWorld.clone());
+    const pivot = new THREE.Group();
+    pivot.name = 'tw_flight_prop_' + (node.name || 'prop');
+    pivot.position.copy(centerLocal);
+    parent.add(pivot);
+    parent.updateMatrixWorld(true);
+    pivot.attach(node);
+    node.traverse(child => {
+      if (!child || !child.isMesh || !child.material) return;
+      child.material = Array.isArray(child.material)
+        ? child.material.map(flightClonePropMaterial)
+        : flightClonePropMaterial(child.material);
+    });
+    pivot.userData.__propAxis = 'z';
+    pivot.userData.__isNamedProp = true;
+    flightAddPropDisc(pivot, Math.max(_flpropSizeWorld.x, _flpropSizeWorld.y) * 0.5);
+    node.userData.__twFlightPropWrapped = true;
+    return pivot;
+  }
+
+  function flightPreparePropellers(root) {
+    const out = [];
+    if (!root || !root.traverse) return out;
+    const propNames = /prop(eller)?|blade|spinner|rotor|fan/i;
+    const raw = [];
+    root.traverse(o => {
+      if (!o || o === root) return;
+      if ((o.isMesh || o.isObject3D) && propNames.test(o.name || '')) raw.push(o);
+    });
+    const rawSet = new Set(raw);
+    raw.filter(o => {
+      let p = o.parent;
+      while (p && p !== root) {
+        if (rawSet.has(p)) return false;
+        p = p.parent;
+      }
+      return true;
+    }).forEach(o => {
+      const pivot = flightWrapNamedProp(o);
+      if (pivot) out.push(pivot);
+    });
+    return out;
+  }
+
+  function updateFlightPropellers(dt) {
+    if (!flightProps || !flightProps.length) return;
+    const propThrottle = Math.max(0, Math.min(1.15, flightPlane.throttle));
+    const engineRunning = flightPlane.throttle > 0.02;
+    const omega = engineRunning ? 60 + propThrottle * 240 : 0;
+    const dRot = omega * dt;
+    const tNow = ((typeof performance !== 'undefined' && performance.now) ? performance.now() : Date.now()) * 0.001;
+    const rpmN = flightClamp01((propThrottle - 0.35) / 0.65);
+    const flicker = (Math.sin(tNow * 48) * 0.5 + Math.sin(tNow * 73 + 1.3) * 0.5) * 0.15
+      + (Math.random() - 0.5) * 0.08;
+    const discOpacity = Math.max(0, Math.min(0.55, rpmN * 0.45 + flicker * rpmN));
+    const bladeOpacity = 1 - rpmN * 0.25;
+    flightProps.forEach(prop => {
+      if (!prop) return;
+      const axis = prop.userData.__propAxis || 'z';
+      if (axis === 'x') prop.rotation.x += dRot;
+      else if (axis === 'y') prop.rotation.y += dRot;
+      else prop.rotation.z += dRot;
+      const disc = prop.userData.__disc;
+      if (disc && disc.material) disc.material.opacity = discOpacity;
+      if (prop.userData.__isNamedProp) {
+        prop.traverse(child => {
+          if (!child || !child.isMesh || child === disc || !child.material) return;
+          const applyBladeMat = mat => {
+            if (!mat) return;
+            mat.transparent = true;
+            mat.opacity = bladeOpacity;
+          };
+          if (Array.isArray(child.material)) child.material.forEach(applyBladeMat);
+          else applyBladeMat(child.material);
+        });
+      }
+    });
   }
 
   // -------- per-frame tick (called from animate) --------
@@ -286,7 +495,7 @@
       flightSimToScene(_fljetScenePos, flightPlane.pos);
       flightJet.position.copy(_fljetScenePos);
       flightJet.quaternion.copy(_fljetQuat.copy(flightYawQuat).multiply(flightPlane.quat).multiply(FLIGHT_MODEL_FWD_FIX));
-      if (flightProp) flightProp.rotation.z += 220 * dt;
+      updateFlightPropellers(dt);
     }
     updateFlightCamera(dt);
   }
@@ -318,21 +527,19 @@
     flightCell = { x, z };
     flightJet = jet;
     window.__flightJet = jet;
-    // find a propeller child to spin (cosmetic; optional)
-    flightProp = null;
-    jet.traverse(o => {
-      if (!flightProp && o.isMesh && /prop(eller)?|blade|spinner|rotor|fan/i.test(o.name || '')) flightProp = o;
-    });
+    flightProps = flightPreparePropellers(jet);
 
     // spawn transform from the parked plane
     jet.getWorldPosition(flightSceneOrigin);
     const yaw = jet.rotation.y || 0;
     flightYawQuat.setFromEuler(new THREE.Euler(0, yaw + Math.PI, 0, 'XYZ'));
 
-    flightPlane.pos.set(0, FCFG.GEAR_HEIGHT, 0);
-    flightPlane.__simOrigin.copy(flightPlane.pos);
+    const launchSimY = (FLIGHT_SCENE_GEAR_CLEARANCE + FLIGHT_SCENE_LAUNCH_CLEARANCE) / FLIGHT_SIM_TO_SCENE;
+    flightPlane.pos.set(0, launchSimY, 0);
+    flightPlane.__simOrigin.set(0, 0, 0);
     flightSimGroundY = 0;
-    flightLeftGround = true;            // launch airborne — no runway, instantly flyable
+    flightLanded = false;
+    flightImpactCooldown = 0;
     flightPlane.vel.set(0, 0, -34);     // initial cruise speed along the nose (-Z)
     flightPlane.angVel.set(0, 0, 0);
     flightPlane.quat.identity();
@@ -355,6 +562,7 @@
 
     document.body.classList.add('flight-active');
     window.__flightActive = true;
+    flightSetHudStatus('FLYING');
     showFlightHud(true);
     return true;
   }
@@ -374,6 +582,8 @@
     flightJet = null;
     window.__flightJet = null;
     flightCell = null;
+    flightProps = [];
+    flightLanded = false;
     if (typeof updateCamera === 'function') updateCamera();
   }
   window.enterFlight = enterFlight;
@@ -385,10 +595,12 @@
     if (on && !flightHudEl) {
       flightHudEl = document.createElement('div');
       flightHudEl.className = 'flight-hud';
-      flightHudEl.innerHTML = 'FLYING &middot; W down / S or X up &middot; A/D roll &middot; Q/E yaw &middot; Shift/Ctrl throttle &middot; B brake &middot; <b>Esc</b> exit';
       document.body.appendChild(flightHudEl);
     }
-    if (flightHudEl) flightHudEl.style.display = on ? 'block' : 'none';
+    if (flightHudEl) {
+      flightHudEl.innerHTML = '<b>' + flightHudStatus + '</b> &middot; W down / S or X up &middot; A/D roll &middot; Q/E yaw &middot; Shift/Ctrl throttle &middot; B brake &middot; <b>Esc</b> exit';
+      flightHudEl.style.display = on ? 'block' : 'none';
+    }
   }
 
   let flightMenuEl = null;
@@ -446,4 +658,3 @@
   // track last pointer position so the Select-mode Fly menu can anchor to it
   window.__flightPointer = { x: 0, y: 0 };
   window.addEventListener('pointermove', e => { window.__flightPointer.x = e.clientX; window.__flightPointer.y = e.clientY; }, true);
-

@@ -147,6 +147,10 @@
     }
 
     function openSelectionPanel() {
+      if (typeof window.openLayersPropertiesPanel === 'function') {
+        window.openLayersPropertiesPanel();
+        return;
+      }
       const panel = document.getElementById('agent-panel');
       if (panel && panel.classList.contains('hidden')) {
         const t = document.getElementById('agent-panel-toggle');

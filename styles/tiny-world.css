@@ -2315,6 +2315,7 @@
     overscroll-behavior: contain;
   }
   .agent-selection-preview[hidden] { display: none; }
+  .agent-selection-preview.selection-staging { display: none !important; }
   .agent-panel.collapsed .agent-selection-preview { display: none; }
   .agent-selection-count {
     font-size: 16px;

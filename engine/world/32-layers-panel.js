@@ -29,7 +29,12 @@
       captureSelPropsHome();
       if (el.parentNode !== layersPropsHost) layersPropsHost.appendChild(el);
       el.hidden = false;
-      if (layersPropsEmpty) layersPropsEmpty.hidden = el.childNodes.length > 0;
+      updateLayersPropsEmpty();
+    }
+    function updateLayersPropsEmpty() {
+      const el = selPropsEl();
+      if (!layersPropsEmpty) return;
+      layersPropsEmpty.hidden = !!(el && el.childNodes.length > 0 && !el.hidden);
     }
     function restoreSelProps() {
       const el = selPropsEl();
@@ -129,7 +134,7 @@
       if (cell.rotationY) parts.push('rot ' + Math.round((cell.rotationY || 0) * 180 / Math.PI) + '°');
       if (cell.offsetX || cell.offsetY || cell.offsetZ) parts.push('offset');
       const app = cell.appearance || null;
-      if (app && (app.modelStampId || app.voxelStampId || app.material || app.bodyColor || app.topColor)) parts.push('styled');
+      if (app && (app.modelStampId || app.voxelStampId || app.voxelBuildId || app.material || app.materialTexture || app.bodyColor || app.topColor || app.bodyTexture || app.topTexture)) parts.push('styled');
       return parts.join(' · ');
     }
 
@@ -321,6 +326,18 @@
         restoreSelProps();
       }
     }
+    function openLayersPropertiesPanel() {
+      setLayersOpen(true);
+      renderLayersPanel();
+      setLayersTab('properties');
+      updateLayersPropsEmpty();
+    }
+    window.openLayersPropertiesPanel = openLayersPropertiesPanel;
+    window.__tinyworldLayersPanel = {
+      open: () => setLayersOpen(true),
+      close: () => setLayersOpen(false),
+      openProperties: openLayersPropertiesPanel,
+    };
 
     function focusLayerCell(x, z) {
       try {
@@ -428,6 +445,10 @@
     });
 
     window.addEventListener('tinyworld:selection-changed', scheduleLayersRefresh);
+    window.addEventListener('tinyworld:selection-properties-rendered', () => {
+      if (panel.hidden || layersActiveTab !== 'properties') return;
+      moveSelPropsIntoLayers();
+    });
     window.addEventListener('tinyworld:world-changed', scheduleLayersRefresh);
     window.addEventListener('tinyworld:grid-changed', scheduleLayersRefresh);
 

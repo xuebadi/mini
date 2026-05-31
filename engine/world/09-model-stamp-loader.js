@@ -945,7 +945,7 @@
     const key = String(name || '').toLowerCase();
     if (!key) return null;
     if (/(roofedge|roof_edge|roof-dark|roofdark)/.test(key)) return 'topDark';
-    if (/roof|green|pink|crop|leaf|leaves|foliage|blossom|fabric|canvas|cloth|sail|balloon|glass/.test(key)) return 'top';
+    if (/roof|green|blue|cyan|teal|pink|purple|yellow|gold|orange|crop|leaf|leaves|foliage|blossom|fabric|canvas|cloth|sail|balloon|glass/.test(key)) return 'top';
     if (/(wooddark|stonedark|dirtdark|pathdark|waterdark|brassdark|shadow|charcoal|black|rope|cable|tether|cord|line)/.test(key)) return 'bodyDark';
     if (/wood|stone|cream|white|red|wall|body|trunk|dirt|path|water|metal|steel|silver|brass|copper|bronze|frame|strut|rail|propeller|engine|leather/.test(key)) return 'body';
     return null;
@@ -962,6 +962,7 @@
     const g = (n >> 8) & 255;
     const b = n & 255;
     if (g > r * 0.9 && g > b * 0.9) return 'top';
+    if (b > r * 0.9 && b > g * 0.72) return 'top';
     if (r > 170 && b > 130 && g < 205) return 'top';
     if (r > 180 && g > 120 && b < 90) return 'top';
     if (Math.abs(r - g) < 24 && Math.abs(g - b) < 24) return 'body';
@@ -971,16 +972,22 @@
 
   function voxelAppearanceMaterial(base, role, appearance) {
     const a = normalizeAppearance(appearance);
-    if (!a || !role) return base;
+    if (!a) return base;
     const baseKind = base && base.userData && base.userData.proceduralTextureKind;
     let mat = base;
+    let usedPartTexture = false;
     if (role === 'top' && a.topColor) mat = voxelBuildMaterial(a.topColor, baseKind);
     if (role === 'topDark' && a.topColor) mat = voxelBuildMaterial(shadeHexColor(a.topColor, -48), baseKind);
     if (role === 'body' && a.bodyColor) mat = voxelBuildMaterial(a.bodyColor, baseKind);
     if (role === 'bodyDark' && a.bodyColor) mat = voxelBuildMaterial(shadeHexColor(a.bodyColor, -42), baseKind);
-    if ((role === 'top' || role === 'topDark') && a.topTexture) mat = customTextureMaterial(mat, a.topTexture, a.topTextureScale || 1);
-    else if ((role === 'body' || role === 'bodyDark') && a.bodyTexture) mat = customTextureMaterial(mat, a.bodyTexture, a.bodyTextureScale || 1);
-    else if (a.materialTexture) mat = customTextureMaterial(mat, a.materialTexture, a.materialTextureScale || 1);
+    if ((role === 'top' || role === 'topDark') && a.topTexture) {
+      mat = customTextureMaterial(mat, a.topTexture, a.topTextureScale || 1);
+      usedPartTexture = true;
+    } else if ((role === 'body' || role === 'bodyDark') && a.bodyTexture) {
+      mat = customTextureMaterial(mat, a.bodyTexture, a.bodyTextureScale || 1);
+      usedPartTexture = true;
+    }
+    if (!usedPartTexture && a.materialTexture) mat = customTextureMaterial(mat, a.materialTexture, a.materialTextureScale || 1);
     return mat;
   }
 
