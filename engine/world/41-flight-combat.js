@@ -98,12 +98,54 @@
   const _bbox = new THREE.Box3();
   const _bsize = new THREE.Vector3();
 
+  // ---- HUD overlay + reticle ----
+  let overlayEl = null, reticleEl = null;
+  const reticleState = { x: 0, y: 0, vx: 0, vy: 0, init: false };
+  const _aimWorld = new THREE.Vector3();
+  const _aimProj = new THREE.Vector3();
+  const _aimUp = new THREE.Vector3();
+
+  function ensureOverlay() {
+    if (overlayEl) return;
+    overlayEl = document.createElement('div');
+    overlayEl.id = 'flight-combat-overlay';
+    reticleEl = document.createElement('div');
+    reticleEl.id = 'flight-reticle';
+    overlayEl.appendChild(reticleEl);
+    document.body.appendChild(overlayEl);
+  }
+
+  function updateReticle(dt) {
+    if (!jet || !reticleEl) return;
+    const dir = window.__flightSceneForward(_fireDir);
+    jet.getWorldPosition(_aimWorld);
+    // Aim point: lookahead along the fire dir, biased slightly up so the sight
+    // sits above the nose for practical gunnery.
+    _aimWorld.addScaledVector(dir, 60).add(_aimUp.set(0, 1.2, 0));
+    _aimProj.copy(_aimWorld).project(camera); // NDC -1..1
+    const tx = (_aimProj.x * 0.5 + 0.5) * window.innerWidth;
+    const ty = (-_aimProj.y * 0.5 + 0.5) * window.innerHeight;
+    if (!reticleState.init) { reticleState.x = tx; reticleState.y = ty; reticleState.init = true; }
+    // critically-damped-ish spring for natural lag
+    const k = 90, c = 18;
+    reticleState.vx += (-(reticleState.x - tx) * k - reticleState.vx * c) * dt;
+    reticleState.vy += (-(reticleState.y - ty) * k - reticleState.vy * c) * dt;
+    reticleState.x += reticleState.vx * dt;
+    reticleState.y += reticleState.vy * dt;
+    const behind = _aimProj.z > 1;
+    reticleEl.style.display = behind ? 'none' : 'block';
+    reticleEl.style.left = reticleState.x + 'px';
+    reticleEl.style.top = reticleState.y + 'px';
+  }
+
   function onEnter(flyingJet) {
     jet = flyingJet || window.__flightJet || null;
     active = true;
     fireCooldown = 0;
     shotsFired = 0;
     ensureTracerPool();
+    ensureOverlay();
+    reticleState.init = false;
     if (jet) {
       jet.updateMatrixWorld(true);
       _bbox.setFromObject(jet);
@@ -133,6 +175,7 @@
       fireCooldown = FIRE_COOLDOWN;
     }
     updateTracers(dt);
+    updateReticle(dt);
   }
 
   function telemetry() {
@@ -143,6 +186,8 @@
       fireDir: dir ? { x: dir.x, y: dir.y, z: dir.z } : null,
       muzzleL: jet ? jet.localToWorld(gunMuzzleL.clone()).toArray() : null,
       muzzleR: jet ? jet.localToWorld(gunMuzzleR.clone()).toArray() : null,
+      reticle_x: reticleState.x,
+      reticle_y: reticleState.y,
     };
   }
 
