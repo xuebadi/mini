@@ -77,6 +77,42 @@ for (const mod of appModules) {
   }
 }
 
+// -------- cross-file duplicate top-level declaration guard --------
+// engine/world/*.js are classic <script>s sharing ONE global scope. A
+// top-level const/let/function/class/var redeclared in two files throws a
+// SyntaxError at load and silently kills the whole module while the others
+// keep running. The per-module loop above validates each file in isolation,
+// so it cannot catch a name that collides across files. This block does.
+//
+// We anchor on EXACTLY two leading spaces, which is the house indent for a
+// top-level declaration in these files. IIFE-wrapped files (e.g. world 38/40,
+// engine/landscape, engine/i18n) indent their bodies deeper, so their inner
+// names are correctly ignored. We only scan engine/world/*.js, not the wrapped
+// engine subtrees, to avoid false positives.
+const worldDir = path.join(root, 'engine', 'world');
+if (fs.existsSync(worldDir)) {
+  const declPattern = /^  (?:const|let|var|function|class) ([A-Za-z0-9_$]+)/;
+  const declOwners = new Map();
+  for (const name of fs.readdirSync(worldDir).sort()) {
+    if (!name.endsWith('.js')) continue;
+    const source = fs.readFileSync(path.join(worldDir, name), 'utf8');
+    for (const line of source.split('\n')) {
+      const match = declPattern.exec(line);
+      if (!match) continue;
+      const declName = match[1];
+      if (!declOwners.has(declName)) declOwners.set(declName, new Set());
+      declOwners.get(declName).add(name);
+    }
+  }
+  const collisions = [];
+  for (const [declName, owners] of declOwners) {
+    if (owners.size > 1) collisions.push(declName + ' in ' + [...owners].sort().join(', '));
+  }
+  if (collisions.length) {
+    fail('duplicate top-level declaration across engine/world: ' + collisions.join('; '));
+  }
+}
+
 let externalSchema;
 try {
   externalSchema = JSON.parse(fs.readFileSync(schemaPath, 'utf8'));
