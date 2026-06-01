@@ -182,7 +182,88 @@
       best.applyDamage(GUN_DAMAGE, _fcHitPos, 'gun');
       spawnHitSparks(_fcHitPos);
       gunHits++;
+    } else {
+      attemptSceneryHit(origin, dir, GUN_DAMAGE);
     }
+  }
+
+  // ---- destructible scenery ----
+  const _fcRay = new THREE.Raycaster();
+  _fcRay.far = 400;
+  const _fcRayDir = new THREE.Vector3();
+  const _fcCellBox = new THREE.Box3();
+  const _fcObjCenter = new THREE.Vector3();
+  const cellHealth = new Map(); // 'x,z' -> remaining hp
+
+  function objectMeshCandidates(origin) {
+    const out = [];
+    if (typeof cellMeshes === 'undefined') return out;
+    for (const key in cellMeshes) {
+      const entry = cellMeshes[key];
+      if (!entry || !entry.object || !entry.object.visible) continue;
+      if (entry.object === jet) continue; // never the player plane
+      // cheap distance gate: skip far objects (combat range is short in scene units)
+      entry.object.getWorldPosition(_fcObjCenter);
+      if (_fcObjCenter.distanceToSquared(origin) > 60 * 60) continue;
+      out.push(entry);
+    }
+    return out;
+  }
+
+  function cellMaxHealth(entry) {
+    _fcCellBox.setFromObject(entry.object);
+    if (_fcCellBox.isEmpty()) return 20;
+    const s = new THREE.Vector3(); _fcCellBox.getSize(s);
+    const vol = Math.max(0.05, s.x * s.y * s.z);
+    return Math.min(120, 12 + vol * 120); // small props pop fast, big builds tank
+  }
+
+  function damageCell(x, z, damage, hitPoint) {
+    const key = x + ',' + z;
+    let hp = cellHealth.has(key) ? cellHealth.get(key) : null;
+    if (hp == null) {
+      const entry = (typeof cellMeshes !== 'undefined') ? cellMeshes[key] : null;
+      hp = entry && entry.object ? cellMaxHealth(entry) : 20;
+    }
+    hp -= damage;
+    spawnHitSparks(hitPoint);
+    if (hp <= 0) { cellHealth.delete(key); destroyCell(x, z, hitPoint); }
+    else cellHealth.set(key, hp);
+  }
+
+  function destroyCell(x, z, hitPoint) {
+    const cell = (typeof getWorldCell === 'function') ? getWorldCell(x, z) : null;
+    if (!cell || !cell.kind) return; // only object kinds; never carve terrain
+    const mp = window.__tinyworldMultiplayer;
+    const allowed = !mp || typeof mp.canEdit !== 'function' || mp.canEdit(x, z);
+    if (!allowed) { spawnHitSparks(hitPoint); return; } // role-blocked: cue only, no destroy
+    spawnExplosionFX(hitPoint);
+    // Clear the object, preserve terrain. Reuses the erase path: setCell
+    // broadcasts (sendCellSnapshot), persists, and pushes undo history.
+    setCell(x, z, {
+      terrain: cell.terrain,
+      terrainFloors: (typeof terrainLevelForCell === 'function') ? terrainLevelForCell(cell) : undefined,
+      kind: null,
+      floors: 1,
+    });
+  }
+
+  // Returns true if a scenery object was hit (and damaged), so callers can stop.
+  function attemptSceneryHit(origin, dir, damage, maxDist) {
+    if (typeof getWorldCell !== 'function' || typeof setCell !== 'function') return false;
+    _fcRay.set(origin, _fcRayDir.copy(dir).normalize());
+    const cands = objectMeshCandidates(origin);
+    let nearestDist = Infinity, nearestEntry = null, nearestPoint = null;
+    for (const entry of cands) {
+      const hits = _fcRay.intersectObject(entry.object, true);
+      if (hits.length && hits[0].distance < nearestDist) {
+        nearestDist = hits[0].distance; nearestEntry = entry; nearestPoint = hits[0].point;
+      }
+    }
+    const limit = (maxDist != null) ? maxDist : 400;
+    if (!nearestEntry || nearestDist > limit) return false;
+    damageCell(nearestEntry.x, nearestEntry.z, damage, nearestPoint);
+    return true;
   }
 
   // ---- hit sparks ----
@@ -493,6 +574,11 @@
           deactivateMissile(m); continue;
         }
       }
+      // dumb-fire / missed-player missiles still knock down scenery
+      if (attemptSceneryHit(m.pos, _fcMTrailTmp.copy(m.vel).normalize(), 60, 1.2)) {
+        spawnExplosionFX(m.pos);
+        deactivateMissile(m); continue;
+      }
       m.pos.addScaledVector(m.vel, dt);
       m.mesh.position.copy(m.pos);
       m.mesh.quaternion.copy(_fcMq.setFromUnitVectors(_projForward, _fcMTrailTmp.copy(m.vel).normalize()));
@@ -516,6 +602,7 @@
     muzzlesReady = deriveMuzzles();
     lockAmount = 0; lockCandidateId = ''; lockId = '';
     health = MAX_HEALTH;
+    cellHealth.clear();
   }
 
   function onExit() {
@@ -573,6 +660,7 @@
       })(),
       missilesAmmo: missilesAmmo,
       activeMissiles: missiles.filter(m => m.active).length,
+      trackedCells: cellHealth.size,
     };
   }
 
