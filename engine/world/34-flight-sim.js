@@ -575,8 +575,22 @@
     // single-player / un-upgraded multiplayer simply no-ops.
     const mp = window.__tinyworldMultiplayer;
     if (mp && typeof mp.broadcastFlight === 'function') mp.broadcastFlight(true);
+    if (window.__flightCombat && typeof window.__flightCombat.tick === 'function') {
+      window.__flightCombat.tick(dt);
+    }
   }
   window.tickFlight = tickFlight;
+
+  // Scene-space travel-forward of the plane (unit vector), with the visual
+  // FLIGHT_MODEL_FWD_FIX 180-degree spin backed out. This is the direction the
+  // nose actually travels, which combat fires along. Exposed for 41-flight-combat.js.
+  const _flSceneFwd = new THREE.Vector3();
+  const _flSceneFwdQuat = new THREE.Quaternion();
+  window.__flightSceneForward = function (out) {
+    const v = out || _flSceneFwd;
+    _flSceneFwdQuat.copy(flightYawQuat).multiply(flightPlane.quat);
+    return v.set(0, 0, -1).applyQuaternion(_flSceneFwdQuat).normalize();
+  };
 
   // -------- enter / exit --------
   // The flyable plane is the existing crop-duster/stunt-plane MODEL-STAMP
@@ -641,6 +655,9 @@
     window.__flightActive = true;
     flightSetHudStatus('FLYING');
     showFlightHud(true);
+    if (window.__flightCombat && typeof window.__flightCombat.onEnter === 'function') {
+      window.__flightCombat.onEnter(jet);
+    }
     return true;
   }
 
@@ -655,6 +672,9 @@
     flightPrevCamera = null;
     document.body.classList.remove('flight-active');
     window.__flightActive = false;
+    if (window.__flightCombat && typeof window.__flightCombat.onExit === 'function') {
+      window.__flightCombat.onExit();
+    }
     showFlightHud(false);
     // restore the parked plane to its resting transform
     if (flightCell && typeof renderCellObject === 'function') {
