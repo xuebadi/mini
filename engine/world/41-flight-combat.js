@@ -193,19 +193,32 @@
   const _fcRayDir = new THREE.Vector3();
   const _fcCellBox = new THREE.Box3();
   const _fcObjCenter = new THREE.Vector3();
+  const _fcSeenObjs = new Set();
   const cellHealth = new Map(); // 'x,z' -> remaining hp
 
   function objectMeshCandidates(origin) {
     const out = [];
-    if (typeof cellMeshes === 'undefined') return out;
-    for (const key in cellMeshes) {
-      const entry = cellMeshes[key];
-      if (!entry || !entry.object || !entry.object.visible) continue;
-      if (entry.object === jet) continue; // never the player plane
-      // cheap distance gate: skip far objects (combat range is short in scene units)
+    _fcSeenObjs.clear();
+    const consider = (entry) => {
+      if (!entry || !entry.object || !entry.object.visible) return;
+      if (entry.object === jet) return; // never the player plane
+      if (_fcSeenObjs.has(entry.object)) return;
       entry.object.getWorldPosition(_fcObjCenter);
-      if (_fcObjCenter.distanceToSquared(origin) > 60 * 60) continue;
+      if (_fcObjCenter.distanceToSquared(origin) > 60 * 60) return;
+      _fcSeenObjs.add(entry.object);
       out.push(entry);
+    };
+    // in-grid objects: 2D array cellMeshesGrid[x][z]
+    if (typeof cellMeshesGrid !== 'undefined' && cellMeshesGrid) {
+      for (let gx = 0; gx < cellMeshesGrid.length; gx++) {
+        const col = cellMeshesGrid[gx];
+        if (!col) continue;
+        for (let gz = 0; gz < col.length; gz++) consider(col[gz]);
+      }
+    }
+    // out-of-grid objects: string-keyed map cellMeshes
+    if (typeof cellMeshes !== 'undefined' && cellMeshes) {
+      for (const key in cellMeshes) consider(cellMeshes[key]);
     }
     return out;
   }
@@ -252,6 +265,7 @@
   function attemptSceneryHit(origin, dir, damage, maxDist) {
     if (typeof getWorldCell !== 'function' || typeof setCell !== 'function') return false;
     _fcRay.set(origin, _fcRayDir.copy(dir).normalize());
+    if (typeof camera !== 'undefined') _fcRay.camera = camera;
     const cands = objectMeshCandidates(origin);
     let nearestDist = Infinity, nearestEntry = null, nearestPoint = null;
     for (const entry of cands) {
