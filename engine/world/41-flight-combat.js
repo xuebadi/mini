@@ -240,6 +240,8 @@
   const _bsize = new THREE.Vector3();
   const _bscale = new THREE.Vector3();
   let muzzlesReady = false;
+  const _fcMissileL = new THREE.Vector3();
+  const _fcMissileR = new THREE.Vector3();
 
   function deriveMuzzles() {
     if (!jet) return false;
@@ -265,6 +267,11 @@
     const dropY = -localY * 0.05;
     gunMuzzleL.set(-halfSpan, dropY, noseZ);
     gunMuzzleR.set(halfSpan, dropY, noseZ);
+    const railSpan = localX * 0.5 * 0.5;
+    const railDrop = -localY * 0.18;
+    const railZ = localZ * 0.5 * 0.4;
+    _fcMissileL.set(-railSpan, railDrop, railZ);
+    _fcMissileR.set(railSpan, railDrop, railZ);
     return true;
   }
 
@@ -417,6 +424,82 @@
     if (_lockToneGain) { try { _lockToneGain.gain.value = 0; } catch (_) {} }
   }
 
+  // ---- missiles ----
+  const MISSILE_COUNT = 6;
+  let missilesAmmo = MISSILE_COUNT;
+  let missileGroup = null;
+  const missiles = [];
+  let missileCooldown = 0;
+  let missileSide = -1;
+  let _fcXPrev = false;
+  const MISSILE_SPEED = 70, MISSILE_LIFE = 5.5, MISSILE_TURN = 2.4, MISSILE_DAMAGE = 40;
+  const _fcMForward = new THREE.Vector3();
+  const _fcMToTarget = new THREE.Vector3();
+  const _fcMDesired = new THREE.Vector3();
+  const _fcMTgtPos = new THREE.Vector3();
+  const _fcMq = new THREE.Quaternion();
+  const _fcMTrailTmp = new THREE.Vector3();
+  function ensureMissilePool() {
+    if (missileGroup) return;
+    missileGroup = new THREE.Group();
+    missileGroup.name = 'tw_flight_missiles';
+    scene.add(missileGroup);
+    const bodyGeo = new THREE.CylinderGeometry(0.04, 0.05, 0.5, 8);
+    const noseGeo = new THREE.ConeGeometry(0.05, 0.14, 8);
+    const mat = new THREE.MeshStandardMaterial({ color: 0xd8dde4, roughness: 0.5, metalness: 0.3 });
+    for (let i = 0; i < MISSILE_COUNT; i++) {
+      const g = new THREE.Group();
+      const b = new THREE.Mesh(bodyGeo, mat.clone()); b.rotation.x = Math.PI / 2;
+      const n = new THREE.Mesh(noseGeo, mat.clone()); n.rotation.x = -Math.PI / 2; n.position.z = -0.3;
+      g.add(b, n); g.visible = false; g.raycast = () => {};
+      missileGroup.add(g);
+      missiles.push({ mesh: g, vel: new THREE.Vector3(), pos: new THREE.Vector3(),
+        targetId: '', life: 0, active: false });
+    }
+  }
+  function findTargetById(id) { for (const t of targets) if (t.id === id) return t; return null; }
+  function fireMissile() {
+    if (missileCooldown > 0 || missilesAmmo <= 0 || !jet) return;
+    const m = missiles.find(s => !s.active);
+    if (!m) return;
+    const side = missileSide > 0 ? 1 : -1; missileSide = -side;
+    missilesAmmo--; missileCooldown = 0.7;
+    const dir = window.__flightSceneForward(_fcMForward);
+    const local = side < 0 ? _fcMissileL : _fcMissileR;
+    m.pos.copy(local); jet.localToWorld(m.pos);
+    m.vel.copy(dir).multiplyScalar(MISSILE_SPEED);
+    m.targetId = (lockAmount > 0.3 && lockId) ? lockId : '';
+    m.life = MISSILE_LIFE; m.active = true;
+    m.mesh.visible = true; m.mesh.position.copy(m.pos);
+    m.mesh.quaternion.copy(_fcMq.setFromUnitVectors(_projForward, dir));
+    spawnHitSparks(m.pos); // launch puff
+  }
+  function deactivateMissile(m) { m.active = false; m.mesh.visible = false; m.targetId = ''; }
+  function updateMissiles(dt) {
+    for (const m of missiles) {
+      if (!m.active) continue;
+      m.life -= dt;
+      const tgt = m.targetId ? findTargetById(m.targetId) : null;
+      if (tgt) {
+        tgt.getWorldPos(_fcMTgtPos);
+        _fcMToTarget.copy(_fcMTgtPos).sub(m.pos).normalize();
+        _fcMDesired.copy(m.vel).normalize();
+        const maxStep = MISSILE_TURN * dt;
+        _fcMDesired.lerp(_fcMToTarget, Math.min(1, maxStep)).normalize();
+        m.vel.copy(_fcMDesired).multiplyScalar(MISSILE_SPEED);
+        if (m.pos.distanceTo(_fcMTgtPos) < (tgt.radius + 0.8)) {
+          tgt.applyDamage(MISSILE_DAMAGE, _fcMTgtPos.clone(), 'missile');
+          spawnExplosionFX(_fcMTgtPos);
+          deactivateMissile(m); continue;
+        }
+      }
+      m.pos.addScaledVector(m.vel, dt);
+      m.mesh.position.copy(m.pos);
+      m.mesh.quaternion.copy(_fcMq.setFromUnitVectors(_projForward, _fcMTrailTmp.copy(m.vel).normalize()));
+      if (m.life <= 0) deactivateMissile(m);
+    }
+  }
+
   function onEnter(flyingJet) {
     jet = flyingJet || window.__flightJet || null;
     active = true;
@@ -424,6 +507,9 @@
     shotsFired = 0;
     ensureTracerPool();
     ensureSparkPool();
+    ensureMissilePool();
+    for (const m of missiles) deactivateMissile(m);
+    missilesAmmo = MISSILE_COUNT; missileCooldown = 0; missileSide = -1; _fcXPrev = false;
     ensureOverlay();
     ensureHudPool();
     reticleState.init = false;
@@ -438,6 +524,7 @@
     stopLockTone();
     lockAmount = 0; lockCandidateId = ''; lockId = '';
     for (const slot of hudPool) { slot.bracket.style.display = 'none'; slot.card.style.display = 'none'; }
+    for (const m of missiles) deactivateMissile(m);
   }
 
   function tick(dt) {
@@ -451,6 +538,11 @@
       fireGuns();
       fireCooldown = FIRE_COOLDOWN;
     }
+    const xDown = !!(window.__flightKeys && window.__flightKeys['KeyX']);
+    if (xDown && !_fcXPrev) fireMissile();
+    _fcXPrev = xDown;
+    missileCooldown = Math.max(0, missileCooldown - dt);
+    updateMissiles(dt);
     updateTracers(dt);
     updateSparks(dt);
     updateReticle(dt);
@@ -479,6 +571,8 @@
         const tp = new THREE.Vector3(); tg.getWorldPos(tp);
         return +cp.distanceTo(tp).toFixed(1);
       })(),
+      missilesAmmo: missilesAmmo,
+      activeMissiles: missiles.filter(m => m.active).length,
     };
   }
 
