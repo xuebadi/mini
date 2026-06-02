@@ -393,8 +393,8 @@ if (!/id="welcome-modal"[^>]*data-feature-hidden="welcome-start"/.test(htmlRaw) 
 if (!/#account-modal \.modal-card/.test(cssRaw) || !/#profile-photo-file::file-selector-button/.test(cssRaw) || !/#account-modal \.tab-bar button\.active/.test(cssRaw)) {
   fail('account modal must use scoped block-button styling, including the photo picker');
 }
-if (!/var CLOUD_OCCLUSION_RENDER_ORDER = 18/.test(html) || !/mesh\.renderOrder = CLOUD_OCCLUSION_RENDER_ORDER/.test(html) || !/late soft-cloud[\s\S]*rectangular haze over grass, stone, and dirt/.test(html) || !/mesh\.renderOrder = -1;/.test(html)) {
-  fail('voxel foreground clouds may render late, but broad soft-cloud sprite quads must stay early');
+if (!/var CLOUD_OCCLUSION_RENDER_ORDER = 18/.test(html) || !/mesh\.renderOrder = CLOUD_OCCLUSION_RENDER_ORDER/.test(html) || !/foreground clouds veil full-opacity terrain/.test(html)) {
+  fail('foreground clouds must render late enough to obscure terrain while keeping depth testing');
 }
 if (!/function queueActiveSnapshotUpdate/.test(html) || !/window\.addEventListener\('tinyworld:world-changed', queueActiveSnapshotUpdate\)/.test(html) || !/setInterval\(updateActiveSnapshot, 5000\)/.test(html)) {
   fail('cloud-backed world slots must queue autosave snapshots on world changes');
