@@ -1706,6 +1706,25 @@
         if (se && se.scalePart) se.scalePart(value === 'down' ? 0.85 : 1.18);
         return;
       }
+      if (rowKey === 'voxelSculpt') {
+        const se = window.__tinyworldSubEdit;
+        if (se) { if (value === 'remove' && se.removeVoxel) se.removeVoxel(); else if (value === 'smooth' && se.smoothVoxel) se.smoothVoxel(); }
+        renderSelection();
+        return;
+      }
+      if (rowKey === 'voxelAdd') {
+        const se = window.__tinyworldSubEdit;
+        if (se && se.addVoxel) {
+          if (value === 'x-') se.addVoxel(-1, 0, 0);
+          else if (value === 'x+') se.addVoxel(1, 0, 0);
+          else if (value === 'y-') se.addVoxel(0, -1, 0);
+          else if (value === 'y+') se.addVoxel(0, 1, 0);
+          else if (value === 'z-') se.addVoxel(0, 0, -1);
+          else if (value === 'z+') se.addVoxel(0, 0, 1);
+        }
+        renderSelection();
+        return;
+      }
       if (rowKey === 'lightType' || rowKey === 'lightColor' || rowKey === 'lightIntensity' || rowKey === 'lightRange') {
         updateSelectedBoardObjects(target => {
           const appearance = Object.assign({}, normalizeAppearance(target.cell.appearance) || {});
@@ -2039,6 +2058,14 @@
               ] });
               addRow('Transform', { key: 'partScale', label: 'Part size', control: 'stepper', options: [
                 { label: 'Down', value: 'down' }, { label: 'Up', value: 'up' },
+              ] });
+              addRow('Edit', { key: 'voxelSculpt', label: 'Voxel', control: 'actions', options: [
+                { label: 'Remove', value: 'remove' }, { label: 'Smooth', value: 'smooth' },
+              ] });
+              addRow('Edit', { key: 'voxelAdd', label: 'Add voxel', control: 'move', options: [
+                { label: 'X-', value: 'x-' }, { label: 'X+', value: 'x+' },
+                { label: 'Y-', value: 'y-' }, { label: 'Y+', value: 'y+' },
+                { label: 'Z-', value: 'z-' }, { label: 'Z+', value: 'z+' },
               ] });
             }
           }

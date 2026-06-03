@@ -161,6 +161,75 @@
     return mutateSelectedPart(c => { c.sx *= f; c.sy *= f; c.sz *= f; });
   }
 
+  // --- voxel sculpting (req 8, option a): add / remove / smooth on voxel-builds.
+  // push = movePart, burst = scalePart (already implemented above). ---
+  function parseVoxelKey(key) {
+    const m = /^v:(-?\d+),(-?\d+),(-?\d+)$/.exec(key || '');
+    return m ? { x: +m[1], y: +m[2], z: +m[3] } : null;
+  }
+  function sculptMutate(fn) {
+    if (subEditCellX === null) return false;
+    if (typeof getWorldCell !== 'function' || typeof setCell !== 'function') return false;
+    const cell = getWorldCell(subEditCellX, subEditCellZ);
+    if (!cell) return false;
+    const appearance = Object.assign({}, (typeof normalizeAppearance === 'function' ? normalizeAppearance(cell.appearance) : cell.appearance) || {});
+    fn(appearance);
+    setCell(subEditCellX, subEditCellZ, Object.assign({}, cell, { appearance, animate: false, impactDust: false }));
+    return true;
+  }
+  function removeSelectedVoxel() {
+    const co = parseVoxelKey(selectedPartKey);
+    if (!co) return false;
+    const ok = sculptMutate(ap => {
+      const rm = new Set(ap.voxelsRemoved || []);
+      rm.add(co.x + ',' + co.y + ',' + co.z);
+      ap.voxelsRemoved = Array.from(rm);
+      // dropping a voxel also drops any per-part override for it
+      if (ap.parts) { const p = Object.assign({}, ap.parts); delete p[selectedPartKey]; ap.parts = Object.keys(p).length ? p : undefined; }
+    });
+    selectedPartKey = null; clearSelMeshes();
+    if (typeof renderSelection === 'function') { try { renderSelection(); } catch (_) {} }
+    return ok;
+  }
+  function addVoxelFromSelected(dx, dy, dz) {
+    const co = parseVoxelKey(selectedPartKey);
+    if (!co) return false;
+    const nc = { x: co.x + (dx || 0), y: co.y + (dy || 0), z: co.z + (dz || 0) };
+    const rmKey = nc.x + ',' + nc.y + ',' + nc.z;
+    const mesh = findPartMesh(selectedPartKey);
+    let color = '#c8c8c8';
+    if (mesh && mesh.material && mesh.material.color) color = '#' + mesh.material.color.getHexString();
+    const ok = sculptMutate(ap => {
+      const rm = new Set(ap.voxelsRemoved || []);
+      if (rm.has(rmKey)) { rm.delete(rmKey); ap.voxelsRemoved = rm.size ? Array.from(rm) : undefined; return; }
+      const add = (ap.voxelsAdded || []).slice();
+      if (!add.some(v => v.x === nc.x && v.y === nc.y && v.z === nc.z)) add.push({ x: nc.x, y: nc.y, z: nc.z, color });
+      ap.voxelsAdded = add;
+    });
+    // select the newly added voxel for chaining
+    if (ok) selectPart('v:' + nc.x + ',' + nc.y + ',' + nc.z);
+    return ok;
+  }
+  // Smooth: relax the selected voxel's offset toward the mean of its 6 neighbours'
+  // offsets (neighbours without an override count as 0), pulling an out-of-place
+  // voxel back into line.
+  function smoothSelectedVoxel() {
+    const co = parseVoxelKey(selectedPartKey);
+    if (!co) return false;
+    return mutateSelectedPart(c => {
+      const cell = getWorldCell(subEditCellX, subEditCellZ);
+      const parts = (normalizeAppearance(cell.appearance) || {}).parts || {};
+      const dirs = [[1,0,0],[-1,0,0],[0,1,0],[0,-1,0],[0,0,1],[0,0,-1]];
+      let ox = 0, oy = 0, oz = 0;
+      for (const [dx, dy, dz] of dirs) {
+        const nk = 'v:' + (co.x+dx) + ',' + (co.y+dy) + ',' + (co.z+dz);
+        const n = parts[nk];
+        if (n) { ox += n.ox; oy += n.oy; oz += n.oz; }
+      }
+      c.ox = ox / 6; c.oy = oy / 6; c.oz = oz / 6;
+    });
+  }
+
   function enterSubEdit(x, z) {
     if (typeof setVoxelSubEditCell !== 'function') return false;
     subEditCellX = x; subEditCellZ = z;
@@ -243,6 +312,9 @@
     selectedInfo: () => selectedPartKey ? { partKey: selectedPartKey } : null,
     movePart,
     scalePart,
+    removeVoxel: removeSelectedVoxel,
+    addVoxel: addVoxelFromSelected,
+    smoothVoxel: smoothSelectedVoxel,
     setExplode,
     isExploded,
     _tickExplode: tickSubEditExplode,

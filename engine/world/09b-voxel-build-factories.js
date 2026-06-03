@@ -358,8 +358,14 @@
     if (Array.isArray(stamp.customParts) && stamp.customParts.length) return makeCustomPartsStamp(stamp, opts);
     if (!Array.isArray(stamp.voxels) || !stamp.voxels.length) return null;
     const g = new THREE.Group();
+    // Apply per-instance sculpt edits (req 8): remove + add over the base stamp.
+    const normApp = (typeof normalizeAppearance === 'function' ? (normalizeAppearance(opts.appearance) || {}) : (opts.appearance || {}));
+    const removedSet = new Set(normApp.voxelsRemoved || []);
+    let effVoxels = removedSet.size ? stamp.voxels.filter(v => !removedSet.has(v.x + ',' + v.y + ',' + v.z)) : stamp.voxels;
+    if (normApp.voxelsAdded && normApp.voxelsAdded.length) effVoxels = effVoxels.concat(normApp.voxelsAdded);
+    if (!effVoxels.length) return null;
     let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity, minZ = Infinity, maxZ = -Infinity;
-    for (const v of stamp.voxels) {
+    for (const v of effVoxels) {
       minX = Math.min(minX, v.x); maxX = Math.max(maxX, v.x);
       minY = Math.min(minY, v.y); maxY = Math.max(maxY, v.y);
       minZ = Math.min(minZ, v.z); maxZ = Math.max(maxZ, v.z);
@@ -371,8 +377,8 @@
     const centerX = (minX + maxX) / 2;
     const centerZ = (minZ + maxZ) / 2;
     let trimBase = null;
-    const partOverrides = (typeof normalizeAppearance === 'function' ? (normalizeAppearance(opts.appearance) || {}) : (opts.appearance || {})).parts || {};
-    for (const v of stamp.voxels) {
+    const partOverrides = normApp.parts || {};
+    for (const v of effVoxels) {
       const partKey = 'v:' + v.x + ',' + v.y + ',' + v.z;
       const ov = partOverrides[partKey] || null;
       // Per-part override: offset in voxel units, scale multiplies the cube.

@@ -62,3 +62,14 @@ test('parts: identity override is dropped, invalid keys rejected', () => {
   assert.equal(normalizeAppearance({ parts: { 'bad key': { ox: 1 } } }), null);
   assert.equal(normalizeAppearance({ parts: { 'p:cable-1': { sx: 2 } } }).parts['p:cable-1'].sx, 2);
 });
+
+test('voxelsRemoved: dedups + filters malformed keys', () => {
+  const a = normalizeAppearance({ voxelsRemoved: ['1,2,3', '1,2,3', 'nope', '4,5,6'] });
+  assert.deepEqual(a.voxelsRemoved.sort(), ['1,2,3', '4,5,6']);
+});
+
+test('voxelsAdded: rounds coords, defaults+normalizes color, drops invalid', () => {
+  const a = normalizeAppearance({ voxelsAdded: [{ x: 1.4, y: 2, z: -3, color: 'ff0000' }, { x: 'bad', y: 0, z: 0 }] });
+  assert.equal(a.voxelsAdded.length, 1);
+  assert.deepEqual(a.voxelsAdded[0], { x: 1, y: 2, z: -3, color: '#ff0000' });
+});

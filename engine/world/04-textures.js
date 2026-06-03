@@ -2077,6 +2077,25 @@
       }
       if (Object.keys(acc).length) parts = acc;
     }
+    // Voxel sculpt edits (req 8): per-instance add/remove over the base stamp.
+    // Kept compact as deltas (not the full voxel array). Moves reuse `parts`.
+    let voxelsRemoved = null;
+    if (Array.isArray(value.voxelsRemoved)) {
+      const acc = value.voxelsRemoved.filter(k => typeof k === 'string' && /^-?\d+,-?\d+,-?\d+$/.test(k));
+      if (acc.length) voxelsRemoved = Array.from(new Set(acc));
+    }
+    let voxelsAdded = null;
+    if (Array.isArray(value.voxelsAdded)) {
+      const acc = [];
+      for (const v of value.voxelsAdded) {
+        if (!v || typeof v !== 'object') continue;
+        const vx = Math.round(Number(v.x)), vy = Math.round(Number(v.y)), vz = Math.round(Number(v.z));
+        if (!Number.isFinite(vx) || !Number.isFinite(vy) || !Number.isFinite(vz)) continue;
+        const color = normalizeHexColor(v.color) || '#c8c8c8';
+        acc.push({ x: vx, y: vy, z: vz, color });
+      }
+      if (acc.length) voxelsAdded = acc;
+    }
     const out = {};
     if (bodyColor) out.bodyColor = bodyColor;
     if (topColor) out.topColor = topColor;
@@ -2106,6 +2125,8 @@
     if (finish && finish !== 'matte') out.finish = finish;
     if (light) out.light = light;
     if (parts) out.parts = parts;
+    if (voxelsRemoved) out.voxelsRemoved = voxelsRemoved;
+    if (voxelsAdded) out.voxelsAdded = voxelsAdded;
     return Object.keys(out).length ? out : null;
   }
   function sameAppearance(a, b) {
