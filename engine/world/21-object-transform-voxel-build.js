@@ -1105,6 +1105,42 @@
     });
   }
 
+  // Absolute setters for the inspector's Precise controls. Unlike the relative
+  // move/scale helpers above, these set the value directly (computed from a
+  // numeric input) while honoring the same clamps.
+  function setSelectedBoardObjectOffsetAxis(axis, value) {
+    const v = Number(value);
+    if (!Number.isFinite(v)) return false;
+    return updateSelectedBoardObjects(target => {
+      const limits = transformLimitsForCell(target.cell);
+      if (axis === 'x') return { offsetX: Math.max(-limits.xz, Math.min(limits.xz, v)) };
+      if (axis === 'y') return { offsetY: Math.max(limits.yMin, Math.min(limits.yMax, v)) };
+      if (axis === 'z') return { offsetZ: Math.max(-limits.xz, Math.min(limits.xz, v)) };
+      return null;
+    });
+  }
+
+  function setSelectedBoardObjectRotation(rad) {
+    const v = Number(rad);
+    if (!Number.isFinite(v)) return false;
+    return updateSelectedBoardObjects(() => ({ rotationY: v }));
+  }
+
+  function setSelectedBoardObjectScaleValue(value, axis) {
+    const v = Number(value);
+    if (!Number.isFinite(v)) return false;
+    return updateSelectedBoardObjects(target => {
+      if (!isObjectScaleEditableCell(target.cell)) return null;
+      const appearance = Object.assign({}, normalizeAppearance(target.cell.appearance) || {});
+      const key = axis === 'x' ? 'scaleX' : axis === 'y' ? 'scaleY' : axis === 'z' ? 'scaleZ' : 'objectScale';
+      const min = key === 'objectScale' ? 0.25 : 0.15;
+      const max = key === 'objectScale' ? 4 : 5;
+      appearance[key] = Math.max(min, Math.min(max, v));
+      if (Math.abs(appearance[key] - 1) < 0.001) delete appearance[key];
+      return { appearance: Object.keys(appearance).length ? appearance : null };
+    });
+  }
+
   function seedVoxelBuildForSelectedObject(target) {
     if (!target || !target.cell || !target.cell.kind) return null;
     const cell = target.cell;
