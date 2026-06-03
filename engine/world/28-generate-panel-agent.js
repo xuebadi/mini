@@ -1671,6 +1671,18 @@
         });
         return;
       }
+      if (rowKey === 'subEdit') {
+        const se = window.__tinyworldSubEdit;
+        if (se) {
+          if (se.isActive && se.isActive()) se.exit();
+          else {
+            const t = (typeof selectedBoardObjectTargets === 'function') ? (selectedBoardObjectTargets()[0] || null) : null;
+            if (t) se.enter(t.x, t.z);
+          }
+        }
+        renderSelection();
+        return;
+      }
       if (rowKey === 'lightType' || rowKey === 'lightColor' || rowKey === 'lightIntensity' || rowKey === 'lightRange') {
         updateSelectedBoardObjects(target => {
           const appearance = Object.assign({}, normalizeAppearance(target.cell.appearance) || {});
@@ -1984,6 +1996,12 @@
         }
         if (window.__tinyworldFlags && window.__tinyworldFlags.inspectorV2) {
           const ap = cell => normalizeAppearance(cell.appearance) || {};
+          if (objectCells.length === 1 && objectCells[0].kind === 'voxel-build') {
+            const editing = !!(window.__tinyworldSubEdit && window.__tinyworldSubEdit.isActive && window.__tinyworldSubEdit.isActive());
+            addRow('Edit', { key: 'subEdit', label: 'Parts', control: 'actions', options: [
+              { label: editing ? 'Exit part edit' : 'Edit parts', value: 'toggle' },
+            ] });
+          }
           addRows('Transform', [
             { key: 'posX', label: 'Pos X', control: 'numeric', min: -0.5, max: 0.5, step: 0.01, currentValue: uniformValue(objectCells, c => +(c.offsetX || 0).toFixed(2)) },
             { key: 'posY', label: 'Pos Y', control: 'numeric', min: -0.5, max: 2, step: 0.01, currentValue: uniformValue(objectCells, c => +(c.offsetY || 0).toFixed(2)) },
