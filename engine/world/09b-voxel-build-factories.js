@@ -67,7 +67,11 @@
   }
 
   function voxelAppearanceMaterial(base, role, appearance) {
-    const a = normalizeAppearance(appearance);
+    return voxelAppearanceMaterialNorm(base, role, normalizeAppearance(appearance));
+  }
+  // Perf: callers that already hold a normalized appearance (e.g. the per-voxel
+  // build loop) use this to avoid re-running normalizeAppearance per voxel.
+  function voxelAppearanceMaterialNorm(base, role, a) {
     if (!a) return base;
     const baseKind = base && base.userData && base.userData.proceduralTextureKind;
     let mat = base;
@@ -378,15 +382,20 @@
     const centerZ = (minZ + maxZ) / 2;
     let trimBase = null;
     const partOverrides = normApp.parts || {};
+    const hasParts = Object.keys(partOverrides).length > 0;
     for (const v of effVoxels) {
-      const partKey = 'v:' + v.x + ',' + v.y + ',' + v.z;
-      const ov = partOverrides[partKey] || null;
+      // Perf: only build the partKey string when it's actually consumed — when
+      // the object is in sub-object edit mode (stamps it) or has overrides to
+      // look up. The default non-editable render skips N string allocs + lookups.
+      const needKey = opts.editable || hasParts;
+      const partKey = needKey ? ('v:' + v.x + ',' + v.y + ',' + v.z) : null;
+      const ov = hasParts ? (partOverrides[partKey] || null) : null;
       // Per-part override: offset in voxel units, scale multiplies the cube.
       const sx = ov ? ov.sx : 1, sy = ov ? ov.sy : 1, sz = ov ? ov.sz : 1;
       const x = (v.x - centerX) * unit + (ov ? ov.ox * unit : 0);
       const y = (v.y - minY) * unit + unit / 2 + (ov ? ov.oy * unit : 0);
       const z = (v.z - centerZ) * unit + (ov ? ov.oz * unit : 0);
-      const mat = voxelAppearanceMaterial(voxelBuildMaterial(v.color), voxelAppearanceRoleForColor(v.color), opts.appearance);
+      const mat = voxelAppearanceMaterialNorm(voxelBuildMaterial(v.color), voxelAppearanceRoleForColor(v.color), normApp);
       trimBase = trimBase || mat;
       const vm = vbox(g, unit * sx, unit * sy, unit * sz, x, y, z, mat);
       if (opts.editable && vm) {
