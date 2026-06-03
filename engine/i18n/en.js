@@ -249,6 +249,13 @@
     'radial.color.teal': 'Teal',
     'radial.color.blue': 'Blue',
     'radial.color.purple': 'Purple',
+    'radial.edit': 'Edit',
+    'radial.edit.explode': 'Explode',
+    'radial.edit.collapse': 'Collapse',
+    'radial.edit.move': 'Move',
+    'radial.edit.scale': 'Scale',
+    'radial.edit.recolor': 'Recolor',
+    'radial.edit.tapPart': 'Tap a part',
 
     // ---- player-facing toasts (00-prelude.js) ----
     'toast.downloadFailed': 'Download failed.',

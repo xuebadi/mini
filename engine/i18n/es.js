@@ -220,6 +220,13 @@
     'radial.color.teal': 'Verde azulado',
     'radial.color.blue': 'Azul',
     'radial.color.purple': 'Morado',
+    'radial.edit': 'Editar',
+    'radial.edit.explode': 'Explotar',
+    'radial.edit.collapse': 'Agrupar',
+    'radial.edit.move': 'Mover',
+    'radial.edit.scale': 'Escalar',
+    'radial.edit.recolor': 'Recolorear',
+    'radial.edit.tapPart': 'Toca una pieza',
 
     'toast.downloadFailed': 'Error al descargar.',
     'toast.invalidJson': 'Ese archivo no es un JSON válido.',

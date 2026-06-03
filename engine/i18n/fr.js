@@ -220,6 +220,13 @@
     'radial.color.teal': 'Sarcelle',
     'radial.color.blue': 'Bleu',
     'radial.color.purple': 'Violet',
+    'radial.edit': 'Modifier',
+    'radial.edit.explode': 'Éclater',
+    'radial.edit.collapse': 'Regrouper',
+    'radial.edit.move': 'Déplacer',
+    'radial.edit.scale': 'Redimensionner',
+    'radial.edit.recolor': 'Recolorer',
+    'radial.edit.tapPart': 'Touchez une partie',
 
     'toast.downloadFailed': 'Échec du téléchargement.',
     'toast.invalidJson': 'Ce fichier n’est pas un JSON valide.',

@@ -220,6 +220,13 @@
     'radial.color.teal': '青色',
     'radial.color.blue': '蓝色',
     'radial.color.purple': '紫色',
+    'radial.edit': '编辑',
+    'radial.edit.explode': '分解',
+    'radial.edit.collapse': '合拢',
+    'radial.edit.move': '移动',
+    'radial.edit.scale': '缩放',
+    'radial.edit.recolor': '重新着色',
+    'radial.edit.tapPart': '点选部件',
 
     'toast.downloadFailed': '下载失败。',
     'toast.invalidJson': '该文件不是有效的 JSON。',

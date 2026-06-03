@@ -147,8 +147,18 @@
     parts[selectedPartKey] = cur;
     appearance.parts = parts;
     setCell(subEditCellX, subEditCellZ, Object.assign({}, cell, { appearance, animate: false, impactDust: false }));
+    resyncExplodeAfterRerender();
     reHighlightSelection();
     return true;
+  }
+  // A part mutation re-renders the object (new meshes), so the explode capture
+  // goes stale. Re-capture from the fresh (collapsed) meshes and re-apply the
+  // current explode amount so parts stay exploded after a move/scale/recolor.
+  function resyncExplodeAfterRerender() {
+    if (explodeTarget > 0 || explodeProgress > 0.001) {
+      captureExplodeParts();
+      applyExplode(explodeProgress);
+    }
   }
   function movePart(dx, dy, dz) {
     return mutateSelectedPart(c => { c.ox += dx || 0; c.oy += dy || 0; c.oz += dz || 0; });
@@ -172,6 +182,7 @@
     const appearance = Object.assign({}, (typeof normalizeAppearance === 'function' ? normalizeAppearance(cell.appearance) : cell.appearance) || {});
     fn(appearance);
     setCell(subEditCellX, subEditCellZ, Object.assign({}, cell, { appearance, animate: false, impactDust: false }));
+    resyncExplodeAfterRerender();
     return true;
   }
   function removeSelectedVoxel() {

@@ -15,6 +15,8 @@
       more: '<circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/>',
       close: '<path d="M18 6 6 18"/><path d="m6 6 12 12"/>',
       back: '<path d="m15 18-6-6 6-6"/>',
+      edit: '<path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/>',
+      explode: '<path d="M12 2v5"/><path d="M12 17v5"/><path d="M2 12h5"/><path d="M17 12h5"/><path d="m4.9 4.9 3.5 3.5"/><path d="m15.6 15.6 3.5 3.5"/><path d="m19.1 4.9-3.5 3.5"/><path d="m8.4 15.6-3.5 3.5"/>',
     };
 
     // Root ring — angles in screen degrees (0=right, 90=down, 270=up). The top
@@ -53,6 +55,38 @@
 
     let currentLevel = 'root';
     let lastIslandMode = false;
+    let lastEditPartKey = null;
+
+    // Sub-object edit levels drill down: edit → edit-move/scale/color. Back goes
+    // to the parent; backing out of 'edit' exits sub-edit mode.
+    const LEVEL_PARENT = { edit: 'root', 'edit-move': 'edit', 'edit-scale': 'edit', 'edit-color': 'edit' };
+    function subEdit() { return window.__tinyworldSubEdit || null; }
+    function subEditTargetCell() {
+      try { return (typeof selectedBoardObjectTargets === 'function') ? (selectedBoardObjectTargets()[0] || null) : null; }
+      catch (_) { return null; }
+    }
+    // Mirrors the inspector gate (28): home-board cottages + voxel-based stamps.
+    function subEditSupported() {
+      const t = subEditTargetCell();
+      if (!t || !t.cell) return false;
+      if (typeof isOutsideHomeGrid === 'function' && isOutsideHomeGrid(t.x, t.z)) return false;
+      if (t.cell.kind === 'house' && !t.cell.buildingType) return true;
+      if (t.cell.kind === 'voxel-build') {
+        const st = (typeof getVoxelBuildStamp === 'function')
+          ? getVoxelBuildStamp(t.cell.appearance && t.cell.appearance.voxelBuildId) : null;
+        return !!(st && Array.isArray(st.voxels) && st.voxels.length
+          && !(Array.isArray(st.customParts) && st.customParts.length));
+      }
+      return false;
+    }
+    function enterEditMode() {
+      const se = subEdit(); const t = subEditTargetCell();
+      if (se && t) { se.enter(t.x, t.z); se.setExplode(true); }
+    }
+    function exitEditMode() {
+      const se = subEdit();
+      if (se && se.isActive && se.isActive()) se.exit();
+    }
 
     const root = document.createElement('div');
     root.className = 'radial-menu';
@@ -95,23 +129,98 @@
       top.title = level === 'root' ? window.t('radial.close') : window.t('radial.back');
       top.addEventListener('click', e => {
         e.stopPropagation();
-        if (level === 'root') { if (typeof clearSelection === 'function') clearSelection(); }
-        else renderLevel('root');
+        if (level === 'root') {
+          exitEditMode();
+          if (typeof clearSelection === 'function') clearSelection();
+        } else {
+          if (level === 'edit') exitEditMode(); // backing out of edit exits sub-edit
+          renderLevel(LEVEL_PARENT[level] || 'root');
+        }
       });
       root.appendChild(top);
 
       if (level === 'root') {
         const island = selectedRadialIsland();
-        const items = island ? ROOT.filter(b => ISLAND_ACTIONS.has(b.id)) : ROOT;
+        let items = island ? ROOT.filter(b => ISLAND_ACTIONS.has(b.id)) : ROOT.slice();
+        // For editable objects (cottages / voxel-builds) the buried 'More' panel
+        // slot becomes the 'Edit' entry to the sub-object radial.
+        if (!island && subEditSupported()) {
+          items = items.map(b => b.id === 'more'
+            ? { id: 'edit', label: window.t('radial.edit'), icon: 'edit', angle: 90, posType: 'primary' }
+            : b);
+        }
         items.forEach((b, i) => {
           const btn = makeBtn('', iconHtml(b.icon) + '<span class="radial-label">' + b.label + '</span>', b.angle, i + 1, b.posType || 'primary');
           btn.title = b.label;
           btn.addEventListener('click', e => {
             e.stopPropagation();
             flash(btn);
-            if (b.submenu) renderLevel(b.submenu);
+            if (b.id === 'edit') { enterEditMode(); renderLevel('edit'); }
+            else if (b.submenu) renderLevel(b.submenu);
             else runAction(b.action);
           });
+          root.appendChild(btn);
+        });
+      } else if (level === 'edit') {
+        const se = subEdit();
+        const hasPart = !!(se && se.selectedInfo && se.selectedInfo());
+        lastEditPartKey = hasPart ? se.selectedInfo().partKey : null;
+        const exploded = !!(se && se.isExploded && se.isExploded());
+        const items = [
+          { label: window.t(exploded ? 'radial.edit.collapse' : 'radial.edit.explode'), icon: 'explode', act: () => { if (se) se.setExplode(!exploded); renderLevel('edit'); } },
+          { label: window.t('radial.edit.move'),    icon: 'move',    sub: 'edit-move',  need: true },
+          { label: window.t('radial.edit.scale'),   icon: 'size',    sub: 'edit-scale', need: true },
+          { label: window.t('radial.edit.recolor'), icon: 'palette', sub: 'edit-color', need: true },
+        ];
+        const angles = arcAngles(items.length);
+        items.forEach((it, i) => {
+          const disabled = it.need && !hasPart;
+          const btn = makeBtn(disabled ? 'is-disabled' : '', iconHtml(it.icon) + '<span class="radial-label">' + it.label + '</span>', angles[i], i + 1, 'primary');
+          btn.title = disabled ? window.t('radial.edit.tapPart') : it.label;
+          if (disabled) btn.style.opacity = '0.4';
+          btn.addEventListener('click', e => {
+            e.stopPropagation();
+            if (disabled) return;
+            flash(btn);
+            if (it.act) it.act();
+            else if (it.sub) renderLevel(it.sub);
+          });
+          root.appendChild(btn);
+        });
+      } else if (level === 'edit-move') {
+        const se = subEdit(); const S = 0.25;
+        const dirs = [
+          ['X−', () => se && se.movePart(-S, 0, 0)], ['X+', () => se && se.movePart(S, 0, 0)],
+          ['Y−', () => se && se.movePart(0, -S, 0)], ['Y+', () => se && se.movePart(0, S, 0)],
+          ['Z−', () => se && se.movePart(0, 0, -S)], ['Z+', () => se && se.movePart(0, 0, S)],
+        ];
+        const angles = arcAngles(dirs.length);
+        dirs.forEach((d, i) => {
+          const btn = makeBtn('', '<span class="radial-label">' + d[0] + '</span>', angles[i], i + 1, 'primary');
+          btn.title = d[0];
+          btn.addEventListener('click', e => { e.stopPropagation(); flash(btn); d[1](); });
+          root.appendChild(btn);
+        });
+      } else if (level === 'edit-scale') {
+        const se = subEdit();
+        const its = [['−', () => se && se.scalePart(0.85)], ['+', () => se && se.scalePart(1.18)]];
+        const angles = arcAngles(its.length);
+        its.forEach((d, i) => {
+          const btn = makeBtn('', '<span class="radial-label">' + d[0] + '</span>', angles[i], i + 1, 'primary');
+          btn.title = d[0];
+          btn.addEventListener('click', e => { e.stopPropagation(); flash(btn); d[1](); });
+          root.appendChild(btn);
+        });
+      } else if (level === 'edit-color') {
+        const se = subEdit();
+        const angles = arcAngles(COLORS.length);
+        COLORS.forEach((c, i) => {
+          const dot = c.hex
+            ? '<span class="radial-swatch" style="background:' + c.hex + '"></span>'
+            : '<span class="radial-swatch radial-swatch-reset"></span>';
+          const btn = makeBtn('', dot + '<span class="radial-label">' + c.label + '</span>', angles[i], i + 1, c.hex ? 'primary' : 'neutral');
+          btn.title = c.label;
+          btn.addEventListener('click', e => { e.stopPropagation(); flash(btn); if (se && se.recolorPart) se.recolorPart(c.hex); });
           root.appendChild(btn);
         });
       } else if (level === 'color') {
@@ -193,7 +302,7 @@
       const cam = typeof camera !== 'undefined' ? camera : null;
       const dom = (typeof renderer !== 'undefined' && renderer) ? renderer.domElement : null;
       if (!gizmo || !cam || !dom || !gizmo.visible) {
-        if (!root.hidden) { root.hidden = true; currentLevel = 'root'; }
+        if (!root.hidden) { root.hidden = true; if (currentLevel !== 'root') exitEditMode(); currentLevel = 'root'; }
         return;
       }
       // Project against the *current* camera. updateCamera() (orbit) only sets
@@ -225,6 +334,12 @@
         // the ring so the action set matches the new selection.
         renderLevel('root');
         lastIslandMode = islandMode;
+      } else if (currentLevel === 'edit') {
+        // Reactivity: when the user taps a part in the scene, flip Move/Scale/
+        // Recolor from disabled → enabled by re-rendering the edit ring.
+        const se = subEdit();
+        const pk = (se && se.selectedInfo && se.selectedInfo()) ? se.selectedInfo().partKey : null;
+        if (pk !== lastEditPartKey) renderLevel('edit');
       }
     }
 
