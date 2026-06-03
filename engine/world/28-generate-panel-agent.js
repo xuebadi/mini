@@ -1654,6 +1654,23 @@
         resetSelectedBoardObjectTransform();
         return;
       }
+      if (rowKey === 'posX') { setSelectedBoardObjectOffsetAxis('x', value); return; }
+      if (rowKey === 'posY') { setSelectedBoardObjectOffsetAxis('y', value); return; }
+      if (rowKey === 'posZ') { setSelectedBoardObjectOffsetAxis('z', value); return; }
+      if (rowKey === 'rotDeg') { setSelectedBoardObjectRotation((Number(value) || 0) * Math.PI / 180); return; }
+      if (rowKey === 'scaleAbs') { setSelectedBoardObjectScaleValue(value); return; }
+      if (rowKey === 'baseColor' || rowKey === 'finish' || rowKey === 'emissiveColor' || rowKey === 'emissiveIntensity' || rowKey === 'opacity') {
+        updateSelectedBoardObjects(target => {
+          const appearance = Object.assign({}, normalizeAppearance(target.cell.appearance) || {});
+          if (rowKey === 'baseColor') appearance.bodyColor = value;
+          else if (rowKey === 'finish') { if (value === 'matte') delete appearance.finish; else appearance.finish = value; }
+          else if (rowKey === 'emissiveColor') appearance.emissiveColor = value;
+          else if (rowKey === 'emissiveIntensity') appearance.emissiveIntensity = Number(value) || 0;
+          else if (rowKey === 'opacity') appearance.opacity = Number(value);
+          return { appearance: Object.keys(appearance).length ? appearance : null };
+        });
+        return;
+      }
       if (rowKey === 'objectMaterial') {
         const nextTexture = normalizeMaterialTextureKey(value);
         updateSelectedBoardObjects(target => {
@@ -2119,7 +2136,30 @@
           options.className = 'selection-prop-options';
           const controlClass = controlClassForRow(row);
           if (controlClass) options.classList.add(controlClass);
-          row.options.forEach(opt => {
+          if (row.control === 'numeric' || row.control === 'slider' || row.control === 'colorpicker') {
+            const input = document.createElement('input');
+            input.type = row.control === 'colorpicker' ? 'color' : (row.control === 'slider' ? 'range' : 'number');
+            if (row.min !== undefined) input.min = row.min;
+            if (row.max !== undefined) input.max = row.max;
+            if (row.step !== undefined) input.step = row.step;
+            if (row.currentValue !== undefined && row.currentValue !== null) {
+              input.value = row.control === 'colorpicker' ? String(row.currentValue) : row.currentValue;
+            } else if (row.control === 'colorpicker') {
+              input.value = '#ffffff';
+            }
+            input.className = 'selection-prop-input control-' + row.control;
+            input.setAttribute('aria-label', row.label);
+            const handler = e => { e.stopPropagation(); applySelectionProperty(row.key, input.value); };
+            input.addEventListener('change', handler);
+            if (row.control === 'slider') input.addEventListener('input', handler);
+            input.addEventListener('click', e => e.stopPropagation());
+            options.appendChild(input);
+            wrap.appendChild(label);
+            wrap.appendChild(options);
+            sectionWrap.appendChild(wrap);
+            return;
+          }
+          (row.options || []).forEach(opt => {
             const chip = document.createElement('button');
             chip.type = 'button';
             chip.className = chipClassForOption(row, opt);
