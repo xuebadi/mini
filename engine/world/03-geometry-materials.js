@@ -615,6 +615,11 @@
     const mesh = new THREE.Mesh(_windowPaneGeo, M.windowInterior);
     mesh.userData.sharedGeometry = true;              // never dispose the shared plane on teardown
     mesh.userData.winOverride = o || null;            // per-object shader overrides (read each draw)
+    // Keep each pane its own mesh: the voxel build optimizer batches meshes that
+    // share geometry+material, which would drop the per-pane onBeforeRender that
+    // feeds the interior shader its camera-in-local-space (collapsing the room to
+    // a flat panel). noBatch opts every window pane out of that merge.
+    mesh.userData.noBatch = true;
     mesh.scale.set(w, h, Math.min(w, h));             // unit pane -> opening; z sets room depth scale
     switch (dir) {
       case '-z': mesh.rotation.y = Math.PI;      mesh.position.z = -offset; break;
