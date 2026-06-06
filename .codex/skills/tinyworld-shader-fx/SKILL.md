@@ -35,6 +35,28 @@ Stylized, cheap (~7 value-noise taps). Uniforms worth knowing:
 
 Keep the `runwayR` discard, the clip-box block, fog, and posterize tail intact.
 
+## Enhanced water surfaces ("Enhanced water" toggle)
+
+The default-visible water is **voxel tiles** (`M.water`/`M.waterDk`, Lambert), not
+the landscape ocean. A Settings toggle upgrades water everywhere:
+
+- Setting: `render-enhanced-water` checkbox (HTML, Environment panel) ↔
+  `renderEnhancedWater` global (`01-render-core.js`, default on) ↔
+  `tinyworld:render:enhancedWater`. Wired in `21-object-transform-voxel-build.js`
+  (el ref, listener loop, `applyFromControls`, `persistSettings`, `syncControls`)
+  exactly like the `planesEnabled` toggle. New key, no `RENDER_SETTINGS_VERSION` bump.
+- Voxel water: injected in **`applyFlowingWaterUVs`** (`04-textures.js`) — the single
+  `onBeforeCompile` chokepoint for every water material (base + flow clones). Stays
+  Lambert; adds ripple-normal bands + fresnel + Blinn-Phong glint + foam, masked by
+  `vTwWaterNrm.y` so sides stay calm. Shared `waterShaderTimeUniform` advanced in
+  `tickWaterTextureFlow`. **`customProgramCacheKey` is mandatory** here — without it
+  three.js would reuse the wrong program when the toggle flips (onBeforeCompile output
+  isn't in the default cache key).
+- Landscape ocean: `uEnhance` uniform in `water.js` scales the new foam/sheen/subsurface.
+- On toggle: `refreshWaterShaderMaterials()` (clears `waterFlowMaterialCache`, resets the
+  base materials) then `rebuildTerrainRender()`; the handler also sets the live landscape
+  `uEnhance`. Waterfalls are untouched (separate shaders).
+
 ## TinyShaderFX library (engine/world/45-shader-fx.js)
 
 IIFE exposing `window.TinyShaderFX`. **4-space body indent on purpose** — the

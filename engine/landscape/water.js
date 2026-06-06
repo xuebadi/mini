@@ -42,6 +42,8 @@
           foamAmount:   { value: 0.55 },
           specPower:    { value: 90.0 },
           posterize:    { value: 12.0 },
+          // Gated by the "Enhanced water" Settings toggle (renderEnhancedWater).
+          uEnhance:     { value: (typeof renderEnhancedWater === 'undefined' || renderEnhancedWater) ? 1.0 : 0.0 },
           clipEnabled:  { value: 0.0 },
           clipMin:      { value: this._clipMin },
           clipMax:      { value: this._clipMax },
@@ -84,6 +86,7 @@
           uniform float foamAmount;
           uniform float specPower;
           uniform float posterize;
+          uniform float uEnhance;
           uniform float clipEnabled;
           uniform vec3 clipMin;
           uniform vec3 clipMax;
@@ -161,11 +164,11 @@
             // --- Depth-tinted base with a hint of subsurface back-glow ---
             vec3 col = mix(deep, shallow, h0 * 0.58 + 0.24);
             float back = max(dot(-norm, L), 0.0);
-            col += shallow * back * 0.05;
+            col += shallow * back * 0.05 * uEnhance;
 
             float reflectionMix = clamp((0.14 + fresnel * 0.44 * fresnelBoost) * reflectivity, 0.0, 0.94);
             col = mix(col, reflectedSky, reflectionMix);
-            col += reflectedSky * sheen;
+            col += reflectedSky * sheen * uEnhance;
             col += vec3(1.0, 0.98, 0.92) * glint * (0.28 + 0.42 * sunGlint);
 
             // --- Foam: animated wave crests + a shoreline ring at the island edge ---
@@ -173,7 +176,7 @@
             float shore = 1.0 - smoothstep(runwayR, runwayR + 24.0, rw);
             float foamN = noise(baseUv * 7.0 + fl * (time * 0.22));
             float foam = clamp((crest + shore * 0.85) * foamAmount * (0.45 + foamN * 0.75), 0.0, 1.0);
-            col = mix(col, foamColor, foam);
+            col = mix(col, foamColor, foam * uEnhance);
 
             // --- Optional cel posterization (12 levels reproduces the old look) ---
             if (posterize > 0.5) col = floor(col * posterize) / posterize;

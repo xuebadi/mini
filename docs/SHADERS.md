@@ -39,6 +39,30 @@ upgrades, at roughly the same GPU cost as the old single-layer ripple:
 - **Cel posterization** (`posterize`, default 12 levels) preserving the toy look.
 - **Planet-distance tint** kept in parity with the terrain materials.
 
+## Enhanced water surfaces (Settings → Environment → "Enhanced water")
+
+The water you actually see on load is **voxel water tiles** using the `M.water` /
+`M.waterDk` Lambert materials — not the LandscapeEngine ocean. Both are now
+upgraded by a single Settings toggle (`render-enhanced-water`, default **on**,
+persisted as `tinyworld:render:enhancedWater`) that works in **every** environment:
+
+- **Voxel water tiles** (home island, generated worlds, rivers, lakes): the
+  enhancement is injected at the one chokepoint every water material flows
+  through — `applyFlowingWaterUVs` in `engine/world/04-textures.js`. It keeps the
+  material a `MeshLambertMaterial` (so colour shades, flow direction, and the
+  wear slider keep working) and, via `onBeforeCompile`, adds an animated ripple
+  normal → moving light/dark bands, fresnel sky sheen, sharp Blinn-Phong sun
+  glints and foam — masked to upward-facing faces so the tile sides stay calm. A
+  shared `uWaterTime` uniform (advanced in `tickWaterTextureFlow`) drives them
+  all, and a `customProgramCacheKey` makes the toggle recompile cleanly at runtime.
+- **LandscapeEngine ocean** (`engine/landscape/water.js`): the same toggle drives a
+  `uEnhance` uniform that scales the foam / sheen / subsurface terms, so turning it
+  off falls back toward the simpler original look.
+
+Toggling rebuilds water materials (`refreshWaterShaderMaterials()` clears the flow
+cache, then `rebuildTerrainRender()`), so it applies immediately. Waterfalls keep
+their own dedicated shaders and are unaffected by this surface toggle.
+
 ## TinyShaderFX library (engine/world/45-shader-fx.js)
 
 A small, dependency-free library exposed on `window.TinyShaderFX`. Every animated
