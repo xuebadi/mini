@@ -289,11 +289,14 @@
       const tag = (e.target && e.target.tagName) || '';
       if (tag === 'INPUT' || tag === 'TEXTAREA') return;
       let handled = true;
-      cancelWalk();   // manual key interrupts any auto-walk
-      if (e.key === 'ArrowUp' || e.key === 'w' || e.key === 'W') step(0, -1);
-      else if (e.key === 'ArrowDown' || e.key === 's' || e.key === 'S') step(0, 1);
-      else if (e.key === 'ArrowLeft' || e.key === 'a' || e.key === 'A') step(-1, 0);
-      else if (e.key === 'ArrowRight' || e.key === 'd' || e.key === 'D') step(1, 0);
+      const k = e.key.toLowerCase();
+      // Movement is relative to the camera/player view (his up/down/left/right).
+      if (k === 'arrowup' || k === 'w') { cancelWalk(); const [x, z] = worldStepFromScreen(0, 1); step(x, z); }
+      else if (k === 'arrowdown' || k === 's') { cancelWalk(); const [x, z] = worldStepFromScreen(0, -1); step(x, z); }
+      else if (k === 'arrowleft' || k === 'a') { cancelWalk(); const [x, z] = worldStepFromScreen(-1, 0); step(x, z); }
+      else if (k === 'arrowright' || k === 'd') { cancelWalk(); const [x, z] = worldStepFromScreen(1, 0); step(x, z); }
+      else if (k === ' ' || k === 'spacebar') startJump();
+      else if (k === ATTACK_KEY) startAttack();
       else handled = false;
       if (handled) e.preventDefault();
     }
@@ -400,7 +403,9 @@
     const SHEET = {
       idle: { url: 'models/people/25D/idle/Sprite Sheet/idle full sprite sheet (transparent BG).png', sw: 768, sh: 512, frame: 64, cols: 12, fps: 8 },
       walk: { url: 'models/people/25D/walk/Sprite Sheet/walk complete sprite sheet (transparent BG).png', sw: 512, sh: 512, frame: 64, cols: 8, fps: 12 },
+      attack: { url: 'models/people/25D/attack/Sprite Sheet/attack full sprite sheet (transparent BG).png', sw: 672, sh: 768, frame: 96, cols: 7, fps: 16 },
     };
+    const JUMP_MS = 460, ATTACK_KEY = 'f';
     // Sheet row (top->bottom) for each movement sector. Sectors: 0=S 1=SE 2=E 3=NE
     // 4=N 5=NW 6=W 7=SW. If a character faces the wrong way, reorder this array.
     const SECTOR_TO_ROW = [0, 1, 2, 3, 4, 5, 6, 7];
@@ -417,6 +422,25 @@
     }
     function hashId(s) { s = String(s); let h = 0; for (let i = 0; i < s.length; i++) h = (h * 31 + s.charCodeAt(i)) >>> 0; return h; }
     function dirSector(dx, dz) { if (!dx && !dz) return null; return ((Math.round(Math.atan2(dx, dz) / (Math.PI / 4)) % 8) + 8) % 8; }
+    // Camera-relative ground axes from the orbit azimuth (a classic-script global).
+    function camGround() {
+      const az = (typeof azimuth === 'number') ? azimuth : 0;
+      return { f: { x: -Math.cos(az), z: -Math.sin(az) }, r: { x: -Math.sin(az), z: Math.cos(az) } };
+    }
+    // Facing relative to the player's view: rotate a world delta into screen space so
+    // S = toward the camera, N = away, E = his right, W = his left.
+    function screenSector(dx, dz) {
+      const { f, r } = camGround();
+      return dirSector(dx * r.x + dz * r.z, -(dx * f.x + dz * f.z));
+    }
+    // Screen input (right=+x, forward=+y) -> the single grid step that best matches it.
+    function worldStepFromScreen(sxi, syi) {
+      const { f, r } = camGround();
+      const wx = r.x * sxi + f.x * syi, wz = r.z * sxi + f.z * syi;
+      return (Math.abs(wx) >= Math.abs(wz)) ? [Math.sign(wx), 0] : [0, Math.sign(wz)];
+    }
+    function startAttack() { if (selfEnt && selfEnt.sprite && !selfEnt.attacking) { selfEnt.attacking = true; selfEnt.state = 'attack'; selfEnt.frame = 0; selfEnt.frameTime = 0; selfEnt.sprite.material.map = selfEnt.tex.attack; } }
+    function startJump() { if (selfEnt && !selfEnt.jumpStart) selfEnt.jumpStart = Date.now(); }
     function avatarError(msg) {
       if (avatarErrored) return; avatarErrored = true;
       try { console.error('[worlds] avatar sprite failed:', msg); } catch (_) {}
@@ -456,7 +480,7 @@
     }
     function moveEntity(ent, x, z) {
       if (!ent) return;
-      const s = dirSector(x - ent.x, z - ent.z); if (s != null) ent.sector = s;
+      const s = screenSector(x - ent.x, z - ent.z); if (s != null) ent.sector = s;
       if (x !== ent.x || z !== ent.z) ent.lastMove = Date.now();
       ent.x = x; ent.z = z; placeEntity(ent);
     }
@@ -466,14 +490,20 @@
     }
     function animEntity(ent, dt) {
       if (!ent.sprite) return;
-      const state = (Date.now() - ent.lastMove) < 200 ? 'walk' : 'idle';
+      const state = ent.attacking ? 'attack' : ((Date.now() - ent.lastMove) < 200 ? 'walk' : 'idle');
       if (state !== ent.state) { ent.state = state; ent.frame = 0; ent.frameTime = 0; ent.sprite.material.map = ent.tex[state]; }
       const sh = SHEET[state];
       ent.frameTime += dt;
       const fdur = 1 / sh.fps;
-      while (ent.frameTime >= fdur) { ent.frameTime -= fdur; ent.frame = (ent.frame + 1) % sh.cols; }
+      while (ent.frameTime >= fdur) {
+        ent.frameTime -= fdur; ent.frame += 1;
+        if (ent.frame >= sh.cols) { ent.frame = 0; if (ent.attacking) ent.attacking = false; }   // attack plays once
+      }
       const row = SECTOR_TO_ROW[ent.sector] || 0;
-      ent.tex[state].offset.set(ent.frame * (sh.frame / sh.sw), 1 - (row + 1) * (sh.frame / sh.sh));
+      ent.tex[ent.state].offset.set(ent.frame * (sh.frame / sh.sw), 1 - (row + 1) * (sh.frame / sh.sh));
+      let y = 0.02;
+      if (ent.jumpStart) { const jt = (Date.now() - ent.jumpStart) / JUMP_MS; if (jt >= 1) ent.jumpStart = 0; else y += Math.sin(jt * Math.PI) * 0.8; }
+      ent.sprite.position.y = y;
     }
 
     function updateSelfAvatar() {
@@ -500,6 +530,13 @@
         const dt = Math.min(0.05, (now - prev) / 1000); prev = now;
         if (selfEnt) animEntity(selfEnt, dt);
         peerEnts.forEach((e) => animEntity(e, dt));
+        // Follow camera: ease the orbit target onto the player so he stays centered.
+        if (selfEnt && selfEnt.sprite && typeof tilePos === 'function' && typeof updateCamera === 'function' && typeof target !== 'undefined' && target) {
+          const p = tilePos(selfEnt.x, selfEnt.z);
+          target.x += (p.x - target.x) * 0.15;
+          target.z += (p.z - target.z) * 0.15;
+          updateCamera();
+        }
         avatarRaf = requestAnimationFrame(tick);
       };
       avatarRaf = requestAnimationFrame(tick);
