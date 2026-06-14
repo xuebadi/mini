@@ -187,7 +187,7 @@
     // lining the inside of its opening, the white energy hoops within that, and the
     // dark event-horizon recessed in the centre. Layers nest like a real ornate gate.
     function buildNested() {
-      const vs = 0.035, g = new THREE.Group();
+      const vs = 0.025, g = new THREE.Group();
       const HJ = (x, y, z) => { let h = (x * 374761 + y * 668265 + z * 9301) | 0; h = (h ^ (h >> 13)) * 1274126177; return ((h ^ (h >> 16)) >>> 0) / 4294967296; };
       const STONE = ['#8c8f96', '#7d818a', '#969aa2', '#85888f'];
       // CY = RAD SINKS the gate so the opening bottom is at ground (local y=0): the
@@ -212,7 +212,7 @@
       const cyW = CY * vs;
       // smooth metal ring — RECESSED behind the stone front face so the voxel casing
       // covers its outer edge; a thin lining just inside the opening, not a big disc.
-      const metal = new THREE.Mesh(new THREE.TorusGeometry(OR * 0.9, vs * 0.85, 14, 64), new THREE.MeshStandardMaterial({ color: 0x59697c, roughness: 0.28, metalness: 0.92, side: THREE.DoubleSide }));
+      const metal = new THREE.Mesh(new THREE.TorusGeometry(OR * 0.99, vs * 1.7, 18, 64), new THREE.MeshStandardMaterial({ color: 0x59697c, roughness: 0.28, metalness: 0.92, side: THREE.DoubleSide }));
       metal.position.set(0, cyW, -vs * 1.8); g.add(metal);
       // bright WHITE energy hoops — the visible centre of the gate
       const hoops = []; const hcols = [0xffffff, 0xd6f3ff, 0x8fe3ff];
