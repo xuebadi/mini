@@ -58,6 +58,7 @@ class LandscapeEngine {
     // is null for the home builder, so its terrain is unchanged.
     this.flood = flood;
     this.HEIGHT_SCALE = (flood && flood.heightScale != null) ? flood.heightScale : 1.0;
+    this.FREQ_SCALE = (flood && flood.freqScale != null) ? flood.freqScale : 1.0;   // higher = smaller, more scattered islands
     this.WATER_LEVEL = (flood && flood.waterLevel != null) ? flood.waterLevel : 4.0;
     this.WATER_EXTENT = 24000;
     this.WATER_RUNWAY_R = this.airfield.enabled ? this.airfield.waterRunwayRadius : 0;
@@ -268,7 +269,7 @@ class LandscapeEngine {
     const airfield = this.airfield;
     const airfieldMasks = this._airfieldMasks(x, z);
 
-    let h = 0, amp = 1, freq = 0.0018, tot = 0;
+    let h = 0, amp = 1, freq = 0.0018 * this.FREQ_SCALE, tot = 0;
     for (let i = 0; i < 5; i++) {
       const n = this._vnoise(x * freq, z * freq);
       h += amp * (1 - Math.abs(n * 2 - 1)); // ridged
@@ -278,7 +279,7 @@ class LandscapeEngine {
     h = Math.pow(h / tot, 2.4) * 260;
 
     // Large-scale valleys
-    h += (this._fbm(x * 0.0006, z * 0.0006, 3) - 0.4) * 120;
+    h += (this._fbm(x * 0.0006 * this.FREQ_SCALE, z * 0.0006 * this.FREQ_SCALE, 3) - 0.4) * 120;
     h = Math.max(0, h);
 
     // Terracing mesas

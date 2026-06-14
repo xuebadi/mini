@@ -361,6 +361,24 @@
     return !!(a && b && a.seed === b.seed && a.biome === b.biome && a.styleMode === b.styleMode);
   }
 
+  // When the player descends to the surface, drop the distant-backdrop desaturation/dim/
+  // fog so the flooded ocean + islands read crisp and colourful (voxel-poser look). On
+  // ascent, restore the backdrop look via syncPlanetAtmosphereColors().
+  function setPlanetLandscapeNearView(on) {
+    if (!planetLandscapeEngine) return;
+    if (on) {
+      const crisp = { color: planetUnderlayDistanceColor(planetLandscapeEngine), effect: 0.04, desaturate: 0.0, dim: 1.0, propOpacity: 1.0 };
+      [planetLandscapeEngine.sandMat, planetLandscapeEngine.sandMatLowPoly, planetLandscapeEngine.waterMat].forEach(mat => applyPlanetShaderDistanceMaterial(mat, crisp));
+      [planetLandscapeEngine.rockMat, planetLandscapeEngine.rockMatLowPoly, planetLandscapeEngine.floraMat, planetLandscapeEngine.floraMatLow].forEach(mat => applyPlanetBuiltInDistanceMaterial(mat, crisp));
+      if (typeof planetLandscapeEngine.setPlanetFog === 'function') planetLandscapeEngine.setPlanetFog({ enabled: false });
+      if (planetAtmosphereGroup) planetAtmosphereGroup.visible = false;
+    } else {
+      if (planetAtmosphereGroup) planetAtmosphereGroup.visible = true;
+      syncPlanetAtmosphereColors();
+    }
+  }
+  window.__setPlanetLandscapeNearView = setPlanetLandscapeNearView;
+
   function syncPlanetAtmosphereColors() {
     if (!planetAtmosphereGroup) return;
     const colors = planetAtmosphereColors();
@@ -565,7 +583,7 @@
       initialBiome: next.biome,
       styleMode: next.styleMode,
       airfield: false,
-      flood: { waterLevel: 110, heightScale: 0.5 },   // flooded ocean + scattered sandy islands
+      flood: { waterLevel: 150, heightScale: 0.45, freqScale: 6.0 },   // mostly ocean (~13% land) + small scattered sandy islands
     });
     configurePlanetLandscapeEngine(planetLandscapeEngine, next);
     resetPlanetLandscapeStreamState();

@@ -252,6 +252,8 @@
       // down OR transitioning — flip the flag up front so the orbit target is
       // not yanked back to the home board mid-ease.
       window.__flyDownActive = true;
+      // Crisp the planet (drop the distant-backdrop desaturation/fog) now that we're close.
+      if (typeof window.__setPlanetLandscapeNearView === 'function') window.__setPlanetLandscapeNearView(true);
       beginEase('descend');
       return true;
     }
@@ -260,6 +262,8 @@
       if (!down && !transitioning) return false; // already up top
       // Flag stays true until the ascend ease completes (finishEase clears it).
       window.__flyDownActive = true;
+      // Restore the distant-backdrop look as we climb back to the island layer.
+      if (typeof window.__setPlanetLandscapeNearView === 'function') window.__setPlanetLandscapeNearView(false);
       beginEase('ascend');
       return true;
     }
