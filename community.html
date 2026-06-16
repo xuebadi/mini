@@ -28,6 +28,7 @@
   }
 }
 </script>
+<script src="engine/world/00-custom-confirm.js"></script>
 <script type="module" src="vendor/tinyworld-auth.js"></script>
 <style>
   /* -------- community page -------- */
@@ -966,8 +967,15 @@
       if (!messageId || !canModerateCurrentConversation()) return;
       const message = state.messages.find(m => Number(m.id) === Number(messageId));
       if (action === 'deleteMessage') {
-        const sample = message && message.body ? ('\n\n"' + message.body.slice(0, 140) + (message.body.length > 140 ? '…' : '') + '"') : '';
-        if (!window.confirm('Permanently delete this message?' + sample)) return;
+        const sample = message && message.body ? ('"' + message.body.slice(0, 140) + (message.body.length > 140 ? '…' : '') + '"') : '';
+        const confirmed = await window.twConfirm({
+          title: 'Delete message?',
+          message: 'Permanently delete this message?',
+          details: sample,
+          confirmLabel: 'Delete',
+          intent: 'danger',
+        });
+        if (!confirmed) return;
       }
       const payload = { action, messageId };
       try {
@@ -985,7 +993,14 @@
     }
     async function deleteRoom(room) {
       if (!room) return;
-      if (!window.confirm('Delete #' + room.name + '? This permanently removes the channel and all its messages.')) return;
+      const confirmed = await window.twConfirm({
+        title: 'Delete channel?',
+        message: 'Delete #' + room.name + '?',
+        details: 'This permanently removes the channel and all its messages.',
+        confirmLabel: 'Delete',
+        intent: 'danger',
+      });
+      if (!confirmed) return;
       try {
         const d = await api('/api/community', 'POST', { action: 'deleteRoom', roomId: room.id });
         state.rooms = d.rooms || state.rooms;
@@ -1477,7 +1492,15 @@
       try { const A = window.TinyWorldAuth; if (A && typeof A.logout === 'function') await A.logout(); } catch (_) {}
       location.reload();
     }
-    byId('me-chip').addEventListener('click', () => { if (state.me && window.confirm('Sign out?')) signOut(); });
+    byId('me-chip').addEventListener('click', async () => {
+      if (!state.me) return;
+      const confirmed = await window.twConfirm({
+        title: 'Sign out?',
+        message: 'Sign out of Tiny World Builder on this browser?',
+        confirmLabel: 'Sign out',
+      });
+      if (confirmed) signOut();
+    });
     byId('edit-profile-btn').addEventListener('click', () => { if (state.me) openSocials(false); });
     byId('headline-login-btn').addEventListener('click', () => openLogin());
 

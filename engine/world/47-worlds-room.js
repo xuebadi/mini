@@ -90,6 +90,7 @@
     function enterRoom(w, joinToken, joinRole) {
       leaveRoom();
       world = w; token = joinToken || ''; role = joinRole || 'play';
+      try { if (typeof WS.seedDemoResources === 'function') WS.seedDemoResources(w); } catch (_) {}
       try { window.__tinyworldInWorldRoom = true; } catch (_) {}   // relax camera pan clamp (02) for island exploration
       gridSize = w.gridSize || 8; taxPercent = w.taxPercent != null ? w.taxPercent : null;
       cells = w.data && Array.isArray(w.data.cells) ? w.data.cells : [];
@@ -1303,29 +1304,92 @@
     function unbindInput() { window.removeEventListener('keydown', onKey); window.removeEventListener('keyup', onKeyUp); }
   
     // ---- minimap ----
-    let mapWrap = null, canvas = null, ctx = null;
+    let mapWrap = null, canvas = null, ctx = null, mapResizeHandle = null, mapScaleBadge = null;
     const CELL = 16;
+    const MAP_SCALE_LS = 'tinyworld:worlds.map.scale';
+    const MAP_MIN_SCALE = 0.25;
+    const MAP_MAX_SCALE = 1;
+    let mapScale = readMapScale();
     function showMinimap() {
       if (mapWrap) { mapWrap.style.display = 'block'; drawMinimap(); return; }
       if (!document.getElementById('tw-worlds-map-style')) {
         const css = '.tw-worlds-map{position:fixed;right:12px;top:72px;z-index:65;background:rgba(8,11,28,.82);border:1px solid rgba(80,110,200,.22);border-radius:14px;padding:8px;backdrop-filter:blur(18px) saturate(150%);-webkit-backdrop-filter:blur(18px) saturate(150%);box-shadow:inset 0 1px 0 rgba(120,150,230,.12),0 16px 40px -12px rgba(0,0,20,.55)}'
           + '.tw-worlds-map h4{margin:0 0 6px;font:600 11px \'Space Grotesk\',system-ui,sans-serif;color:#cfe0ff;text-transform:uppercase;letter-spacing:.05em;cursor:grab;user-select:none;display:flex;align-items:center;gap:6px}'
+          + '.tw-worlds-map .tw-map-scale{margin-left:auto;font:700 9px ui-monospace,SFMono-Regular,Menlo,monospace;color:#8ea8d8;background:rgba(150,180,255,.12);border:1px solid rgba(150,180,255,.18);border-radius:999px;padding:1px 5px}'
           + '.tw-worlds-map.dragging h4{cursor:grabbing}'
-          + '.tw-worlds-map canvas{display:block;border-radius:8px;cursor:pointer;background:#0a1428}';
+          + '.tw-worlds-map canvas{display:block;border-radius:8px;cursor:pointer;background:#0a1428;image-rendering:pixelated}'
+          + '.tw-worlds-map .tw-map-resize{position:absolute;right:3px;bottom:3px;width:17px;height:17px;border-radius:6px 0 11px 0;cursor:nwse-resize;background:linear-gradient(135deg,transparent 0 45%,rgba(205,225,255,.20) 46% 58%,transparent 59%),linear-gradient(135deg,transparent 0 62%,rgba(205,225,255,.34) 63% 76%,transparent 77%);opacity:.82}'
+          + '.tw-worlds-map .tw-map-resize:hover{opacity:1;background-color:rgba(120,160,255,.08)}';
         document.head.appendChild(Object.assign(document.createElement('style'), { id: 'tw-worlds-map-style', textContent: css }));
       }
       mapWrap = document.createElement('div'); mapWrap.className = 'tw-worlds-map';
-      const h = document.createElement('h4'); h.textContent = T('worlds.minimap');
+      const h = document.createElement('h4');
+      const title = document.createElement('span'); title.textContent = T('worlds.minimap');
+      mapScaleBadge = document.createElement('span'); mapScaleBadge.className = 'tw-map-scale';
+      h.appendChild(title); h.appendChild(mapScaleBadge);
       canvas = document.createElement('canvas');
       canvas.addEventListener('click', onMapClick);
-      mapWrap.appendChild(h); mapWrap.appendChild(canvas);
+      mapResizeHandle = document.createElement('div');
+      mapResizeHandle.className = 'tw-map-resize';
+      mapResizeHandle.title = 'Resize map';
+      mapWrap.appendChild(h); mapWrap.appendChild(canvas); mapWrap.appendChild(mapResizeHandle);
       document.body.appendChild(mapWrap);
       restoreMapPos();
       makeMapDraggable(h);
+      makeMapResizable(mapResizeHandle);
       ctx = canvas.getContext('2d');
       drawMinimap();
     }
     function hideMinimap() { if (mapWrap) mapWrap.style.display = 'none'; }
+
+    function clampMapScale(v) {
+      v = Number(v);
+      if (!Number.isFinite(v)) v = 1;
+      return Math.max(MAP_MIN_SCALE, Math.min(MAP_MAX_SCALE, v));
+    }
+    function readMapScale() {
+      try { return clampMapScale(localStorage.getItem(MAP_SCALE_LS) || 1); } catch (_) { return 1; }
+    }
+    function writeMapScale(v) {
+      mapScale = clampMapScale(v);
+      try { localStorage.setItem(MAP_SCALE_LS, String(mapScale)); } catch (_) {}
+      applyMapScale();
+    }
+    function applyMapScale() {
+      if (!canvas) return;
+      const base = Math.max(1, gridSize * CELL);
+      const px = Math.max(1, Math.round(base * clampMapScale(mapScale)));
+      canvas.style.width = px + 'px';
+      canvas.style.height = px + 'px';
+      if (mapScaleBadge) mapScaleBadge.textContent = Math.round(clampMapScale(mapScale) * 100) + '%';
+    }
+    function makeMapResizable(handle) {
+      if (!handle || !mapWrap) return;
+      let startX = 0, startY = 0, startW = 0, resizing = false;
+      handle.addEventListener('pointerdown', (e) => {
+        resizing = true;
+        const r = canvas ? canvas.getBoundingClientRect() : mapWrap.getBoundingClientRect();
+        startX = e.clientX; startY = e.clientY; startW = Math.max(1, r.width);
+        try { handle.setPointerCapture(e.pointerId); } catch (_) {}
+        e.preventDefault(); e.stopPropagation();
+      });
+      handle.addEventListener('pointermove', (e) => {
+        if (!resizing || !canvas) return;
+        const base = Math.max(1, gridSize * CELL);
+        const delta = Math.max(e.clientX - startX, e.clientY - startY);
+        mapScale = clampMapScale((startW + delta) / base);
+        applyMapScale();
+        e.preventDefault(); e.stopPropagation();
+      });
+      const end = (e) => {
+        if (!resizing) return;
+        resizing = false;
+        writeMapScale(mapScale);
+        if (e) { e.preventDefault(); e.stopPropagation(); }
+      };
+      handle.addEventListener('pointerup', end);
+      handle.addEventListener('pointercancel', end);
+    }
 
     function restoreMapPos() {
       try {
@@ -1358,8 +1422,10 @@
   
     function onMapClick(e) {
       const rect = canvas.getBoundingClientRect();
-      const cx = Math.floor((e.clientX - rect.left) / CELL);
-      const cz = Math.floor((e.clientY - rect.top) / CELL);
+      const sx = rect.width > 0 ? rect.width / Math.max(1, gridSize) : CELL;
+      const sz = rect.height > 0 ? rect.height / Math.max(1, gridSize) : CELL;
+      const cx = Math.floor((e.clientX - rect.left) / sx);
+      const cz = Math.floor((e.clientY - rect.top) / sz);
       if (cx < 0 || cz < 0 || cx >= gridSize || cz >= gridSize) return;
       // Walk (auto-path) to the clicked tile; the server still validates each
       // one-cell step. Arrow/WASD keys interrupt the walk.
@@ -1601,12 +1667,27 @@
     // AFTER the join envelope is sent), so the seed must be a local id.
     const AVATAR_VOXEL_LS = 'tinyworld:multiplayer:avatar-voxel-seed';
     const AVATAR_VOXEL_DESC_LS = 'tinyworld:multiplayer:avatar-voxel';
+    function numericSeedFromString(s) {
+      s = String(s == null ? 'avatar' : s);
+      let h = 2166136261 >>> 0;
+      for (let i = 0; i < s.length; i++) {
+        h ^= s.charCodeAt(i);
+        h = Math.imul(h, 16777619) >>> 0;
+      }
+      return h >>> 0;
+    }
     function stableVoxelSeed() {
       try {
         let v = localStorage.getItem(AVATAR_VOXEL_LS);
-        if (!v) { v = 'v' + Math.floor(Math.random() * 1e9).toString(36); localStorage.setItem(AVATAR_VOXEL_LS, v); }
-        return v;
-      } catch (_) { return 'v' + Math.floor(Math.random() * 1e9).toString(36); }
+        if (!v) { v = String(Math.floor(Math.random() * 0xffffffff) >>> 0); localStorage.setItem(AVATAR_VOXEL_LS, v); }
+        const n = Number(v);
+        if (Number.isFinite(n)) return n >>> 0;
+        // Migrate older string seeds ("vabc123") to a numeric seed so the server
+        // and voxel rig do not collapse every default avatar to seed 0.
+        const migrated = numericSeedFromString(v);
+        localStorage.setItem(AVATAR_VOXEL_LS, String(migrated));
+        return migrated;
+      } catch (_) { return Math.floor(Math.random() * 0xffffffff) >>> 0; }
     }
     function readStoredAvatarDescriptor() {
       try {
@@ -1843,7 +1924,7 @@
       const isDesc = idOrDescriptor && typeof idOrDescriptor === 'object';
       const voxOpts = isDesc
         ? idOrDescriptor
-        : { seed: (idOrDescriptor != null ? idOrDescriptor : ('a' + Math.floor(Math.random() * 1e9))) };
+        : { seed: numericSeedFromString(idOrDescriptor != null ? idOrDescriptor : ('a' + Math.floor(Math.random() * 1e9))) };
       const ent = { x: 0, z: 0, sector: 0, lastMove: 0, lastDx: 0, lastDz: 0, state: 'idle', frame: 0, frameTime: 0, tex: {}, sprite: null, voxel: null, disposed: false, avatarClassName };
       if (typeof THREE === 'undefined') { avatarError('THREE unavailable'); return ent; }
       if (voxelAvatarsOn()) {
@@ -2096,7 +2177,7 @@
     const BUBBLE_MS = 5200;        // visible before fade
     const BUBBLE_FADE_MS = 700;    // fade-out tail
     const BUBBLE_MAX_CHARS = 90;   // cap the shown text
-    const BUBBLE_HEAD_Y = 1.55;    // world-units above the avatar's feet
+    const BUBBLE_HEAD_Y = 1.24;    // world-units above the avatar's feet; tail sits just above the head
     let bubbleFontReady = false;
     (function preloadBubbleFont() {
       try {
@@ -2120,6 +2201,28 @@
       ctx.arcTo(x + w, y + h, x, y + h, r);
       ctx.arcTo(x, y + h, x, y, r);
       ctx.arcTo(x, y, x + w, y, r);
+      ctx.closePath();
+    }
+    function speechBubblePath(ctx, x, y, w, h, r, tailHalf, tailH) {
+      r = Math.min(r, w / 2, h / 2);
+      const right = x + w;
+      const bottom = y + h;
+      const cx = x + w / 2;
+      // Body and pointer are one path, so neither the tail base nor the body
+      // bottom stroke draws a visible seam between the arrow and the bubble.
+      ctx.beginPath();
+      ctx.moveTo(x + r, y);
+      ctx.lineTo(right - r, y);
+      ctx.quadraticCurveTo(right, y, right, y + r);
+      ctx.lineTo(right, bottom - r);
+      ctx.quadraticCurveTo(right, bottom, right - r, bottom);
+      ctx.lineTo(cx + tailHalf, bottom);
+      ctx.lineTo(cx, bottom + tailH);
+      ctx.lineTo(cx - tailHalf, bottom);
+      ctx.lineTo(x + r, bottom);
+      ctx.quadraticCurveTo(x, bottom, x, bottom - r);
+      ctx.lineTo(x, y + r);
+      ctx.quadraticCurveTo(x, y, x + r, y);
       ctx.closePath();
     }
     function wrapBubbleLines(ctx, text, maxW) {
@@ -2151,16 +2254,8 @@
       ctx.font = font; ctx.textBaseline = 'top';
       ctx.clearRect(0, 0, cw, ch);
       ctx.fillStyle = '#fdfcf7'; ctx.strokeStyle = '#1b2a4a'; ctx.lineWidth = LW;
-      roundRectPath(ctx, LW, LW, cw - LW * 2, bodyH - LW * 2, R);
+      speechBubblePath(ctx, LW, LW, cw - LW * 2, bodyH - LW * 2, R, TAIL, TAIL);
       ctx.fill(); ctx.stroke();
-      const cx = cw / 2;           // downward tail at center
-      ctx.beginPath();
-      ctx.moveTo(cx - TAIL, bodyH - LW);
-      ctx.lineTo(cx + TAIL, bodyH - LW);
-      ctx.lineTo(cx, bodyH - LW + TAIL);
-      ctx.closePath();
-      ctx.fillStyle = '#fdfcf7'; ctx.fill();
-      ctx.strokeStyle = '#1b2a4a'; ctx.stroke();
       ctx.fillStyle = '#1b2a4a';
       for (let i = 0; i < lines.length; i++) ctx.fillText(lines[i], PAD, PAD + i * LH);
       if (ent.bubble.texture) ent.bubble.texture.dispose();
@@ -2304,6 +2399,7 @@
     function drawMinimap() {
       if (!ctx || !canvas) return;
       canvas.width = gridSize * CELL; canvas.height = gridSize * CELL;
+      applyMapScale();
       ctx.fillStyle = '#13243f'; ctx.fillRect(0, 0, canvas.width, canvas.height);
       // base grass
       ctx.fillStyle = '#3f8f53'; ctx.fillRect(0, 0, canvas.width, canvas.height);

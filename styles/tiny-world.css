@@ -5705,6 +5705,7 @@
     display: inline-flex; align-items: center; justify-content: center;
     opacity: 0; transition: opacity 0.12s, background 0.12s, color 0.12s;
   }
+  .world-menu-slot .slot-delete[hidden] { display: none !important; }
   .world-menu-slot:hover .slot-delete { opacity: 1; }
   .world-menu-slot .slot-delete:hover { color: #b84838; background: var(--line); }
   .world-menu-empty {

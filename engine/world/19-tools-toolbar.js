@@ -1150,10 +1150,17 @@
         deleteBtn.title = 'Delete template';
         deleteBtn.setAttribute('aria-label', 'Delete template ' + tool.label);
         deleteBtn.textContent = '×';
-        deleteBtn.addEventListener('click', e => {
+        deleteBtn.addEventListener('click', async e => {
           e.preventDefault();
           e.stopPropagation();
-          if (!confirm('Delete template "' + tool.label + '"?')) return;
+          const confirmed = await window.twConfirm({
+            title: 'Delete template?',
+            message: 'Delete template "' + tool.label + '"?',
+            details: 'This removes the reusable stamp template from this browser.',
+            confirmLabel: 'Delete',
+            intent: 'danger',
+          });
+          if (!confirmed) return;
           deleteAssetTemplate(tool.assetTemplateId);
         });
         card.appendChild(deleteBtn);

@@ -58,13 +58,16 @@
     const g = new THREE.Group();
     const wood = new THREE.MeshLambertMaterial({ color: 0x9c6b3f });
     const leg = new THREE.MeshLambertMaterial({ color: 0x6f6a60 });
-    const seat = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.08, 0.5), wood);
-    seat.position.y = 0.42; g.add(seat);
-    const back = new THREE.Mesh(new THREE.BoxGeometry(1.8, 0.4, 0.08), wood);
-    back.position.set(0, 0.66, -0.21); g.add(back);
-    for (const sx of [-0.78, 0.78]) {
-      const l = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.42, 0.42), leg);
-      l.position.set(sx, 0.21, 0); g.add(l);
+    // Human-scale relative to the voxel avatars: enough for two sitters, but
+    // intentionally much smaller than one terrain tile so it does not read like
+    // a billboard/wall in the lobby.
+    const seat = new THREE.Mesh(new THREE.BoxGeometry(0.92, 0.055, 0.28), wood);
+    seat.position.y = 0.24; g.add(seat);
+    const back = new THREE.Mesh(new THREE.BoxGeometry(0.92, 0.24, 0.055), wood);
+    back.position.set(0, 0.39, -0.12); g.add(back);
+    for (const sx of [-0.38, 0.38]) {
+      const l = new THREE.Mesh(new THREE.BoxGeometry(0.075, 0.24, 0.22), leg);
+      l.position.set(sx, 0.12, 0); g.add(l);
     }
     g.traverse(o => { if (o.isMesh) { o.castShadow = true; o.receiveShadow = true; } });
     return g;
@@ -89,10 +92,10 @@
       bench.rotation.y = b.rot;
       _lbnGroup.add(bench);
       // two seats per bench, offset along local x, facing the bench's forward (+z rotated)
-      for (const ox of [-0.45, 0.45]) {
+      for (const ox of [-0.23, 0.23]) {
         const lx = b.x + Math.cos(b.rot) * ox;
         const lz = b.z + Math.sin(b.rot) * ox;
-        _lbnSeats.push({ x: lx, y: 0.46, z: lz, heading: b.rot });
+        _lbnSeats.push({ x: lx, y: 0.28, z: lz, heading: b.rot });
       }
     }
   }

@@ -159,6 +159,18 @@ function cleanSelection(value) {
 const VOXEL_HAIRS = ['Buzz', 'Short', 'Spike', 'Mohawk', 'Curls', 'Page', 'Bob', 'Tail', 'Knot', 'Bald'];
 const VOXEL_OUTFITS = ['Casual', 'Formal', 'Scout', 'Sport', 'Rogue', 'Barbarian', 'Knight', 'Archer', 'Mage', 'Miner', 'Skyfarer', 'HoodedRogue'];
 const VOXEL_GEARS = ['None', 'Sword', 'Bow', 'Shield', 'SwordShield', 'Axe', 'Staff', 'Pickaxe'];
+function avatarSeedFromId(id) {
+  const s = String(id == null ? 'player' : id);
+  let h = 2166136261 >>> 0;
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i);
+    h = Math.imul(h, 16777619) >>> 0;
+  }
+  return h >>> 0;
+}
+function defaultAvatarForId(id) {
+  return { kind: 'voxel', seed: avatarSeedFromId(id) };
+}
 function cleanAvatar(input) {
   if (!input || typeof input !== 'object' || Array.isArray(input)) return null;
   if (input.kind !== 'voxel') return null;
@@ -960,7 +972,7 @@ export default class TinyWorldParty {
     let p = this.players.get(id);
     if (!p) {
       const spawn = this.safeSpawn();
-      p = { x: spawn.x, z: spawn.z, hearts: HEART_MAX, lastRegenAt: Date.now(), cooldowns: {}, profileId: null, role: 'observe', name: 'Builder', color: '#3c82f7', avatar: null, busyUntil: 0, busyNode: null, busyAction: null, busySeq: 0 };
+      p = { x: spawn.x, z: spawn.z, hearts: HEART_MAX, lastRegenAt: Date.now(), cooldowns: {}, profileId: null, role: 'observe', name: 'Builder', color: '#3c82f7', avatar: defaultAvatarForId(id), busyUntil: 0, busyNode: null, busyAction: null, busySeq: 0 };
       this.players.set(id, p);
     }
     const reg = heartsNow(p.hearts, p.lastRegenAt, Date.now());
@@ -1050,10 +1062,11 @@ export default class TinyWorldParty {
       p.profileId = profileId;
       p.name = cleanText(data.name, 48) || p.name;
       if (/^#[0-9a-f]{6}$/i.test(String(data.color || ''))) p.color = data.color;
-      // Networked avatar identity: validate the untrusted descriptor; a rejected one
-      // leaves p.avatar null so peers fall back to an id-seed look (still distinct).
+      // Networked avatar identity: validate the untrusted descriptor. If a fresh
+      // visitor has not picked one yet, keep a deterministic non-null voxel default
+      // so the lobby always renders a visible player avatar immediately.
       const av = cleanAvatar(data.avatar);
-      if (av) p.avatar = av;
+      p.avatar = av || p.avatar || defaultAvatarForId(profileId || id);
       const spawn = this.safeSpawn();
       p.x = spawn.x; p.z = spawn.z;
       this.presence.set(id, this.presenceFor(id));

@@ -450,6 +450,9 @@ test('world.avatar updates the live presence descriptor', async () => {
   const p2 = connect('p2');
   await party.onWorldMessage({ type: 'world.join', role: 'play', profileId: 7, avatar: { kind: 'voxel', seed: 11, fit: 'Scout', gear: 'Sword' } }, p1);
   await party.onWorldMessage({ type: 'world.join', role: 'play', profileId: 8 }, p2);
+  const initial = p2.received.find(m => m.type === 'world.state');
+  assert.ok(initial.you.avatar && initial.you.avatar.kind === 'voxel', 'join with no explicit avatar still gets a visible default voxel avatar');
+  assert.equal(typeof initial.you.avatar.seed, 'number', 'default avatar seed is numeric for the voxel rig');
   p2.received.length = 0;
   const avatar = { kind: 'voxel', seed: 22, body: 'Fem', skin: 2, hairC: 4, hair: 'Bald', fit: 'Archer', head: 'Slim', height: 1.13, build: -2, gear: 'Bow' };
   await party.onWorldMessage({ type: 'world.avatar', avatar }, p1);
