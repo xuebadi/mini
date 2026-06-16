@@ -161,6 +161,16 @@
         .tw-play-chat-you { font-size: 9px; color: rgba(160,190,240,.55); background: rgba(80,110,200,.15);
           border: 1px solid rgba(80,110,200,.2); border-radius: 4px; padding: 1px 4px; flex-shrink: 0; }
 
+        /* @mention chips (inline) + the special @lobby broadcast chip. */
+        .tw-chat-at { color: #a8c8ff; font-weight: 700; background: rgba(80,130,230,.16); border-radius: 4px; padding: 0 3px; }
+        .tw-chat-at.is-lobby { color: #ffd27f; background: rgba(255,190,90,.16); }
+        /* A message that @-mentions the local player: accent border + glow (the "notification"). */
+        body.tw-worlds-play .mp-chat-msg.is-mention {
+          background: rgba(60,90,180,.4);
+          border-color: rgba(120,160,255,.6);
+          box-shadow: 0 0 0 1px rgba(120,160,255,.4), 0 0 14px -4px rgba(120,160,255,.55);
+        }
+
         /* Clickable names — zoom-to-player affordance. */
         body.tw-worlds-play .mp-chat-name.tw-chat-clickable,
         .tw-play-chat-pname.tw-chat-clickable { cursor: pointer; text-decoration: underline; text-decoration-color: transparent; transition: text-decoration-color .1s; }
@@ -256,6 +266,47 @@
     }
 
     function isVisible() { return !!panelEl && panelEl.classList.contains('visible'); }
+
+    // ---- @mentions ----------------------------------------------------------
+    // Handles the local player answers to: their full display name with spaces/
+    // punctuation stripped, and their first word. Lets others type @Name or @FullName.
+    function selfHandles() {
+      const n = String((typeof WS.playerName === 'function' ? WS.playerName() : '') || '').toLowerCase();
+      if (!n) return [];
+      const stripped = n.replace(/[^a-z0-9]/g, '');
+      const first = n.split(/\s+/)[0] || '';
+      return Array.from(new Set([stripped, first].filter(Boolean)));
+    }
+    // Does `text` @-mention the local player? (`@lobby` is the screen-broadcast keyword, never a person.)
+    function textMentionsMe(text) {
+      const handles = selfHandles();
+      if (!handles.length) return false;
+      const re = /@([a-z0-9_]+)/gi;
+      let m;
+      while ((m = re.exec(String(text || '')))) {
+        const tok = m[1].toLowerCase();
+        if (tok === 'lobby') continue;
+        if (handles.includes(tok)) return true;
+      }
+      return false;
+    }
+    // Render chat text into `el`, turning @tokens into styled chips. DOM-built (no
+    // innerHTML) so message text can never inject markup.
+    function renderChatText(el, text) {
+      el.textContent = '';
+      const str = String(text == null ? '' : text);
+      const re = /@([a-z0-9_]+)/gi;
+      let last = 0, m;
+      while ((m = re.exec(str))) {
+        if (m.index > last) el.appendChild(document.createTextNode(str.slice(last, m.index)));
+        const chip = document.createElement('span');
+        chip.className = 'tw-chat-at' + (m[1].toLowerCase() === 'lobby' ? ' is-lobby' : '');
+        chip.textContent = '@' + m[1];
+        el.appendChild(chip);
+        last = m.index + m[0].length;
+      }
+      if (last < str.length) el.appendChild(document.createTextNode(str.slice(last)));
+    }
 
     function loadSize() {
       try {
@@ -591,8 +642,10 @@
       if (!logEl) return;
       const currentId = (typeof WS.getMyId === 'function' ? WS.getMyId() : null) || myId;
       const self = d.id && d.id === currentId;
+      // A message that @-mentions us (and isn't our own) is highlighted as a notification.
+      const mentionsMe = !self && textMentionsMe(d.text);
       const row = document.createElement('div');
-      row.className = 'mp-chat-msg' + (self ? ' is-self' : '');
+      row.className = 'mp-chat-msg' + (self ? ' is-self' : '') + (mentionsMe ? ' is-mention' : '');
       if (d.mid) row.dataset.mid = d.mid;
 
       // Quoted parent (denormalized on the message — renders even if we never
@@ -652,7 +705,7 @@
 
       const textEl = document.createElement('div');
       textEl.className = 'mp-chat-text';
-      textEl.textContent = d.text;
+      renderChatText(textEl, d.text);
 
       row.appendChild(meta);
       row.appendChild(textEl);

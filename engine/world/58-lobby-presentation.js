@@ -51,6 +51,15 @@
     let _autoAdvT = 0;
     const AUTO_ADVANCE = 7.0;     // auto-advance slides while presenting (host-free ambience)
 
+    // ---- @lobby broadcast strip ----
+    // A `@lobby <message>` chat line projects onto the screen as a banner strip pinned
+    // to its lower edge (the sender's color+initials disc + name + message). Slides/feeds
+    // keep playing underneath — the strip is a separate, always-on-top plane that fades
+    // in, holds, then fades out. Concurrent posts queue.
+    let lobbyCanvas = null, lobbyCtx = null, lobbyTex = null, lobbyMat = null, lobbyMesh = null;
+    let lobbyQueue = [], lobbyShowing = false, lobbyT = 0;
+    const LOBBY_DWELL = 7.0, LOBBY_FADE = 0.5;
+
     function parentNode() {
       if (typeof worldGroup !== 'undefined' && worldGroup) return worldGroup;
       if (typeof xrWorldRoot !== 'undefined' && xrWorldRoot) return xrWorldRoot;
@@ -136,6 +145,24 @@
       group.add(screen);
       screenMesh = screen;
       slideMat = screen.material;
+
+      // @lobby broadcast strip — its own plane just in front of the screen's lower edge,
+      // independent of the slide/feed material so it shows over either.
+      const OCW = 1024, OCH = 200;
+      lobbyCanvas = document.createElement('canvas');
+      lobbyCanvas.width = OCW; lobbyCanvas.height = OCH;
+      lobbyCtx = lobbyCanvas.getContext('2d');
+      lobbyTex = new THREE.CanvasTexture(lobbyCanvas);
+      if ('colorSpace' in lobbyTex && THREE.SRGBColorSpace) lobbyTex.colorSpace = THREE.SRGBColorSpace;
+      const OW = W, OH = OW * OCH / OCW;                 // strip plane, matches canvas aspect
+      lobbyMat = new THREE.MeshBasicMaterial({ map: lobbyTex, transparent: true, opacity: 0, toneMapped: false, depthTest: false });
+      const overlay = new THREE.Mesh(new THREE.PlaneGeometry(OW, OH), lobbyMat);
+      overlay.position.set(0, bottom + OH / 2 + 0.06, 0.05);   // pinned at the screen's bottom, slightly in front
+      overlay.renderOrder = 5;
+      overlay.visible = false;
+      overlay.name = 'lobbyBroadcast';
+      group.add(overlay);
+      lobbyMesh = overlay;
 
       const frame = new THREE.Mesh(
         new THREE.BoxGeometry(W + 0.34, H + 0.34, 0.16),
@@ -224,7 +251,13 @@
       ensureControls(true);
       return true;
     }
-    function hide() { if (group) group.visible = false; ensureControls(false); showSlides(); }
+    function hide() {
+      if (group) group.visible = false;
+      ensureControls(false);
+      showSlides();
+      lobbyQueue.length = 0; lobbyShowing = false;
+      if (lobbyMesh) lobbyMesh.visible = false;
+    }
 
     function clamp(i) { return Math.max(0, Math.min(SLIDES.length - 1, i)); }
     function applySlide(i) { idx = clamp(i); renderSlide(); }    // local render only (incoming sync path)
@@ -303,10 +336,70 @@
     }
     function setCycle(on) { cycleOn = !!on; if (!cycleOn) showSlides(); }
 
+    // ---- @lobby broadcast strip ---------------------------------------------
+    function lobbyInitials(name) {
+      const parts = String(name || '?').trim().split(/\s+/);
+      return (parts.length > 1 ? parts[0][0] + parts[1][0] : parts[0].slice(0, 2)).toUpperCase();
+    }
+    function lobbyClip(s, n) { s = String(s || ''); return s.length > n ? s.slice(0, n - 1) + '…' : s; }
+    function lobbyRRect(c, x, y, w, h, r) {
+      c.beginPath();
+      c.moveTo(x + r, y);
+      c.arcTo(x + w, y, x + w, y + h, r); c.arcTo(x + w, y + h, x, y + h, r);
+      c.arcTo(x, y + h, x, y, r); c.arcTo(x, y, x + w, y, r);
+      c.closePath();
+    }
+    function renderLobbyStrip(d) {
+      if (!lobbyCtx) return;
+      const W2 = 1024, H2 = 200, c = lobbyCtx, col = d.color || '#5a78e0';
+      c.clearRect(0, 0, W2, H2);
+      c.fillStyle = 'rgba(6,10,24,0.82)'; lobbyRRect(c, 24, 24, W2 - 48, H2 - 48, 18); c.fill();   // panel
+      c.fillStyle = col; lobbyRRect(c, 24, 24, 12, H2 - 48, 6); c.fill();                          // accent bar
+      const cx = 122, cy = H2 / 2, r = 58;                                                          // avatar disc
+      c.beginPath(); c.arc(cx, cy, r, 0, Math.PI * 2); c.closePath();
+      c.fillStyle = col; c.fill();
+      c.lineWidth = 4; c.strokeStyle = 'rgba(255,255,255,0.35)'; c.stroke();
+      c.fillStyle = '#fff'; c.textAlign = 'center'; c.textBaseline = 'middle';
+      c.font = '700 46px "Space Grotesk", system-ui, sans-serif';
+      c.fillText(lobbyInitials(d.name), cx, cy + 2);
+      c.textAlign = 'left';                                                                          // name + message
+      c.fillStyle = col; c.font = '700 34px "Space Grotesk", system-ui, sans-serif';
+      c.fillText(lobbyClip(d.name || 'Player', 22), 214, 80);
+      c.fillStyle = '#eaf2ff'; c.font = '500 40px "Space Grotesk", system-ui, sans-serif';
+      c.fillText(lobbyClip(d.text || '', 40), 214, 140);
+      if (lobbyTex) lobbyTex.needsUpdate = true;
+    }
+    function startNextLobby() {
+      const d = lobbyQueue.shift();
+      if (!d) { lobbyShowing = false; if (lobbyMesh) lobbyMesh.visible = false; return; }
+      lobbyShowing = true; lobbyT = 0;
+      renderLobbyStrip(d);
+      if (lobbyMat) lobbyMat.opacity = 0;
+      if (lobbyMesh) lobbyMesh.visible = true;
+    }
+    function showLobbyMessage(d) {
+      if (!d || !String(d.text || '').trim()) return;
+      lobbyQueue.push({ name: d.name, color: d.color, text: String(d.text).trim() });
+      if (!lobbyShowing) startNextLobby();
+    }
+    // Parse `@lobby <message>` (the screen-broadcast keyword) out of a chat line.
+    function parseLobbycast(text) {
+      const m = String(text || '').match(/^\s*@lobby\b[:\s]*(.*)$/i);
+      return m ? m[1].trim() : '';
+    }
+
     // Called each frame from the animation loop (wired in 25). Auto-advances the
     // deck and, when cameras exist, cuts to the hottest feed then back to slides.
     function tick(t, dt) {
       if (!group || !group.visible) return;
+      // @lobby strip lifecycle — fade in, hold, fade out (runs regardless of slide/feed phase).
+      if (lobbyShowing && lobbyMat) {
+        lobbyT += dt;
+        const fIn = Math.min(1, lobbyT / LOBBY_FADE);
+        const fOut = Math.min(1, Math.max(0, LOBBY_DWELL - lobbyT) / LOBBY_FADE);
+        lobbyMat.opacity = Math.max(0, Math.min(fIn, fOut));
+        if (lobbyT >= LOBBY_DWELL) startNextLobby();
+      }
       const cc = window.__tinyworldCCTV;
       const haveFeeds = cc && cc.feeds && cc.feeds().length;
       // gentle auto-advance of slides for host-free ambience (only in slides phase)
@@ -340,7 +433,12 @@
       // Synced slide from the room (server echo of any presenter's advance) -> apply
       // locally WITHOUT rebroadcasting, so all clients converge without a feedback loop.
       WS.on('present', (d) => { if (d && typeof d.slide === 'number') applySlide(d.slide); });
+      // `@lobby <message>` chat lines project onto the screen. Chat is broadcast to every
+      // client, so each one renders the strip locally (incl. the sender) — no server change.
+      WS.on('chat', (d) => {
+        try { const msg = parseLobbycast(d && d.text); if (msg) showLobbyMessage({ name: d.name, color: d.color, text: msg }); } catch (_) {}
+      });
     }
 
-    window.__tinyworldLobby = { show, hide, build, setSlides, next, prev, go, group: () => group, slideCount: () => SLIDES.length, current: () => idx, tick, setCycle, showSlides, showFeed, liveFeed: () => liveFeedId };
+    window.__tinyworldLobby = { show, hide, build, setSlides, next, prev, go, group: () => group, slideCount: () => SLIDES.length, current: () => idx, tick, setCycle, showSlides, showFeed, liveFeed: () => liveFeedId, showLobbyMessage };
   })();
