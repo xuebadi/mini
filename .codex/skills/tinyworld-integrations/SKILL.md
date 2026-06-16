@@ -25,10 +25,17 @@ backend:
   owner of every room each request via `ensureCommunityDefaults`. Only staff
   (super-owner / `TINYWORLD_COMMUNITY_STAFF`) or a room owner can create/delete
   channels and ban; the same `admin` flag gates every privileged action.
-  `community.html` signs users in **in-page** (no bounce to the builder): it
-  loads `vendor/tinyworld-auth.js` via the import map for Netlify Identity email
-  login/signup and calls `/api/wallet` for Phantom login, storing the session
-  under the shared `tinyworld:auth:wallet-session.v1` key.
+  Members must pass an anti-AI human check (`community_verifications`) AND have a
+  mandatory **Twitter/X handle** on their profile (GitHub optional) before they
+  can post/DM/join — `saveSocials` writes the bare handles to
+  `profiles.twitter`/`profiles.github` (idempotent `ALTER TABLE ... ADD COLUMN`
+  in `ensureTables`; migration `20260615020000_add_profile_socials.sql`).
+  Bootstrap returns `me.profileComplete`; the page shows a forced
+  "Complete your profile" modal until Twitter is set and renders both handles on
+  profile cards. `community.html` signs users in **in-page** (no bounce to the
+  builder): it loads `vendor/tinyworld-auth.js` via the import map for Netlify
+  Identity email login/signup and calls `/api/wallet` for Phantom login, storing
+  the session under the shared `tinyworld:auth:wallet-session.v1` key.
 - Community moderation webhook: `community-webhook.mjs` (`/api/community/webhook`)
   is a server-to-server endpoint for an agent (Hermes) to ban/unban/block/delete
   messages/purge spam/delete rooms. Auth is a shared secret
