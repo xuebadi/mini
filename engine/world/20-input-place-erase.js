@@ -172,6 +172,14 @@
     if (!selectedTool || selectedTool.select || selectedTool.auto || selectedTool.island || selectedTool.mooring) return false;
     const selectedCoords = sel.materialize ? sel.materialize() : (sel.worldCoords ? sel.worldCoords() : []);
     if (!selectedCoords.length) return false;
+    // Asset-template tools no-op when their template clipboard is missing/invalid
+    // (handler's static false path). This lookup is read-only — no mutation. The
+    // runtime "no placement succeeded" outcome is NOT statically knowable and is
+    // covered by the dispatcher's failure toast, so it is deliberately not here.
+    if (selectedTool.kind === 'asset-template') {
+      const template = selectedTool.assetTemplate || assetTemplateById(selectedTool.assetTemplateId || selectedAssetTemplateId);
+      if (!normalizeClipboardPayload(template && template.clipboard)) return false;
+    }
     return true;
   }
 

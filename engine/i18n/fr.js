@@ -327,6 +327,7 @@
     'props.gate.nothingCopied': 'Rien de copié pour l’instant',
     'props.gate.noTemplate': 'Aucun modèle enregistré',
     'props.gate.voxelOnly': 'Pièces voxel uniquement',
+    'props.gate.emptyTemplate': 'Le modèle est vide',
     'props.action.failed': 'Rien à faire ici',
   };
 }());
