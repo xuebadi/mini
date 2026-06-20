@@ -84,6 +84,22 @@ export default async function worldResourcesFunction(request) {
         if (!Number.isInteger(profileId) || profileId < 1) continue;
         const delta = cleanDelta(raw);
         if (hasAny(delta)) await addResources(sql, profileId, delta);
+// ---- GOLD ledger events from authoritative room (mmo-core) ----
+    const goldEvents = (body && body.goldEvents) || {};
+    for (const [wallet, events] of Object.entries(goldEvents)) {
+      if (!Array.isArray(events)) continue;
+      for (const ev of events) {
+        if (!ev || !ev.type || !ev.amount) continue;
+        try {
+          await sql`
+            INSERT INTO gold_ledger_events (wallet, cycle_id, type, amount, reason, reference_id)
+            VALUES (${wallet}, ${ev.cycleId || "weekly:0"}, ${ev.type}, ${ev.amount}, ${ev.reason || null}, ${ev.referenceId || null})
+            ON CONFLICT DO NOTHING
+          `;
+        } catch (e) { /* table may not exist in all envs */ }
+      }
+    }
+
       }
 
       // Owner tax payouts: credit the owner's balance AND record tax history.

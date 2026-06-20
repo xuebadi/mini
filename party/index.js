@@ -1348,6 +1348,14 @@ export default class TinyWorldParty {
     const split = taxSplit(GROSS_REWARD, taxPercent, isOwner);
     this.accrueResource(p.profileId, resource, split.harvester);
     if (split.owner > 0 && ownerId != null) this.accrueTax(this.world.id, ownerId, resource, split.owner);
+    // GOLD via mmo-core (real)
+    try {
+      if (!this.pendingGold) this.pendingGold = new Map();
+      const wkey = "profile:" + (p.profileId || id);
+      const ev = {type:"ALLOWANCE_RECALCULATED", wallet:wkey, cycleId:"weekly:"+Math.floor(Date.now()/(7*86400000)), amount:10, reason:"harvest", referenceId:"h"+Date.now()};
+      const arr = this.pendingGold.get(wkey)||[]; arr.push(ev); this.pendingGold.set(wkey, arr);
+    } catch(e){}
+
 
     // Cooldown + clear busy.
     p.cooldowns[action] = Date.now() + ACTION_COOLDOWN_MS;
@@ -1394,7 +1402,7 @@ export default class TinyWorldParty {
   }
 
   hasPending() {
-    return this.pendingResources.size > 0 || this.pendingTax.size > 0;
+    return this.pendingResources.size > 0 || this.pendingTax.size > 0 || (this.pendingGold && this.pendingGold.size > 0);
   }
 
   // Flush whole-unit resource + tax deltas to the durable bank. Cleared only on
@@ -1417,7 +1425,7 @@ export default class TinyWorldParty {
       const res = await fetch(base + '/api/worlds/resources', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-worlds-token': token },
-        body: JSON.stringify({ resources, taxPayouts }),
+        body: JSON.stringify({ resources, taxPayouts, goldEvents: Object.fromEntries(this.pendingGold || new Map()) }),
       });
       if (res.ok) { this.pendingResources.clear(); this.pendingTax.clear(); }
     } catch (_) { /* keep buffered for the next flush */ }
