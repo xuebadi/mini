@@ -440,6 +440,12 @@ We have started wiring comfort/modifiers into deriveWorldState and node rates. N
 - If WS feels flaky: check the room slug in Network WS frames.
 - Performance tab (optional): record a harvest + interest tick to spot heavy work.
 
+
+**Valheim-style feel testing (add to Chrome plan):**
+- Visit several default rich islands and note differences (one should feel "fishing heavy", one "artifact rich", one with settlement).
+- On a high-comfort island, harvest and check if nodes respawn noticeably faster or GOLD interest feels better.
+- Leave a high-comfort island and see if any temporary buff is mentioned in console or future UI.
+
 **Known current limitations (do not fail the test on these)**:
 - Admin grants must be done on the main prod site (preview admin DB is unavailable by design).
 - $TW may be a demo "22m" value until real wallet holdings are wired.
