@@ -1,0 +1,27 @@
+# 忽略文件
+node_modules/
+.env
+.env.example
+.git/
+
+# 开发相关
+.claude/
+.codesurf/
+.codex/
+.openclaude/
+.planning/
+.polly/
+agents/
+packages/
+
+# 临时文件
+*.log
+*.tmp
+.DS_Store
+Thumbs.db
+
+# 文档（可选，如果需要可以取消注释）
+# docs/
+# .next/
+# dist/
+# build/
