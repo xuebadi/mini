@@ -1,210 +1,141 @@
-# Tiny World Builder
+<p align="center">
+  <img src="https://img.shields.io/badge/语言-中文版-green" alt="中文版">
+  <img src="https://img.shields.io/badge/Three.js-r128-blue" alt="Three.js">
+  <img src="https://img.shields.io/badge/许可证-AGPL--3.0-orange" alt="License">
+  <img src="https://img.shields.io/badge/状态-可用-brightgreen" alt="Status">
+</p>
 
-[![GitHub stars](https://img.shields.io/github/stars/jasonkneen/tiny-world-builder?style=flat&logo=github&label=Stars&color=3a72c8)](https://github.com/jasonkneen/tiny-world-builder/stargazers)
+<h1 align="center">🌍 小宇宙 Builder</h1>
 
-![Tiny World Builder](assets/landing-hero.png)
+<p align="center">
+  <strong>Tiny World Builder 中文版</strong><br>
+  在浏览器中建造你的像素小世界
+</p>
 
-A self-contained 3D voxel world editor in the browser: build, sculpt, fly
-through, and share tiny worlds.
+<p align="center">
+  <a href="#快速开始">🚀 快速开始</a> • <a href="#功能特性">✨ 功能特性</a> • <a href="#操作指南">🎮 操作指南</a> • <a href="#常见问题">❓ 常见问题</a>
+</p>
 
-| Build | Fly |
-| --- | --- |
-| ![Build worlds](assets/landing-feature-build.png) | ![Fly and explore](assets/landing-feature-fly.png) |
-| Place terrain, props, homes, paths, crops, and animals. | Switch camera modes and explore from every angle. |
+---
 
-| Sculpt | Share |
-| --- | --- |
-| ![Sculpt terrain](assets/landing-feature-sculpt.png) | ![Share your tinyverse](assets/landing-feature-share.png) |
-| Raise, lower, paint, and tune the ground into cliffs and rivers. | Save, remix, export, and open worlds to real players. |
+> 🌍 基于 [jasonkneen/tiny-world-builder](https://github.com/jasonkneen/tiny-world-builder) 的中文本地化版本，界面完全中文化，开箱即用。
 
-## Running locally
+## 🚀 快速开始
 
-```bash
-npm run dev
-# serves http://localhost:3000/
-# builder lives at http://localhost:3000/tiny-world-builder
-# use another port with: npm run dev -- 3001
-
-# or open the static file directly (no dev server)
-open index.html
-```
-
-## Deploy
-
-The app deploys as a static site on Vercel or Netlify. Both host configs run
-`./publish.sh` and serve the generated `dist/` directory. The root
-`index.html` is the landing page, and the builder stays available at
-`/tiny-world-builder.html` and `/tiny-world-builder`. Three.js r128 and
-GLTFLoader are self-hosted from `vendor/three/` so deploys do not depend on
-runtime CDNs.
+1. 直接在浏览器中打开 `tiny-world-builder.html`
+2. 无需安装任何依赖，开箱即用
 
 ```bash
-npm test
-npm run build
-
-# Vercel
-vercel deploy
-
-# Netlify
-netlify deploy --build
-# or connect the repo in Netlify; netlify.toml supplies build/publish settings
+# 或克隆仓库
+git clone https://github.com/xuebadi/mini.git
+cd mini
 ```
 
-## Account Auth
+## ✨ 功能特性
 
-Netlify Identity remains the email/OAuth account provider. Phantom wallet login
-uses the same account APIs after the wallet signs a server challenge, then the
-function returns a signed wallet session bearer token. Set
-`TINYWORLD_WALLET_SESSION_SECRET` in Netlify before enabling wallet login in a
-real deploy.
+| 功能 | 说明 |
+|------|------|
+| 🏗️ **体素编辑器** | 8×8 网格，建造你的小世界 |
+| 🧩 **智能拼接** | 路径、河流、栅栏、房屋自动连接 |
+| 🎨 **17种元素** | 地形 / 建筑 / 装饰 / 生物 |
+| 🌤️ **天气系统** | 动态云朵、天气变化、昼夜流转 |
+| 📷 **多种视角** | 等距 / 俯视 / 透视 / 第一人称 |
+| 💾 **本地保存** | 多槽位存档，数据不丢失 |
+| 🌐 **多语言** | 中/英/法/西/泰，可自由切换 |
+| 📡 **离线可用** | 所有资源本地化，零网络依赖 |
+| 🥽 **AR/VR** | 支持 WebXR 模式 |
 
-## Controls
+## 🎮 操作指南
 
-| Action            | Input                                  |
-| ----------------- | -------------------------------------- |
-| Place             | click a cell                           |
-| Erase             | `E` then click, or pick the eraser     |
-| Orbit             | drag                                   |
-| Zoom              | scroll wheel                           |
-| Stack/enhance item | click the same object tool on an existing object (max 8) |
-| Raise/lower terrain | `R` / `F` over the hovered cell      |
-| Switch tool       | `1`–`9`, then letter shortcuts shown in the toolbar |
-| Back to Select    | `Esc` (disarms any build/paint/erase tool)          |
-| Toggle camera     | `P` or `I` (isometric ⇄ soft ⇄ perspective) |
-| Reset to preset   | reset button                           |
-| Clear to grass    | `C`                                    |
+### 基础操作
 
-## Vehicle runtime (Road AI)
+| 操作 | 方式 |
+|------|------|
+| 放置元素 | 选择工具 → 点击网格 |
+| 删除元素 | 按 `E` 或选择橡皮擦 |
+| 旋转视角 | 鼠标拖拽 |
+| 缩放 | 鼠标滚轮 |
+| 平移 | 右键拖拽 / 空格+拖拽 |
 
-Shareable seeded demo:
+### 高级操作
 
-```text
-http://localhost:3000/tiny-world-builder?demo=vehicles&seed=tide-ridge-428
-```
+| 操作 | 快捷键 |
+|------|--------|
+| 抬高地形 | `R` |
+| 降低地形 | `F` |
+| 切换视角 | `P` / `I` |
+| 命令面板 | `Ctrl+P` |
 
-Large-scale route stress URL:
+### 🧩 智能拼接示例
 
-```text
-http://localhost:3000/tiny-world-builder?demo=vehicles-large&seed=metro-culdesac-20&stats=1
-```
+- 🛤️ **路径** → 自动连接成完整道路
+- 🌊 **河流** → 自动生成河岸过渡
+- 🏠 **房屋** → L 型、T 型等建筑群
+- 🪨 **岩石** → 崎岖山石群
 
-Large demo URL params:
-
-- `size=` / `mapSize=` / `grid=` / `gridSize=` — rounded to the nearest valid demo grid size from `12` through `20` (`12`, `16`, `20`).
-- `cars=` / `carCount=` / `vehicles=` / `vehicleCount=` — clamped to `1..120` and capped by available unique route endpoints.
-
-Example:
-
-```text
-http://localhost:3000/tiny-world-builder?demo=vehicles-large&seed=ridge-loop-917&size=20&cars=18&stats=1
-```
-
-The large route defaults to a deterministic 20×20 map with arterial roads,
-ring roads, bridge crossings, cul-de-sac endpoints, and 36 runtime vehicles
-retargeting through long paths. Use it for route planner / traffic scale checks;
-the default bare-port redirect still opens the smaller watchable demo.
-
-Loading either URL creates the map, places delivery bots, assigns targets, and starts
-vehicles driving. The seed is deterministic; change the `seed=` value to get the
-same road layout with different deterministic scenery.
-
-You can also drive runtime vehicles through the same relay/API path used by `send-command.js`.
-
-- `vehicle-spawn --x <n> --z <n> --mode auto|manual --goalX <n> --goalZ <n>`
-- `vehicle-goal --id <id> --x <n> --z <n>`
-- `vehicle-controls --id <id> [--forward] [--reverse] [--left] [--right]`
-- `vehicle-remove --id <id|all>`
-- `vehicle-clear`
-
-Vehicles only move on `path` cells (or bridge cells used as road bridges). Placed objects on paths become live traffic blockers, so dropping a rock/tree/house/fence onto a road makes active cars reroute around that cell or stop if no alternate path exists. Runtime traffic checks also keep cars from passing through each other: vehicles brake/yield inside the collision envelope and, when blocked long enough, reroute around occupied road cells if the network has an alternate path.
-
-For live telemetry in the browser console:
-
-```js
-window.__getVehicleRuntimeSnapshot()
-```
-
-## Tools
-
-`Grass` · `Path` · `Dirt` · `Water` · `Stone` · `Lava` · `Sand` · `Snow` ·
-`House` · `Tree` · `Fence` · `Rock` · `Bridge` · `Crop` · `Corn` · `Wheat` ·
-`Pumpkin` · `Carrot` · `Sunflower` · `Tuft` · `Flower` · `Bush` · `Cow` ·
-`Sheep` · `Erase`.
-
-Terrain/object rules are normalized by the renderer: crops force dirt
-underneath, bridges force water, and ordinary objects do not float on water.
-Paths, shorelines, water foam, bridges, fences, castle walls, houses, and
-rocks are adjacency-aware — placing a neighbor re-renders surrounding cells
-so roads join, rivers get banks, bridge direction updates, fence walls connect,
-house clusters form L/T/+/square buildings, and rock cells grow into craggy
-outcrops.
-
-## Architecture
-
-Single `<script>` block, currently ~29k lines of vanilla JS, organised by section
-comments (`// -------- xyz --------`). The model is split cleanly:
-
-- **`world[x][z]`** — intent: `{ terrain, kind, floors }` per cell.
-- **`cellMeshes['x,z']`** — rendered Three.js groups for each cell.
-- **`setCell(x, z, opts)`** — single mutation entry point. Updates `world`,
-  rebuilds the cell's tile/object meshes, and re-renders any neighbors that
-  care about adjacency (fence/house clusters).
-
-House clusters use BFS (`bfsHouseCluster`) plus `tryComposite` (L/T/+) and
-`trySquare` to decide whether a group of house cells should render as a
-unified structure or stretched rectangles.
-
-A shared `dropAnims` queue ease-outs new tiles/objects into place. Other
-per-frame animations (tree sway, crop bob, smoke origin) check
-`obj.userData.landing` so they yield while a piece is still falling in.
-
-Newer systems are still routed through that same contract:
-
-- **Preview boards** lazily generate surrounding boards as the camera pans; preview distance/window/opacity settings auto-scale from board size but remain user-adjustable.
-- **AI generation / Auto** validate sparse v4 worlds against the embedded schema.
-- **Local world slots** keep multiple named saves in browser storage.
-- **Weather, time, clouds, and crop duster** are decorative scene systems layered on the same renderer.
-- **Command palette** indexes tools, views, settings, and terrain raise/lower actions.
-- **Mesh Terrain sculptor** (the "Mesh Terrain" toggle, right edge) is an opt-in
-  voxel-block landscape designer: lay a fine voxel grid over the whole board,
-  paint per-voxel materials (grass/sand/water/stone/dirt/snow/lava), then grab
-  the surface and pull voxels up/down. Each voxel keeps a **flat top** at its own
-  height with vertical step-walls between neighbours, so the result reads as
-  small flat-topped blocks depicting the layout (not a smooth/curved surface).
-  Pulling one voxel up drags its neighbours up too with a smoothstep "tension"
-  falloff. **Apply** keeps the block mesh as the rendered terrain (hiding the
-  flat home tiles) rather than baking back into per-tile terrain. Runtime
-  placement, selection highlights, vehicles, crowds, and Tinyverse avatars can
-  sample the block surface for grounding; state still lives under its own
-  `tinyworld:meshTerrain:*` localStorage keys and the world schema is unchanged.
-
-## Validation
-
-```bash
-npm test        # syntax, schema parity, local assets, static smoke checks
-npm run build   # publish checks + dist generation
-```
-
-Manual browser smoke checklist after visual changes: page loads with no console
-errors; place/erase works; `C`, `P`/`I`, `R`/`F`, and tool shortcuts respond;
-fence neighbors update; cloud shadow at 0% still leaves visible clouds.
-
-See [AGENTS.md](./AGENTS.md) for guidance on extending the codebase.
-
-## Star History
-
-If Tiny World Builder is useful to you, a star helps other builders find it.
-
-[![Star History Chart](https://api.star-history.com/svg?repos=jasonkneen/tiny-world-builder&type=Date)](https://star-history.com/#jasonkneen/tiny-world-builder&Date)
-
-## Files
+## 📁 文件结构
 
 ```
-tiny-world-builder.html          the app
-README.md                        this file
-AGENTS.md                        guidance for AI coding agents
-world.schema.json                import/export schema mirrored into the app
-tools/check.js                   static syntax/schema/asset check
-tools/smoke-static.js            no-browser smoke guard for key app contracts
-vendor/three/                    self-hosted Three.js r128 runtime files
+├── tiny-world-builder.html     # 主文件（默认中文）
+├── engine/
+│   ├── i18n/                   # 国际化
+│   │   ├── zh.js              # 中文翻译
+│   │   ├── en.js              # 英文翻译
+│   │   └── i18n-core.js       # 语言核心（默认: zh）
+│   └── world/                  # 世界逻辑
+├── styles/                      # 样式
+├── assets/                      # 资源
+├── vendor/                      # Three.js 等第三方库
+└── models/                      # 3D 模型
 ```
+
+## 🌐 语言切换
+
+点击右上角语言按钮即可切换：🇨🇳 中文 · 🇬🇧 English · 🇫🇷 Français · 🇪🇸 Español · 🇹🇭 ไทย
+
+## ❓ 常见问题
+
+<details>
+<summary><b>打开后界面是英文？</b></summary>
+
+清除浏览器缓存即可：
+
+```javascript
+localStorage.removeItem('tinyworld:lang');
+location.reload();
+```
+</details>
+
+<details>
+<summary><b>能离线使用吗？</b></summary>
+
+可以！所有资源（包括 Three.js）都已本地化，双击 HTML 即可。
+</details>
+
+<details>
+<summary><b>如何添加自定义元素？</b></summary>
+
+参考 `engine/world/19-tools-toolbar.js` 添加新工具定义。
+</details>
+
+## 📝 修改说明
+
+相比原项目，中文版做了以下修改：
+
+1. ✏️ `i18n-core.js` — 默认语言改为 `zh`
+2. 🏷️ HTML 标题改为"小宇宙 Builder"
+3. 🔤 添加思源黑体 (Noto Sans SC) 字体支持
+4. 📄 完整中文语言包
+
+## 🔗 原项目
+
+- **作者**: [Jason Kneen](https://github.com/jasonkneen)
+- **原仓库**: [jasonkneen/tiny-world-builder](https://github.com/jasonkneen/tiny-world-builder)
+- **许可**: AGPL-3.0
+
+---
+
+<p align="center">
+  享受建造你的小宇宙！🌍✨<br>
+  <sub>小宇宙 Builder · 中文版</sub>
+</p>
