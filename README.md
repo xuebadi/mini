@@ -9,7 +9,7 @@
 
 <p align="center">
   <strong>Tiny World Builder 中文版</strong><br>
-  在浏览器中建造你的像素小世界
+  在浏览器中建造你的像素小宇宙
 </p>
 
 <p align="center">
