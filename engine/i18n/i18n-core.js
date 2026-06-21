@@ -28,7 +28,7 @@
   'use strict';
 
   var SUPPORTED = ['en', 'fr', 'es', 'zh', 'th'];
-  var DEFAULT = 'en';
+  var DEFAULT = 'zh'; // 默认中文
   var LS_KEY = 'tinyworld:lang';
 
   // Endonyms (each language named in itself) for the switcher.
